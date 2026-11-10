@@ -448,12 +448,8 @@ function playAnimations(prevMeta, prevCards) {
   const deck = pileCenter('deck');
 
   const placedBy = new Map(); // card id -> opponent who just placed it
-  let myDraw = false;
   for (const e of events) {
-    if (e.pid === state.you) {
-      if (e.type === 'draw') myDraw = true;
-      continue;
-    }
+    if (e.pid === state.you) continue;
     if (e.type === 'discard' || e.type === 'layoff') placedBy.set(e.card, e.pid);
     else if (e.type === 'meld') e.cards.forEach((c) => placedBy.set(c, e.pid));
     else if (e.type === 'draw') ghostFly(null, deck, panelCenter(e.pid));
@@ -462,6 +458,7 @@ function playAnimations(prevMeta, prevCards) {
 
   let dealt = 0;
   let placed = 0;
+  let revealed = false;
   for (const el of document.querySelectorAll('[data-card]')) {
     const id = Number(el.dataset.card);
     const zone = el.dataset.zone;
@@ -473,8 +470,9 @@ function playAnimations(prevMeta, prevCards) {
       if (zone === 'hand' && before.selected !== selected) animateSelection(el, selected);
     } else if (zone === 'hand' && newHand && deck) {
       flyFrom(el, deck, { duration: DEAL_MS, delay: dealt++ * DEAL_STAGGER_MS });
-    } else if (zone === 'hand' && myDraw && deck) {
-      myDraw = false;
+    } else if (zone === 'hand' && !revealed && deck) {
+      // A card we have never seen showing up in our hand mid-hand can only be our own draw.
+      revealed = true;
       revealDraw(el, deck);
     } else if (zone === 'discard' && newHand && deck) {
       flyFrom(el, deck, { duration: DEAL_MS, delay: dealt++ * DEAL_STAGGER_MS });
