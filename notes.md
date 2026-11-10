@@ -1,0 +1,3 @@
+- animate card moving when drawing, droping and re-arranging. For this last one, "push" the cards and draw a higlight of where the card would appear if dropped
+- add chat and emotes
+- check that the rules correspond to the black company and test them myself
