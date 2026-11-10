@@ -11,7 +11,8 @@ const suitOf = (id) => Math.floor(id / 13);
 const cardValue = (id) => Math.min(rankOf(id), 10);
 const cardLabel = (id) => RANK_LABELS[rankOf(id) - 1] + SUIT_LABELS[suitOf(id)];
 
-function cardEl(id, { back = false, size = '', selected = false, onClick = null } = {}) {
+// `zone` ('hand' | 'discard' | 'meld') marks cards the animation layer should track by id.
+function cardEl(id, { back = false, size = '', selected = false, onClick = null, zone = null } = {}) {
   const el = document.createElement('div');
   el.className = 'card ' + size;
   if (id === null || id === undefined) {
@@ -20,6 +21,10 @@ function cardEl(id, { back = false, size = '', selected = false, onClick = null 
   } else {
     if (suitOf(id) === 1 || suitOf(id) === 2) el.classList.add('red');
     el.append(RANK_LABELS[rankOf(id) - 1], SUIT_LABELS[suitOf(id)]);
+    if (zone) {
+      el.dataset.card = id;
+      el.dataset.zone = zone;
+    }
   }
   if (selected) el.classList.add('selected');
   if (onClick) {
@@ -192,20 +197,24 @@ const DRAG_THRESHOLD_PX = 6;
 const drag = { active: false, pendingRender: false };
 
 function handCardEl(id, canDrag) {
-  const el = cardEl(id, { selected: state.selected.has(id) });
+  const el = cardEl(id, { selected: state.selected.has(id), zone: 'hand' });
   el.classList.add('clickable', 'in-hand');
   el.addEventListener('pointerdown', (e) => startHandPointer(e, id, el, canDrag));
   return el;
 }
 
-// Where a dragged card would be inserted among the other cards, in reading order.
-function insertionIndex(others, x, y) {
-  let index = 0;
-  for (const other of others) {
-    const r = other.getBoundingClientRect();
-    if (y > r.bottom || (y >= r.top && x > r.left + r.width / 2)) index++;
-  }
-  return index;
+// Index of the slot closest to a point. Slots are the hand's natural layout positions.
+function nearestSlot(slots, x, y) {
+  let best = 0;
+  let bestDist = Infinity;
+  slots.forEach((s, i) => {
+    const dist = Math.hypot(s.x + s.w / 2 - x, s.y + s.h / 2 - y);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i;
+    }
+  });
+  return best;
 }
 
 function startHandPointer(e, id, el, canDrag) {
@@ -213,10 +222,25 @@ function startHandPointer(e, id, el, canDrag) {
   const startX = e.clientX;
   const startY = e.clientY;
   const handEl = el.parentElement;
+  // Layout positions (offset*, so unaffected by transforms such as the selection lift).
+  const cards = [...handEl.querySelectorAll('.card.in-hand')];
+  const slots = cards.map((c) => ({ x: c.offsetLeft, y: c.offsetTop, w: c.offsetWidth, h: c.offsetHeight }));
+  const from = cards.indexOf(el);
   let dragging = false;
-  let insertAt = 0;
+  let insertAt = from;
+  let highlight = null;
 
-  const clearMarkers = () => handEl.querySelectorAll('.card').forEach((c) => c.classList.remove('drop-before', 'drop-after'));
+  const showInsertion = () => {
+    const s = slots[insertAt];
+    Object.assign(highlight.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${s.w}px`, height: `${s.h}px` });
+    // The other cards "push" apart: each one moves to the slot it would occupy after the drop.
+    cards.forEach((c, i) => {
+      if (c === el) return;
+      const j = i < from ? i : i - 1;
+      const target = slots[j < insertAt ? j : j + 1];
+      c.style.translate = `${target.x - slots[i].x}px ${target.y - slots[i].y}px`;
+    });
+  };
 
   const onMove = (ev) => {
     const dx = ev.clientX - startX;
@@ -226,13 +250,13 @@ function startHandPointer(e, id, el, canDrag) {
       dragging = true;
       drag.active = true;
       el.classList.add('dragging');
+      highlight = h('div', { class: 'slot-highlight' });
+      handEl.prepend(highlight); // behind the cards
     }
-    el.style.transform = `translate(${dx}px, ${dy}px)`;
-    const others = [...handEl.querySelectorAll('.card')].filter((c) => c !== el);
-    insertAt = insertionIndex(others, ev.clientX, ev.clientY);
-    clearMarkers();
-    if (insertAt < others.length) others[insertAt].classList.add('drop-before');
-    else if (others.length) others[others.length - 1].classList.add('drop-after');
+    el.style.transform = `translate(${dx}px, ${dy}px) scale(1.08)`;
+    const origin = slots[from];
+    insertAt = nearestSlot(slots, origin.x + origin.w / 2 + dx, origin.y + origin.h / 2 + dy);
+    showInsertion();
   };
 
   const finish = (ev) => {
@@ -316,6 +340,152 @@ function addChatMessage(message) {
 buildChat();
 
 // ---------------------------------------------------------------------------
+// Animation. Tracked cards ([data-card]) have their positions captured before
+// every render and compared afterwards (FLIP), so cards travel instead of
+// teleporting. New log events (with seq numbers) tell us which opponent moved a
+// card we have never seen, so it can fly in from their panel.
+// ---------------------------------------------------------------------------
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const fx = document.getElementById('fx');
+const anim = { meta: null };
+
+const EASE_OUT = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+const MOVE_MS = 280;
+const DEAL_MS = 380;
+const DEAL_STAGGER_MS = 90;
+const DRAW_MS = 1050; // fly to above the hand, hold, then slide in
+const GHOST_MS = 450;
+const SELECT_LIFT = 'translateY(-18px)'; // keep in sync with .card.selected in style.css
+
+const centerOf = (r) => ({ cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height });
+
+function captureCards() {
+  const cards = new Map();
+  for (const el of document.querySelectorAll('[data-card]')) {
+    cards.set(Number(el.dataset.card), { ...centerOf(el.getBoundingClientRect()), selected: el.classList.contains('selected') });
+  }
+  return cards;
+}
+
+function currentMeta() {
+  const room = state.room;
+  return { roomId: room.id, handNo: room.handNo, lastSeq: room.log.reduce((m, e) => Math.max(m, e.seq || 0), 0) };
+}
+
+const pileCenter = (name) => {
+  const el = document.querySelector(`[data-pile="${name}"] .card`);
+  return el ? centerOf(el.getBoundingClientRect()) : null;
+};
+const panelCenter = (pid) => {
+  const el = document.querySelector(`.opp[data-player="${CSS.escape(pid)}"]`);
+  return el ? centerOf(el.getBoundingClientRect()) : null;
+};
+
+// Slide an element from where `from` was to where it is now.
+function flyFrom(el, from, { duration = MOVE_MS, delay = 0, easing = EASE_OUT } = {}) {
+  const to = centerOf(el.getBoundingClientRect());
+  el.animate(
+    [
+      { translate: `${from.cx - to.cx}px ${from.cy - to.cy}px`, scale: from.w / to.w },
+      { translate: '0px 0px', scale: 1 },
+    ],
+    { duration, delay, easing, fill: 'backwards' },
+  );
+}
+
+function animateSelection(el, selected) {
+  el.animate(
+    [{ transform: selected ? 'none' : SELECT_LIFT }, { transform: selected ? SELECT_LIFT : 'none' }],
+    { duration: 160, easing: EASE_OUT },
+  );
+}
+
+// My own draw: out of the pile, up above the hand for a moment, then slides into place.
+function revealDraw(el, deck) {
+  const to = centerOf(el.getBoundingClientRect());
+  const handRect = el.parentElement.getBoundingClientRect();
+  const reveal = { cx: to.cx, cy: handRect.top - to.h / 2 + 6 };
+  const offset = (c) => `${c.cx - to.cx}px ${c.cy - to.cy}px`;
+  el.style.zIndex = 20;
+  const done = () => (el.style.zIndex = '');
+  const a = el.animate(
+    [
+      { translate: offset(deck), scale: deck.w / to.w, offset: 0, easing: EASE_OUT },
+      { translate: offset(reveal), scale: 1.2, offset: 0.3 },
+      { translate: offset(reveal), scale: 1.2, offset: 0.62, easing: 'ease-in-out' },
+      { translate: '0px 0px', scale: 1, offset: 1 },
+    ],
+    { duration: DRAW_MS, fill: 'backwards' },
+  );
+  a.onfinish = done;
+  a.oncancel = done;
+}
+
+// A throwaway card that flies between two points (used for cards that never appear in our DOM).
+function ghostFly(card, from, to) {
+  if (!from || !to) return;
+  const g = cardEl(card, { back: card === null });
+  g.classList.add('ghost');
+  Object.assign(g.style, { left: `${from.cx - from.w / 2}px`, top: `${from.cy - from.h / 2}px`, width: `${from.w}px`, height: `${from.h}px` });
+  fx.append(g);
+  const a = g.animate(
+    [
+      { translate: '0px 0px', scale: 1, opacity: 1 },
+      { translate: `${to.cx - from.cx}px ${to.cy - from.cy}px`, scale: 0.5, opacity: 0.5 },
+    ],
+    { duration: GHOST_MS, easing: 'ease-in-out', fill: 'forwards' },
+  );
+  a.onfinish = () => g.remove();
+  a.oncancel = () => g.remove();
+}
+
+function playAnimations(prevMeta, prevCards) {
+  const meta = anim.meta;
+  if (!prevMeta || !meta || prevMeta.roomId !== meta.roomId || reducedMotion.matches) return;
+  const newHand = prevMeta.handNo !== meta.handNo;
+  const known = newHand ? new Map() : prevCards; // card ids repeat across hands
+  const events = newHand ? [] : state.room.log.filter((e) => e.seq > prevMeta.lastSeq);
+  const deck = pileCenter('deck');
+
+  const placedBy = new Map(); // card id -> opponent who just placed it
+  let myDraw = false;
+  for (const e of events) {
+    if (e.pid === state.you) {
+      if (e.type === 'draw') myDraw = true;
+      continue;
+    }
+    if (e.type === 'discard' || e.type === 'layoff') placedBy.set(e.card, e.pid);
+    else if (e.type === 'meld') e.cards.forEach((c) => placedBy.set(c, e.pid));
+    else if (e.type === 'draw') ghostFly(null, deck, panelCenter(e.pid));
+    else if (e.type === 'takeDiscard') ghostFly(e.card, known.get(e.card) || pileCenter('discard'), panelCenter(e.pid));
+  }
+
+  let dealt = 0;
+  let placed = 0;
+  for (const el of document.querySelectorAll('[data-card]')) {
+    const id = Number(el.dataset.card);
+    const zone = el.dataset.zone;
+    const before = known.get(id);
+    if (before) {
+      const now = centerOf(el.getBoundingClientRect());
+      if (Math.hypot(before.cx - now.cx, before.cy - now.cy) > 2 || Math.abs(before.w - now.w) > 1) flyFrom(el, before);
+      const selected = el.classList.contains('selected');
+      if (zone === 'hand' && before.selected !== selected) animateSelection(el, selected);
+    } else if (zone === 'hand' && newHand && deck) {
+      flyFrom(el, deck, { duration: DEAL_MS, delay: dealt++ * DEAL_STAGGER_MS });
+    } else if (zone === 'hand' && myDraw && deck) {
+      myDraw = false;
+      revealDraw(el, deck);
+    } else if (zone === 'discard' && newHand && deck) {
+      flyFrom(el, deck, { duration: DEAL_MS, delay: dealt++ * DEAL_STAGGER_MS });
+    } else if (placedBy.has(id)) {
+      const panel = panelCenter(placedBy.get(id));
+      if (panel) flyFrom(el, { ...panel, w: panel.w * 0.2 }, { delay: placed++ * 70 });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Views
 // ---------------------------------------------------------------------------
 function render() {
@@ -327,6 +497,9 @@ function render() {
   const caret = [chat.input.selectionStart, chat.input.selectionEnd];
   const wasAtBottom = isChatAtBottom();
   const scrollTop = chat.logEl.scrollTop;
+  const prevMeta = anim.meta;
+  const prevCards = captureCards();
+  anim.meta = null;
   app.replaceChildren();
   if (!state.connected) {
     app.append(h('div', { class: 'screen' }, h('p', null, 'Connecting to server\u2026')));
@@ -338,6 +511,8 @@ function render() {
     app.append(renderRoom());
     fillChatLog();
     chat.logEl.scrollTop = wasAtBottom ? chat.logEl.scrollHeight : scrollTop;
+    anim.meta = currentMeta();
+    playAnimations(prevMeta, prevCards);
     if (hadFocus) {
       chat.input.focus();
       chat.input.setSelectionRange(caret[0], caret[1]);
@@ -475,7 +650,7 @@ function renderTable() {
     else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
     return h(
       'div',
-      { class: 'opp' + (round.turn === id ? ' turn' : '') + (info && !info.connected ? ' offline' : '') },
+      { class: 'opp' + (round.turn === id ? ' turn' : '') + (info && !info.connected ? ' offline' : ''), 'data-player': id },
       h('strong', null, nameOf(id)),
       h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, over ? ` \u2022 total ${p.total}` : ''),
       cards,
@@ -487,7 +662,7 @@ function renderTable() {
 
   const deck = h(
     'div',
-    { class: 'pile' },
+    { class: 'pile', 'data-pile': 'deck' },
     cardEl(null, { back: round.deckCount > 0, size: '', onClick: canDrawPhase ? () => sendAction({ type: 'draw' }) : null }),
     h('div', null, `Draw (${round.deckCount})`),
   );
@@ -498,8 +673,8 @@ function renderTable() {
       : null;
   const discard = h(
     'div',
-    { class: 'pile' },
-    cardEl(round.discardTop, { onClick: discardClick }),
+    { class: 'pile', 'data-pile': 'discard' },
+    cardEl(round.discardTop, { onClick: discardClick, zone: 'discard' }),
     h('div', null, canPlayPhase ? 'Discard here' : 'Discard'),
   );
 
@@ -509,7 +684,7 @@ function renderTable() {
       'div',
       { class: 'meld' + (canLayoff ? ' target' : ''), onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null },
       h('div', { class: 'label' }, `${nameOf(m.owner)} \u2013 ${m.type === 'set' ? 'set' : 'spread'}`),
-      h('div', { class: 'cards' }, m.cards.map((c) => cardEl(c, { size: 'mini' }))),
+      h('div', { class: 'cards' }, m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' }))),
     );
   });
 

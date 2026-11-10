@@ -1,4 +1,5 @@
-- animate card moving when drawing, droping and re-arranging. For this last one, "push" the cards and draw a higlight of where the card would appear if dropped
-- add chat  
-- add emotes, though think a bit how they should work before doing that
+- animate card moving when drawing, droping and re-arranging. For rearanging, "push" the cards and draw a higlight of where the card would appear if dropped. For drawing show it above the hand a brief moment before sliding it in. When a card is selected pull them a little bit out of the hand. Take inspiration from popular online card games like magic the gathering arena or slay the spire on youtube videos.
+- change the colors to a more gothic theme
+- add emotes like premade messages, though think a bit how they should work before doing that
+- show mouse cursor of each player to everyone and allow to click on the table or do some other small interactions
 - check that the rules correspond to the black company and test them myself

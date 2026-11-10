@@ -19,6 +19,7 @@ class Room {
     this.dealerIdx = 0;
     this.scores = {};
     this.log = [];
+    this.logSeq = 0; // lets clients tell which events are new
     this.chat = [];
     this.chatSeq = 1;
   }
@@ -28,7 +29,7 @@ class Room {
   }
 
   addLog(event) {
-    this.log.push(event);
+    this.log.push({ seq: ++this.logSeq, ...event });
     if (this.log.length > MAX_LOG) this.log.shift();
   }
 
