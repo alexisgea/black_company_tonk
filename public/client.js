@@ -119,7 +119,8 @@ function onMessage(msg) {
       state.you = msg.you;
       state.room = msg.room;
       state.view = 'room';
-      chat.messages = msg.room.chat;
+      chat.messages = msg.room.chat || [];
+      if (!msg.room.chat) toast('The server is an older version: restart it (npm start) to enable chat, reordering and opponent animations.');
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
       break;
