@@ -24,6 +24,8 @@ The server is authoritative; clients only send intents (`draw`, `takeDiscard`, `
 
 Identity is a random token kept in `localStorage`; refreshing or reconnecting resumes your seat. A disconnected player is removed after 60 s.
 
+Chat is per table (waiting room and in game): messages are trimmed, capped at 200 characters, limited to 5 per 5 seconds per player, rendered as plain text, and the last 50 are replayed on rejoin.
+
 ## Rules as implemented
 
 Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabinet](http://www.gamecabinet.com/rules/Tonk.html) rules for the cases BSFS leaves open.
@@ -42,5 +44,5 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 ## Known gaps / ideas
 
 - No turn timer: a connected but idle player stalls the table.
-- Players can join between hands, not mid-hand. No spectating, chat, or persistent accounts yet.
+- Players can join between hands, not mid-hand. No spectating or persistent accounts yet.
 - Single-process in-memory state; restarting the server drops all games.

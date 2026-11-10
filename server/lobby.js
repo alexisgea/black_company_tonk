@@ -6,6 +6,8 @@ const { GameError } = require('./tonk');
 const OPEN = 1; // ws.OPEN
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME = 20;
+const CHAT_BURST = 5; // messages allowed per window
+const CHAT_WINDOW_MS = 5000;
 
 function cleanName(raw) {
   if (typeof raw !== 'string') return null;
@@ -103,6 +105,7 @@ class Lobby {
         conn: null,
         room: null,
         timer: null,
+        chatTimes: [],
       };
       this.users.set(user.token, user);
     }
@@ -160,6 +163,16 @@ class Lobby {
         if (!room) throw new GameError('Not in a game');
         room.reorder(user, msg.cards);
         this.send(user.conn, room.view(user)); // only the owner can see their hand order
+        break;
+      }
+      case 'chat': {
+        if (!room) throw new GameError('Not in a game');
+        const now = Date.now();
+        user.chatTimes = user.chatTimes.filter((t) => now - t < CHAT_WINDOW_MS);
+        if (user.chatTimes.length >= CHAT_BURST) throw new GameError('You are sending messages too fast');
+        const message = room.addChat(user, msg.text);
+        user.chatTimes.push(now);
+        for (const p of room.players) this.send(p.conn, { t: 'chat', message });
         break;
       }
       default:

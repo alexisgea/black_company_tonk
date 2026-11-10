@@ -104,14 +104,19 @@ function onMessage(msg) {
       state.games = msg.games;
       state.room = null;
       state.view = 'lobby';
+      chat.messages = [];
       break;
     case 'room':
       state.you = msg.you;
       state.room = msg.room;
       state.view = 'room';
+      chat.messages = msg.room.chat;
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
       break;
+    case 'chat':
+      addChatMessage(msg.message); // no full re-render: keeps typing and drags undisturbed
+      return;
     case 'error':
       toast(msg.message);
       return;
@@ -262,6 +267,55 @@ function startHandPointer(e, id, el, canDrag) {
 }
 
 // ---------------------------------------------------------------------------
+// Chat: one persistent DOM node that is re-attached on every render, so incoming
+// game updates never clear the text being typed or the scroll position.
+// ---------------------------------------------------------------------------
+const MAX_CHAT_KEPT = 50;
+const chat = { messages: [], el: null, logEl: null, input: null };
+
+function buildChat() {
+  chat.logEl = h('div', { class: 'chat-log' });
+  chat.input = h('input', { type: 'text', maxLength: 200, placeholder: 'Say something\u2026', autocomplete: 'off' });
+  const form = h(
+    'form',
+    {
+      class: 'chat-form',
+      onSubmit: (e) => {
+        e.preventDefault();
+        const text = chat.input.value.trim();
+        if (!text) return;
+        send({ t: 'chat', text });
+        chat.input.value = '';
+      },
+    },
+    chat.input,
+    h('button', { type: 'submit' }, 'Send'),
+  );
+  chat.el = h('div', { class: 'panel chat' }, h('strong', null, 'Chat'), chat.logEl, form);
+}
+
+function fillChatLog() {
+  chat.logEl.replaceChildren(
+    ...chat.messages.map((m) =>
+      h('div', { class: 'chat-msg' + (m.pid === state.you ? ' mine' : '') }, h('strong', null, m.name + ': '), m.text),
+    ),
+  );
+}
+
+const isChatAtBottom = () => chat.logEl.scrollTop + chat.logEl.clientHeight >= chat.logEl.scrollHeight - 24;
+
+function addChatMessage(message) {
+  const last = chat.messages[chat.messages.length - 1];
+  if (last && last.id >= message.id) return;
+  const atBottom = isChatAtBottom();
+  chat.messages = [...chat.messages, message].slice(-MAX_CHAT_KEPT);
+  fillChatLog();
+  if (atBottom) chat.logEl.scrollTop = chat.logEl.scrollHeight;
+}
+
+buildChat();
+
+// ---------------------------------------------------------------------------
 // Views
 // ---------------------------------------------------------------------------
 function render() {
@@ -269,6 +323,10 @@ function render() {
     drag.pendingRender = true; // never rebuild the DOM under an active drag
     return;
   }
+  const hadFocus = document.activeElement === chat.input;
+  const caret = [chat.input.selectionStart, chat.input.selectionEnd];
+  const wasAtBottom = isChatAtBottom();
+  const scrollTop = chat.logEl.scrollTop;
   app.replaceChildren();
   if (!state.connected) {
     app.append(h('div', { class: 'screen' }, h('p', null, 'Connecting to server\u2026')));
@@ -276,7 +334,15 @@ function render() {
   }
   if (state.view === 'name') app.append(renderName());
   else if (state.view === 'lobby') app.append(renderLobby());
-  else if (state.view === 'room') app.append(renderRoom());
+  else if (state.view === 'room') {
+    app.append(renderRoom());
+    fillChatLog();
+    chat.logEl.scrollTop = wasAtBottom ? chat.logEl.scrollHeight : scrollTop;
+    if (hadFocus) {
+      chat.input.focus();
+      chat.input.setSelectionRange(caret[0], caret[1]);
+    }
+  }
 }
 
 function renderName() {
@@ -351,12 +417,13 @@ function renderRoom() {
       ),
       h(
         'div',
-        { class: 'row' },
+        { class: 'row', style: 'margin-bottom:14px' },
         h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
         leave,
         rulesButton(),
         h('span', { class: 'muted' }, isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026'),
       ),
+      chat.el,
     );
   }
   return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave));
@@ -382,6 +449,7 @@ function renderSide(leaveBtn) {
       h('strong', null, 'Scores'),
       room.players.map((p) => h('div', null, h('span', null, p.name + (p.connected ? '' : ' (offline)')), h('span', null, String(p.score)))),
     ),
+    chat.el,
     h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
   );
 }

@@ -118,6 +118,41 @@ test('reorder: only the owner gets the new order back, opponents are not notifie
   assert.deepEqual(alice.last('room').room.round.players[view.you].hand, reversed);
 });
 
+test('chat: delivered to everyone in the room, stored in history, sanitised and rate limited', () => {
+  const lobby = new Lobby();
+  const alice = connect(lobby, 'Alice');
+  const bob = connect(lobby, 'Bob');
+  const carol = connect(lobby, 'Carol'); // lobby only, must not see room chat
+  say(lobby, alice, { t: 'createGame' });
+  say(lobby, bob, { t: 'joinGame', gameId: bob.last('lobby').games[0].id });
+
+  say(lobby, alice, { t: 'chat', text: '  hello \u0007 <b>there</b>  ' });
+  const got = bob.last('chat').message;
+  assert.equal(got.name, 'Alice');
+  assert.equal(got.text, 'hello <b>there</b>'); // trimmed, control chars removed; HTML is left for the client to escape
+  assert.equal(alice.last('chat').message.id, got.id);
+  assert.equal(carol.last('chat'), undefined);
+
+  say(lobby, bob, { t: 'chat', text: 'x'.repeat(500) });
+  assert.equal(alice.last('chat').message.text.length, 200);
+
+  say(lobby, bob, { t: 'chat', text: '   ' });
+  assert.match(bob.last('error').message, /empty/i);
+  say(lobby, bob, { t: 'chat', text: 42 });
+  assert.match(bob.last('error').message, /empty/i);
+  say(lobby, carol, { t: 'chat', text: 'hi' });
+  assert.match(carol.last('error').message, /game/i);
+
+  // History is part of the room view, so rejoining/reconnecting players get it back.
+  say(lobby, alice, { t: 'leaveGame' });
+  say(lobby, alice, { t: 'joinGame', gameId: alice.last('lobby').games[0].id });
+  assert.deepEqual(alice.last('room').room.chat.map((m) => m.text), ['hello <b>there</b>', 'x'.repeat(200)]);
+
+  // Rate limit: at most 5 messages per 5 seconds per player.
+  for (let i = 0; i < 6; i++) say(lobby, alice, { t: 'chat', text: `spam ${i}` });
+  assert.match(alice.last('error').message, /too fast/i);
+});
+
 test('input validation', () => {
   const lobby = new Lobby();
   const c = fakeConn();

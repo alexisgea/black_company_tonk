@@ -2,6 +2,8 @@
 const tonk = require('./tonk');
 
 const MAX_LOG = 60;
+const MAX_CHAT = 50;
+const MAX_CHAT_LENGTH = 200;
 
 // One table of players: seating, running scores and the current hand.
 class Room {
@@ -17,6 +19,8 @@ class Room {
     this.dealerIdx = 0;
     this.scores = {};
     this.log = [];
+    this.chat = [];
+    this.chatSeq = 1;
   }
 
   get joinable() {
@@ -77,6 +81,19 @@ class Room {
     if (this.round.result) this.settle();
   }
 
+  addChat(user, raw) {
+    if (!this.players.includes(user)) throw new tonk.GameError('Not in this game');
+    const text =
+      typeof raw === 'string'
+        ? raw.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH)
+        : '';
+    if (!text) throw new tonk.GameError('Message is empty');
+    const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
+    this.chat.push(message);
+    if (this.chat.length > MAX_CHAT) this.chat.shift();
+    return message;
+  }
+
   reorder(user, cards) {
     if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
     tonk.reorderHand(this.round, user.id, cards);
@@ -120,6 +137,7 @@ class Room {
         })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
         log: this.log,
+        chat: this.chat,
       },
     };
   }
