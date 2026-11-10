@@ -1,6 +1,5 @@
-- implement add/remove bot button
 - don't commit everytime, let me say when we should commit
-- remove button, make the animation pause shorter when drawing -> make a config file for me to tune these values
+- make the animation pause shorter when drawing -> make a config file for me to tune these values?
 - change the colors to a more gothic theme
 - add emotes like premade messages, though think a bit how they should work before doing that
 - show mouse cursor of each player to everyone and allow to click on the table or do some other small interactions

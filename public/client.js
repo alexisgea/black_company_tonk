@@ -199,20 +199,6 @@ function closeRules() {
 }
 
 const rulesButton = () => h('button', { class: 'secondary', onClick: openRules }, 'Rules');
-const motionButton = () =>
-  h(
-    'button',
-    {
-      class: 'secondary',
-      title: 'Turn card animations on or off',
-      onClick: () => {
-        motion.off = !motion.off;
-        localStorage.setItem('tonk.motion', motion.off ? 'off' : 'on');
-        render();
-      },
-    },
-    motion.off ? 'Animations: off' : 'Animations: on',
-  );
 buildRules();
 
 // ---------------------------------------------------------------------------
@@ -370,9 +356,8 @@ buildChat();
 // teleporting. New log events (with seq numbers) tell us which opponent moved a
 // card we have never seen, so it can fly in from their panel.
 // ---------------------------------------------------------------------------
-// Own setting rather than prefers-reduced-motion: the OS/browser flag is easy to have on without noticing.
-const motion = { off: localStorage.getItem('tonk.motion') === 'off' };
 const fx = document.getElementById('fx');
+localStorage.removeItem('tonk.motion'); // leftover from the removed animations toggle
 const anim = { meta: null };
 
 const EASE_OUT = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
@@ -472,7 +457,7 @@ function ghostFly(card, from, to) {
 
 function playAnimations(prevMeta, prevCards) {
   const meta = anim.meta;
-  if (!prevMeta || !meta || prevMeta.roomId !== meta.roomId || motion.off) return;
+  if (!prevMeta || !meta || prevMeta.roomId !== meta.roomId) return;
   const newHand = prevMeta.handNo !== meta.handNo;
   const known = newHand ? new Map() : prevCards; // card ids repeat across hands
   const events = newHand ? [] : state.room.log.filter((e) => e.seq > prevMeta.lastSeq);
@@ -630,7 +615,6 @@ function renderLobby() {
       h('span', { class: 'spacer' }),
       h('button', { class: 'secondary', onClick: () => { state.view = 'name'; render(); } }, 'Change name'),
       rulesButton(),
-      motionButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create game'),
     ),
     h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open games'), list),
@@ -689,13 +673,7 @@ function renderSide(leaveBtn) {
       'div',
       { class: 'panel' },
       h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
-      h(
-        'div',
-        { class: 'row' },
-        h('span', { class: 'muted' }, `Hand #${room.handNo}`),
-        h('span', { class: 'spacer' }),
-        motionButton(),
-      ),
+      h('div', { class: 'muted' }, `Hand #${room.handNo}`),
     ),
     h(
       'div',
