@@ -153,6 +153,71 @@ test('chat: delivered to everyone in the room, stored in history, sanitised and 
   assert.match(alice.last('error').message, /too fast/i);
 });
 
+test('dev bots: refused outside dev mode and for non-hosts', () => {
+  const lobby = new Lobby();
+  const alice = connect(lobby, 'Alice');
+  say(lobby, alice, { t: 'createGame' });
+  say(lobby, alice, { t: 'addBot' });
+  assert.match(alice.last('error').message, /dev mode/i);
+
+  const dev = new Lobby({ dev: true });
+  const host = connect(dev, 'Host');
+  const guest = connect(dev, 'Guest');
+  assert.equal(host.last('welcome').dev, true);
+  say(dev, host, { t: 'createGame' });
+  say(dev, guest, { t: 'joinGame', gameId: guest.last('lobby').games[0].id });
+  say(dev, guest, { t: 'addBot' });
+  assert.match(guest.last('error').message, /host/i);
+});
+
+test('dev bots: join, play their turns automatically, and rooms with only bots are removed', async () => {
+  const lobby = new Lobby({ dev: true, botDelayMs: 5 });
+  const host = connect(lobby, 'Host');
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, host, { t: 'addBot' });
+  const players = host.last('room').room.players;
+  assert.equal(players.length, 2);
+  assert.equal(players[1].isBot, true);
+  assert.equal(players[1].connected, true);
+
+  say(lobby, host, { t: 'startGame' });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const state = () => host.last('room').room;
+  if (state().status === 'playing') {
+    // Play the human side for a few turns; the bot must answer every time on its own.
+    for (let i = 0; i < 3 && state().status === 'playing'; i++) {
+      const me = host.last('room').you;
+      for (let w = 0; w < 100 && state().status === 'playing' && state().round.turn !== me; w++) await wait(10);
+      if (state().status !== 'playing') break;
+      assert.equal(state().round.turn, me, 'bot handed the turn back');
+      say(lobby, host, { t: 'action', action: { type: 'draw' } });
+      const hand = state().round.players[me].hand;
+      say(lobby, host, { t: 'action', action: { type: 'discard', card: hand[hand.length - 1] } });
+    }
+    assert.ok(state().log.some((e) => e.type === 'draw' || e.type === 'takeDiscard') && state().log.some((e) => e.pid === players[1].id));
+  }
+
+  say(lobby, host, { t: 'leaveGame' });
+  assert.equal(lobby.rooms.size, 0);
+});
+
+test('dev bots: can be removed between hands but not mid-hand', () => {
+  const lobby = new Lobby({ dev: true, botDelayMs: 100000 });
+  const host = connect(lobby, 'Host');
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, host, { t: 'addBot' });
+  const botId = host.last('room').room.players[1].id;
+  say(lobby, host, { t: 'removeBot', id: botId });
+  assert.equal(host.last('room').room.players.length, 1);
+  say(lobby, host, { t: 'addBot' });
+  say(lobby, host, { t: 'startGame' });
+  if (host.last('room').room.status === 'playing') {
+    say(lobby, host, { t: 'removeBot', id: host.last('room').room.players[1].id });
+    assert.match(host.last('error').message, /finish/i);
+  }
+  say(lobby, host, { t: 'leaveGame' });
+});
+
 test('input validation', () => {
   const lobby = new Lobby();
   const c = fakeConn();

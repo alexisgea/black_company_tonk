@@ -1,4 +1,5 @@
 'use strict';
+const crypto = require('crypto');
 const tonk = require('./tonk');
 
 const MAX_LOG = 60;
@@ -28,6 +29,31 @@ class Room {
     return this.status !== 'playing' && this.players.length < tonk.MAX_PLAYERS;
   }
 
+  get humans() {
+    return this.players.filter((p) => !p.isBot);
+  }
+
+  // Dev-only computer player. It has no connection; the lobby plays its turns.
+  addBot() {
+    const bots = this.players.filter((p) => p.isBot).length;
+    const bot = {
+      id: crypto.randomBytes(4).toString('hex'),
+      name: `Bot ${bots + 1}`,
+      isBot: true,
+      conn: null,
+      room: null,
+    };
+    this.join(bot);
+    return bot;
+  }
+
+  removeBot(id) {
+    const bot = this.players.find((p) => p.id === id && p.isBot);
+    if (!bot) throw new tonk.GameError('No such bot');
+    if (this.status === 'playing') throw new tonk.GameError('Wait for the hand to finish');
+    this.leave(bot);
+  }
+
   addLog(event) {
     this.log.push({ seq: ++this.logSeq, ...event });
     if (this.log.length > MAX_LOG) this.log.shift();
@@ -53,7 +79,7 @@ class Room {
     this.players.splice(idx, 1);
     delete this.scores[user.id];
     user.room = null;
-    if (this.hostId === user.id) this.hostId = this.players.length ? this.players[0].id : null;
+    if (this.hostId === user.id) this.hostId = this.humans[0]?.id ?? null;
   }
 
   startHand(user) {
@@ -130,11 +156,13 @@ class Room {
         handNo: this.handNo,
         dealerId: this.players[this.dealerIdx % this.players.length]?.id ?? null,
         minPlayers: tonk.MIN_PLAYERS,
+        maxPlayers: tonk.MAX_PLAYERS,
         players: this.players.map((p) => ({
           id: p.id,
           name: p.name,
           score: this.scores[p.id],
-          connected: !!p.conn,
+          connected: p.isBot || !!p.conn,
+          isBot: !!p.isBot,
         })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
         log: this.log,

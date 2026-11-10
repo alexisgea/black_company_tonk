@@ -5,10 +5,17 @@ Small multiplayer web card game. Node server (`ws` + plain `http`), vanilla JS c
 ```
 npm install
 npm start        # http://localhost:3000  (PORT env var to change)
+npm run dev      # same, plus bots, and the server restarts itself when server files change
 npm test
 ```
 
 Open the page, enter a name, create a game or join one from the list (2-6 players). The host starts the game.
+
+### Dev mode and bots
+
+Run **`npm run dev`** (this is `node --watch server/index.js --dev`). In dev mode the host sees an **Add bot** button in the waiting room and between hands, and a **Remove** button next to each bot. Bots are computer players that run inside the server (no second process): they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`.
+
+Dev mode is off in plain `npm start`, and the server refuses bot requests then. Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
 ## Layout
 
@@ -17,7 +24,8 @@ Open the page, enter a name, create a game or join one from the list (2-6 player
 | `server/tonk.js` | Pure rules engine (deal, tonk, go down, melds, layoffs, scoring). No I/O. |
 | `server/room.js` | One table: seating, running scores, hand lifecycle, per-player views. |
 | `server/lobby.js` | Connections, identity/reconnect, game list, message routing. |
-| `server/index.js` | HTTP static server + WebSocket glue. |
+| `server/index.js` | HTTP static server + WebSocket glue. `--dev` enables bots. |
+| `server/bot.js` | Bot decision logic (dev mode). |
 | `public/client.js` | UI. Card drawing lives in the marked "Theme" section; `style.css` has a matching theme block. |
 
 The server is authoritative; clients only send intents (`draw`, `takeDiscard`, `meld`, `layoff`, `discard`, `goDown`) and receive a per-player view (opponent hands are never sent until the hand ends). Hand order is stored server-side: dealt cards are unsorted, new cards are appended on the right, and players can drag cards to reorder (`reorder` message, never affects game state).

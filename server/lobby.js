@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const { Room } = require('./room');
 const { GameError } = require('./tonk');
+const { chooseAction } = require('./bot');
 
 const OPEN = 1; // ws.OPEN
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -18,9 +19,12 @@ function cleanName(raw) {
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
-  constructor({ graceMs = 60000, rng = Math.random } = {}) {
+  // dev: allow adding computer players. botDelayMs: pause before a bot moves.
+  constructor({ graceMs = 60000, rng = Math.random, dev = false, botDelayMs = 1200 } = {}) {
     this.graceMs = graceMs;
     this.rng = rng;
+    this.dev = dev;
+    this.botDelayMs = botDelayMs;
     this.users = new Map(); // private token -> user
     this.rooms = new Map(); // room id -> Room
   }
@@ -44,6 +48,38 @@ class Lobby {
 
   broadcastRoom(room) {
     for (const user of room.players) this.send(user.conn, room.view(user));
+    this.scheduleBot(room);
+  }
+
+  // If it is a bot's turn, play it after a short pause. Every state change flows through
+  // broadcastRoom, so this is the only hook needed. At most one pending move per room.
+  scheduleBot(room) {
+    if (room.botTimer || room.status !== 'playing') return;
+    const turnId = room.round.order[room.round.turn];
+    if (!room.players.some((p) => p.isBot && p.id === turnId)) return;
+    room.botTimer = setTimeout(() => {
+      room.botTimer = null;
+      const bot = room.players.find((p) => p.isBot && p.id === turnId);
+      if (!bot || room.status !== 'playing' || room.round.order[room.round.turn] !== turnId) {
+        this.scheduleBot(room);
+        return;
+      }
+      const wasPlaying = room.status === 'playing';
+      try {
+        room.act(bot, chooseAction(room.round, bot.id));
+      } catch (err) {
+        console.error('Bot move failed:', err);
+        return;
+      }
+      this.broadcastRoom(room);
+      if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
+    }, this.botDelayMs);
+    room.botTimer.unref?.();
+  }
+
+  deleteRoom(room) {
+    clearTimeout(room.botTimer);
+    this.rooms.delete(room.id);
   }
 
   newRoomId() {
@@ -59,7 +95,7 @@ class Lobby {
     const room = user.room;
     if (!room) return;
     room.leave(user);
-    if (room.players.length === 0) this.rooms.delete(room.id);
+    if (room.humans.length === 0) this.deleteRoom(room);
     else this.broadcastRoom(room);
     this.broadcastLobby();
   }
@@ -112,7 +148,7 @@ class Lobby {
     if (!user.room) user.name = name;
     user.conn = conn;
     conn.user = user;
-    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name });
+    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name, dev: this.dev });
     if (user.room) this.broadcastRoom(user.room);
     else this.send(conn, { t: 'lobby', games: this.gameList() });
   }
@@ -163,6 +199,24 @@ class Lobby {
         if (!room) throw new GameError('Not in a game');
         room.reorder(user, msg.cards);
         this.send(user.conn, room.view(user)); // only the owner can see their hand order
+        break;
+      }
+      case 'addBot': {
+        if (!this.dev) throw new GameError('Bots are only available in dev mode (npm run dev)');
+        if (!room) throw new GameError('Not in a game');
+        if (room.hostId !== user.id) throw new GameError('Only the host can add bots');
+        room.addBot();
+        this.broadcastRoom(room);
+        this.broadcastLobby();
+        break;
+      }
+      case 'removeBot': {
+        if (!this.dev) throw new GameError('Bots are only available in dev mode (npm run dev)');
+        if (!room) throw new GameError('Not in a game');
+        if (room.hostId !== user.id) throw new GameError('Only the host can remove bots');
+        room.removeBot(msg.id);
+        this.broadcastRoom(room);
+        this.broadcastLobby();
         break;
       }
       case 'chat': {

@@ -64,6 +64,7 @@ const state = {
   room: null,
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
+  dev: false, // server started with --dev: bots can be added
 };
 
 let toastTimer;
@@ -106,6 +107,7 @@ function onMessage(msg) {
       state.token = msg.token;
       state.you = msg.id;
       state.name = msg.name;
+      state.dev = !!msg.dev;
       localStorage.setItem('tonk.token', msg.token);
       localStorage.setItem('tonk.name', msg.name);
       break;
@@ -621,13 +623,21 @@ function renderRoom() {
         { class: 'panel' },
         h('h3', { style: 'margin-top:0' }, 'Players'),
         room.players.map((p) =>
-          h('div', null, p.name, p.id === room.hostId ? ' (host)' : '', p.id === state.you ? ' (you)' : '', p.connected ? '' : ' \u2013 disconnected'),
+          h(
+            'div',
+            { class: 'row' },
+            h('span', null, p.name, p.id === room.hostId ? ' (host)' : '', p.id === state.you ? ' (you)' : '', p.connected ? '' : ' \u2013 disconnected'),
+            state.dev && isHost && p.isBot
+              ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
+              : null,
+          ),
         ),
       ),
       h(
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
         h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
+        addBotButton(),
         leave,
         rulesButton(),
         h('span', { class: 'muted' }, isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026'),
@@ -836,7 +846,23 @@ function renderResult(round) {
     { class: 'panel result' },
     h('strong', null, headline),
     h('div', { class: 'hands' }, rows),
-    h('button', { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) }, canDeal ? 'Deal next hand' : 'Waiting for players\u2026'),
+    h(
+      'div',
+      { class: 'row' },
+      h('button', { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) }, canDeal ? 'Deal next hand' : 'Waiting for players\u2026'),
+      addBotButton(),
+    ),
+  );
+}
+
+// Dev mode only (server started with --dev), host only.
+function addBotButton() {
+  const room = state.room;
+  if (!state.dev || room.hostId !== state.you) return null;
+  return h(
+    'button',
+    { class: 'secondary', disabled: room.players.length >= room.maxPlayers, onClick: () => send({ t: 'addBot' }) },
+    'Add bot',
   );
 }
 
