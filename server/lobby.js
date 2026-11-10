@@ -19,11 +19,10 @@ function cleanName(raw) {
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
-  // dev: allow adding computer players. botDelayMs: pause before a bot moves.
-  constructor({ graceMs = 60000, rng = Math.random, dev = false, botDelayMs = 1200 } = {}) {
+  // botDelayMs: pause before a bot moves.
+  constructor({ graceMs = 60000, rng = Math.random, botDelayMs = 1200 } = {}) {
     this.graceMs = graceMs;
     this.rng = rng;
-    this.dev = dev;
     this.botDelayMs = botDelayMs;
     this.users = new Map(); // private token -> user
     this.rooms = new Map(); // room id -> Room
@@ -130,6 +129,7 @@ class Lobby {
     if (user) {
       clearTimeout(user.timer);
       if (user.conn && user.conn !== conn) {
+        this.send(user.conn, { t: 'replaced' });
         user.conn.user = null;
         user.conn.close();
       }
@@ -148,7 +148,7 @@ class Lobby {
     if (!user.room) user.name = name;
     user.conn = conn;
     conn.user = user;
-    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name, dev: this.dev });
+    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name });
     if (user.room) this.broadcastRoom(user.room);
     else this.send(conn, { t: 'lobby', games: this.gameList() });
   }
@@ -202,7 +202,6 @@ class Lobby {
         break;
       }
       case 'addBot': {
-        if (!this.dev) throw new GameError('Bots are only available in dev mode (npm run dev)');
         if (!room) throw new GameError('Not in a game');
         if (room.hostId !== user.id) throw new GameError('Only the host can add bots');
         room.addBot();
@@ -211,7 +210,6 @@ class Lobby {
         break;
       }
       case 'removeBot': {
-        if (!this.dev) throw new GameError('Bots are only available in dev mode (npm run dev)');
         if (!room) throw new GameError('Not in a game');
         if (room.hostId !== user.id) throw new GameError('Only the host can remove bots');
         room.removeBot(msg.id);

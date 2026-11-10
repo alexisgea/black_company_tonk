@@ -83,6 +83,20 @@ test('reconnect with token resumes the seat; grace timeout removes the player', 
   assert.equal(lobby.rooms.size, 0);
 });
 
+test('a second connection with the same token takes the seat and tells the old one', () => {
+  const lobby = new Lobby();
+  const first = connect(lobby, 'Alice');
+  const token = first.last('welcome').token;
+  const second = fakeConn();
+  say(lobby, second, { t: 'hello', name: 'Alice', token });
+  assert.ok(first.last('replaced'));
+  assert.equal(first.closed, true);
+  assert.equal(second.last('welcome').token, token);
+  // The old connection closing afterwards must not remove the user or their seat.
+  lobby.disconnect(first);
+  assert.equal(lobby.users.size, 1);
+});
+
 test('leaving hands over host; mid-hand leave with two players aborts the hand', () => {
   const lobby = new Lobby();
   const alice = connect(lobby, 'Alice');
@@ -153,25 +167,26 @@ test('chat: delivered to everyone in the room, stored in history, sanitised and 
   assert.match(alice.last('error').message, /too fast/i);
 });
 
-test('dev bots: refused outside dev mode and for non-hosts', () => {
+test('bots: only the host can add or remove them', () => {
   const lobby = new Lobby();
-  const alice = connect(lobby, 'Alice');
-  say(lobby, alice, { t: 'createGame' });
-  say(lobby, alice, { t: 'addBot' });
-  assert.match(alice.last('error').message, /dev mode/i);
-
-  const dev = new Lobby({ dev: true });
-  const host = connect(dev, 'Host');
-  const guest = connect(dev, 'Guest');
-  assert.equal(host.last('welcome').dev, true);
-  say(dev, host, { t: 'createGame' });
-  say(dev, guest, { t: 'joinGame', gameId: guest.last('lobby').games[0].id });
-  say(dev, guest, { t: 'addBot' });
+  const host = connect(lobby, 'Host');
+  const guest = connect(lobby, 'Guest');
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, guest, { t: 'joinGame', gameId: guest.last('lobby').games[0].id });
+  say(lobby, guest, { t: 'addBot' });
   assert.match(guest.last('error').message, /host/i);
+  say(lobby, host, { t: 'addBot' });
+  assert.equal(host.last('room').room.players.length, 3);
+  const botId = host.last('room').room.players[2].id;
+  say(lobby, guest, { t: 'removeBot', id: botId });
+  assert.match(guest.last('error').message, /host/i);
+  say(lobby, host, { t: 'removeBot', id: guest.last('room').you }); // not a bot
+  assert.match(host.last('error').message, /no such bot/i);
+  say(lobby, host, { t: 'leaveGame' });
 });
 
-test('dev bots: join, play their turns automatically, and rooms with only bots are removed', async () => {
-  const lobby = new Lobby({ dev: true, botDelayMs: 5 });
+test('bots: join, play their turns automatically, and rooms with only bots are removed', async () => {
+  const lobby = new Lobby({ botDelayMs: 5 });
   const host = connect(lobby, 'Host');
   say(lobby, host, { t: 'createGame' });
   say(lobby, host, { t: 'addBot' });
@@ -201,8 +216,8 @@ test('dev bots: join, play their turns automatically, and rooms with only bots a
   assert.equal(lobby.rooms.size, 0);
 });
 
-test('dev bots: can be removed between hands but not mid-hand', () => {
-  const lobby = new Lobby({ dev: true, botDelayMs: 100000 });
+test('bots: can be removed between hands but not mid-hand', () => {
+  const lobby = new Lobby({ botDelayMs: 100000 });
   const host = connect(lobby, 'Host');
   say(lobby, host, { t: 'createGame' });
   say(lobby, host, { t: 'addBot' });

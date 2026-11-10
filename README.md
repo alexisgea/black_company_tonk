@@ -5,17 +5,17 @@ Small multiplayer web card game. Node server (`ws` + plain `http`), vanilla JS c
 ```
 npm install
 npm start        # http://localhost:3000  (PORT env var to change)
-npm run dev      # same, plus bots, and the server restarts itself when server files change
+npm run dev      # same, but the server restarts itself when server files change
 npm test
 ```
 
 Open the page, enter a name, create a game or join one from the list (2-6 players). The host starts the game.
 
-### Dev mode and bots
+### Bots
 
-Run **`npm run dev`** (this is `node --watch server/index.js --dev`). In dev mode the host sees an **Add bot** button in the waiting room and between hands, and a **Remove** button next to each bot. Bots are computer players that run inside the server (no second process): they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`.
+The host of a game can fill empty seats with computer players: **Add bot** in the waiting room and between hands, **Remove** next to each bot (not during a hand). Bots count toward the 2-6 players, so you can play alone against bots. They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A game is removed when its last human leaves.
 
-Dev mode is off in plain `npm start`, and the server refuses bot requests then. Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
+Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
 ## Layout
 
@@ -24,13 +24,13 @@ Dev mode is off in plain `npm start`, and the server refuses bot requests then. 
 | `server/tonk.js` | Pure rules engine (deal, tonk, go down, melds, layoffs, scoring). No I/O. |
 | `server/room.js` | One table: seating, running scores, hand lifecycle, per-player views. |
 | `server/lobby.js` | Connections, identity/reconnect, game list, message routing. |
-| `server/index.js` | HTTP static server + WebSocket glue. `--dev` enables bots. |
-| `server/bot.js` | Bot decision logic (dev mode). |
+| `server/index.js` | HTTP static server + WebSocket glue. |
+| `server/bot.js` | Bot decision logic. |
 | `public/client.js` | UI. Card drawing lives in the marked "Theme" section; `style.css` has a matching theme block. |
 
 The server is authoritative; clients only send intents (`draw`, `takeDiscard`, `meld`, `layoff`, `discard`, `goDown`) and receive a per-player view (opponent hands are never sent until the hand ends). Hand order is stored server-side: dealt cards are unsorted, new cards are appended on the right, and players can drag cards to reorder (`reorder` message, never affects game state).
 
-Identity is a random token kept in `localStorage`; refreshing or reconnecting resumes your seat. A disconnected player is removed after 60 s.
+Identity is a random token kept in `sessionStorage` (per browser tab): refreshing or reconnecting a tab resumes its seat, and two tabs are two different players, handy for testing. If a seat is somehow taken over by a second connection with the same token, the old tab stops reconnecting and offers a "Use this tab" button. A disconnected player is removed after 60 s.
 
 Chat is per table (waiting room and in game): messages are trimmed, capped at 200 characters, limited to 5 per 5 seconds per player, rendered as plain text, and the last 50 are replayed on rejoin.
 

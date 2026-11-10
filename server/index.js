@@ -6,7 +6,6 @@ const { WebSocketServer } = require('ws');
 const { Lobby } = require('./lobby');
 
 const PORT = Number(process.env.PORT) || 3000;
-const DEV = process.argv.includes('--dev');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -44,7 +43,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const lobby = new Lobby({ dev: DEV });
+const lobby = new Lobby();
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
 
 wss.on('connection', (ws) => {
@@ -70,4 +69,4 @@ const heartbeat = setInterval(() => {
 }, 30000);
 wss.on('close', () => clearInterval(heartbeat));
 
-server.listen(PORT, () => console.log(`Tonk server listening on http://localhost:${PORT}${DEV ? ' (dev mode: bots enabled)' : ''}`));
+server.listen(PORT, () => console.log(`Tonk server listening on http://localhost:${PORT}`));

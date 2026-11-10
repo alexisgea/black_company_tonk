@@ -52,19 +52,21 @@ function h(tag, props, ...children) {
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
+localStorage.removeItem('tonk.token'); // older builds shared one token across tabs
 
 const state = {
   ws: null,
   name: localStorage.getItem('tonk.name') || '',
-  token: localStorage.getItem('tonk.token') || '',
+  // Per tab (sessionStorage), so two tabs are two players instead of fighting over one seat.
+  token: sessionStorage.getItem('tonk.token') || '',
   connected: false,
+  replaced: false, // this seat was taken over by another tab: stop reconnecting
   view: 'name', // 'name' | 'lobby' | 'room'
   games: [],
   you: null,
   room: null,
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
-  dev: false, // server started with --dev: bots can be added
 };
 
 let toastTimer;
@@ -97,7 +99,7 @@ function connect() {
   ws.addEventListener('close', () => {
     state.connected = false;
     render();
-    setTimeout(connect, 1500);
+    if (!state.replaced) setTimeout(connect, 1500);
   });
 }
 
@@ -107,10 +109,12 @@ function onMessage(msg) {
       state.token = msg.token;
       state.you = msg.id;
       state.name = msg.name;
-      state.dev = !!msg.dev;
-      localStorage.setItem('tonk.token', msg.token);
+      sessionStorage.setItem('tonk.token', msg.token);
       localStorage.setItem('tonk.name', msg.name);
       break;
+    case 'replaced':
+      state.replaced = true;
+      return;
     case 'lobby':
       state.games = msg.games;
       state.room = null;
@@ -536,6 +540,31 @@ function render() {
   const prevCards = captureCards();
   anim.meta = null;
   app.replaceChildren();
+  if (state.replaced) {
+    app.append(
+      h(
+        'div',
+        { class: 'screen' },
+        h('h1', null, 'Tonk'),
+        h(
+          'div',
+          { class: 'panel' },
+          h('p', null, 'This game was opened in another tab or window, so this one was disconnected.'),
+          h(
+            'button',
+            {
+              onClick: () => {
+                state.replaced = false;
+                connect();
+              },
+            },
+            'Use this tab',
+          ),
+        ),
+      ),
+    );
+    return;
+  }
   if (!state.connected) {
     app.append(h('div', { class: 'screen' }, h('p', null, 'Connecting to server\u2026')));
     return;
@@ -627,7 +656,7 @@ function renderRoom() {
             'div',
             { class: 'row' },
             h('span', null, p.name, p.id === room.hostId ? ' (host)' : '', p.id === state.you ? ' (you)' : '', p.connected ? '' : ' \u2013 disconnected'),
-            state.dev && isHost && p.isBot
+            isHost && p.isBot
               ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
               : null,
           ),
@@ -855,10 +884,10 @@ function renderResult(round) {
   );
 }
 
-// Dev mode only (server started with --dev), host only.
+// Host only: bots fill empty seats (up to the table limit).
 function addBotButton() {
   const room = state.room;
-  if (!state.dev || room.hostId !== state.you) return null;
+  if (room.hostId !== state.you) return null;
   return h(
     'button',
     { class: 'secondary', disabled: room.players.length >= room.maxPlayers, onClick: () => send({ t: 'addBot' }) },
