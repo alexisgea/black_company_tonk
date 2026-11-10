@@ -26,7 +26,7 @@ Identity is a random token kept in `localStorage`; refreshing or reconnecting re
 
 Chat is per table (waiting room and in game): messages are trimmed, capped at 200 characters, limited to 5 per 5 seconds per player, rendered as plain text, and the last 50 are replayed on rejoin.
 
-Animations live in the "Animation" section of `public/client.js`. The UI re-renders from scratch on every update, so tracked cards (`data-card`) have their positions captured before each render and compared afterwards (FLIP, via the Web Animations API). Server log events carry a `seq`, which tells the client which opponent just moved a card it has never seen, so it can fly in from their panel. Animations are skipped when the OS has "reduce motion" enabled.
+Animations live in the "Animation" section of `public/client.js`. The UI re-renders from scratch on every update, so tracked cards (`data-card`) have their positions captured before each render and compared afterwards (FLIP, via the Web Animations API). Server log events carry a `seq`, which tells the client which opponent just moved a card it has never seen, so it can fly in from their panel. Animations are controlled by an in-app "Animations: on/off" toggle (stored in `localStorage`) rather than the OS "reduce motion" flag, which is easy to have enabled without noticing.
 
 ## Rules as implemented
 

@@ -74,6 +74,10 @@ function toast(message) {
   toastTimer = setTimeout(() => (toastEl.hidden = true), 3500);
 }
 
+// Surface script errors in the UI so a broken animation or render never fails silently.
+window.addEventListener('error', (e) => toast(`Script error: ${e.message}`));
+window.addEventListener('unhandledrejection', (e) => toast(`Script error: ${e.reason?.message || e.reason}`));
+
 function send(msg) {
   if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(msg));
 }
@@ -188,6 +192,20 @@ function closeRules() {
 }
 
 const rulesButton = () => h('button', { class: 'secondary', onClick: openRules }, 'Rules');
+const motionButton = () =>
+  h(
+    'button',
+    {
+      class: 'secondary',
+      title: 'Turn card animations on or off',
+      onClick: () => {
+        motion.off = !motion.off;
+        localStorage.setItem('tonk.motion', motion.off ? 'off' : 'on');
+        render();
+      },
+    },
+    motion.off ? 'Animations: off' : 'Animations: on',
+  );
 buildRules();
 
 // ---------------------------------------------------------------------------
@@ -345,7 +363,8 @@ buildChat();
 // teleporting. New log events (with seq numbers) tell us which opponent moved a
 // card we have never seen, so it can fly in from their panel.
 // ---------------------------------------------------------------------------
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+// Own setting rather than prefers-reduced-motion: the OS/browser flag is easy to have on without noticing.
+const motion = { off: localStorage.getItem('tonk.motion') === 'off' };
 const fx = document.getElementById('fx');
 const anim = { meta: null };
 
@@ -369,7 +388,12 @@ function captureCards() {
 
 function currentMeta() {
   const room = state.room;
-  return { roomId: room.id, handNo: room.handNo, lastSeq: room.log.reduce((m, e) => Math.max(m, e.seq || 0), 0) };
+  return {
+    roomId: room.id,
+    handNo: room.handNo,
+    ended: !!room.round?.result,
+    lastSeq: room.log.reduce((m, e) => Math.max(m, e.seq || 0), 0),
+  };
 }
 
 const pileCenter = (name) => {
@@ -441,7 +465,7 @@ function ghostFly(card, from, to) {
 
 function playAnimations(prevMeta, prevCards) {
   const meta = anim.meta;
-  if (!prevMeta || !meta || prevMeta.roomId !== meta.roomId || reducedMotion.matches) return;
+  if (!prevMeta || !meta || prevMeta.roomId !== meta.roomId || motion.off) return;
   const newHand = prevMeta.handNo !== meta.handNo;
   const known = newHand ? new Map() : prevCards; // card ids repeat across hands
   const events = newHand ? [] : state.room.log.filter((e) => e.seq > prevMeta.lastSeq);
@@ -479,6 +503,16 @@ function playAnimations(prevMeta, prevCards) {
     } else if (placedBy.has(id)) {
       const panel = panelCenter(placedBy.get(id));
       if (panel) flyFrom(el, { ...panel, w: panel.w * 0.2 }, { delay: placed++ * 70 });
+    }
+  }
+
+  // The hand just ended (someone went down, Tonk, or emptied their hand): hands are turned over onto the table.
+  if (meta.ended && !prevMeta.ended) {
+    for (const row of document.querySelectorAll('.result .hand-row')) {
+      const pid = row.dataset.player;
+      const from = pid === state.you ? centerOf(document.querySelector('.me-panel .hand').getBoundingClientRect()) : panelCenter(pid);
+      if (!from) continue;
+      row.querySelectorAll('.card').forEach((el, i) => flyFrom(el, { ...from, w: from.w * 0.1 }, { duration: 420, delay: i * 70 }));
     }
   }
 }
@@ -564,6 +598,7 @@ function renderLobby() {
       h('span', { class: 'spacer' }),
       h('button', { class: 'secondary', onClick: () => { state.view = 'name'; render(); } }, 'Change name'),
       rulesButton(),
+      motionButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create game'),
     ),
     h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open games'), list),
@@ -614,7 +649,13 @@ function renderSide(leaveBtn) {
       'div',
       { class: 'panel' },
       h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
-      h('div', { class: 'muted' }, `Hand #${room.handNo}`),
+      h(
+        'div',
+        { class: 'row' },
+        h('span', { class: 'muted' }, `Hand #${room.handNo}`),
+        h('span', { class: 'spacer' }),
+        motionButton(),
+      ),
     ),
     h(
       'div',
@@ -782,7 +823,7 @@ function renderResult(round) {
   const rows = round.order.map((id) =>
     h(
       'div',
-      { class: 'hand-row' },
+      { class: 'hand-row', 'data-player': id },
       h('span', { class: 'who' }, `${nameOf(id)} (${r.totals[id]})`),
       r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
       h('span', { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') }, r.deltas[id] > 0 ? `+${r.deltas[id]}` : String(r.deltas[id])),
