@@ -1,6 +1,7 @@
 'use strict';
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Lobby } = require('./lobby');
@@ -25,6 +26,13 @@ const LIMITS = {
   roomIdleMinutes: intEnv('ROOM_IDLE_MINUTES', 30),
 };
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+// IPv4 addresses other devices on the network can use to reach this machine.
+const lanUrls = (port) =>
+  Object.values(os.networkInterfaces())
+    .flat()
+    .filter((i) => i && (i.family === 'IPv4' || i.family === 4) && !i.internal)
+    .map((i) => `http://${i.address}:${port}`);
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -126,6 +134,11 @@ const heartbeat = setInterval(() => {
 wss.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, HOST, () => {
-  console.log(`Tonk server listening on http://${HOST || 'localhost'}:${PORT}`);
+  const { address, port } = server.address();
+  const loopbackOnly = address === '127.0.0.1' || address === '::1';
+  console.log(`Tonk server listening on port ${port} (${loopbackOnly ? 'this machine only' : 'all network interfaces'})`);
+  console.log(`  This machine:    http://localhost:${port}`);
+  if (loopbackOnly) console.log('  Other devices cannot connect: HOST is set to a loopback address.');
+  else for (const url of lanUrls(port)) console.log(`  On your network: ${url}`);
   if (TRUST_PROXY) console.log('TRUST_PROXY is on: client IPs are read from proxy headers.');
 });

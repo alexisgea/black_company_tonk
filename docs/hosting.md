@@ -17,7 +17,7 @@ This guide covers a Raspberry Pi 4 exposed to the internet with a Cloudflare Tun
    npm ci --omit=dev
    npm start
    ```
-3. From another device on your network open `http://<pi-ip>:3000`. It should work.
+3. From another device on your network open `http://<pi-ip>:3000` (not `localhost`, which means "this device"). The server prints the addresses it can be reached at when it starts: `journalctl -u <service> -n 20`, or `hostname -I` on the Pi. It should work.
 
 ### Keep it running (systemd)
 
