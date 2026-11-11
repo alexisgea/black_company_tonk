@@ -23,6 +23,14 @@ class Room {
     this.logSeq = 0; // lets clients tell which events are new
     this.chat = [];
     this.chatSeq = 1;
+    this.bannedIds = new Set(); // players the host removed; they cannot rejoin this game
+    this.lastActivity = Date.now(); // last time a human did anything here (drives the idle timeout)
+    this.idleWarned = false;
+  }
+
+  touch(now = Date.now()) {
+    this.lastActivity = now;
+    this.idleWarned = false;
   }
 
   get joinable() {
@@ -60,6 +68,7 @@ class Room {
   }
 
   join(user) {
+    if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this game by the host');
     if (!this.joinable) throw new tonk.GameError('That game cannot be joined right now');
     this.players.push(user);
     this.scores[user.id] = 0;
@@ -68,10 +77,11 @@ class Room {
     this.addLog({ type: 'join', pid: user.id, name: user.name });
   }
 
-  leave(user) {
+  // `reason` is the log event type: 'leave' normally, 'kick' when the host removes a player.
+  leave(user, reason = 'leave') {
     const idx = this.players.indexOf(user);
     if (idx === -1) return;
-    this.addLog({ type: 'leave', pid: user.id, name: user.name });
+    this.addLog({ type: reason, pid: user.id, name: user.name });
     if (this.status === 'playing') {
       tonk.removePlayer(this.round, user.id);
       if (this.round.result) this.settle();

@@ -22,6 +22,7 @@ const LIMITS = {
   connectsPerMinutePerIp: intEnv('CONNECTS_PER_MINUTE_PER_IP', 60),
   messagesPer5Seconds: intEnv('MESSAGES_PER_5_SECONDS', 60),
   maxRooms: intEnv('MAX_ROOMS', 100),
+  roomIdleMinutes: intEnv('ROOM_IDLE_MINUTES', 30),
 };
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const MIME = {
@@ -62,7 +63,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const lobby = new Lobby({ maxRooms: LIMITS.maxRooms });
+const lobby = new Lobby({ maxRooms: LIMITS.maxRooms, roomIdleMs: LIMITS.roomIdleMinutes * 60000 });
 const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
 const openByIp = new Map(); // ip -> open connection count
 const connectLimiters = new Map(); // ip -> RateLimiter for new connections
@@ -120,6 +121,7 @@ const heartbeat = setInterval(() => {
     ws.ping();
   }
   for (const [ip, limiter] of connectLimiters) if (limiter.idle()) connectLimiters.delete(ip);
+  lobby.sweepIdleRooms();
 }, 30000);
 wss.on('close', () => clearInterval(heartbeat));
 

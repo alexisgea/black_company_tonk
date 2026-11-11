@@ -93,13 +93,14 @@ These protect a public server. All have safe defaults and can be changed with en
 | Messages per connection per 5 seconds (over the limit: disconnected) | 60 | `MESSAGES_PER_5_SECONDS` |
 | Total simultaneous connections | 300 | `MAX_CONNECTIONS` |
 | Total games at once | 100 | `MAX_ROOMS` |
+| A game nobody has touched for this long is closed (everyone gets a warning 2 minutes before) | 30 minutes | `ROOM_IDLE_MINUTES` |
 | Games one player can create per minute | 5 | (built in) |
 | Chat messages per player per 5 seconds | 5 | (built in) |
 | Chat message length / name length / message size | 200 / 20 / 4 KB | (built in) |
 
 Other variables: `PORT` (default 3000), `HOST` (default: all interfaces), `TRUST_PROXY` (see above).
 
-Not covered: a single connected player can sit idle in a game forever, and there is no login, banning, or moderation of names and chat. Cloudflare itself absorbs ordinary traffic floods.
+Not covered: there is no login, banning across games, or moderation of names and chat. Cloudflare itself absorbs ordinary traffic floods. Games that are connected but untouched are handled by the idle timeout above; the host can also remove players (**Kick**).
 
 ## 4. Updating
 

@@ -22,12 +22,23 @@ function cleanName(raw) {
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
   // botDelayMs: pause before a bot moves. maxRooms / createsPerMinute: abuse limits.
-  constructor({ graceMs = 60000, rng = Math.random, botDelayMs = 1200, maxRooms = 100, createsPerMinute = 5 } = {}) {
+  // roomIdleMs: a game nobody has touched for this long is closed (warning idleWarningMs before).
+  constructor({
+    graceMs = 60000,
+    rng = Math.random,
+    botDelayMs = 1200,
+    maxRooms = 100,
+    createsPerMinute = 5,
+    roomIdleMs = 30 * 60000,
+    idleWarningMs = 2 * 60000,
+  } = {}) {
     this.graceMs = graceMs;
     this.rng = rng;
     this.botDelayMs = botDelayMs;
     this.maxRooms = maxRooms;
     this.createsPerMinute = createsPerMinute;
+    this.roomIdleMs = roomIdleMs;
+    this.idleWarningMs = idleWarningMs;
     this.users = new Map(); // private token -> user
     this.rooms = new Map(); // room id -> Room
   }
@@ -85,6 +96,33 @@ class Lobby {
     this.rooms.delete(room.id);
   }
 
+  // Closes a game and sends everyone in it back to the lobby with an explanation.
+  closeRoom(room, message) {
+    const members = room.humans;
+    this.deleteRoom(room);
+    for (const user of members) {
+      user.room = null;
+      this.send(user.conn, { t: 'closed', message });
+    }
+    this.broadcastLobby();
+  }
+
+  // Called periodically. Games nobody has touched for roomIdleMs are closed, after one warning.
+  sweepIdleRooms(now = Date.now()) {
+    for (const room of [...this.rooms.values()]) {
+      const idle = now - room.lastActivity;
+      if (idle >= this.roomIdleMs) {
+        this.closeRoom(room, 'This game was closed because nobody did anything for a while.');
+      } else if (!room.idleWarned && this.roomIdleMs > this.idleWarningMs && idle >= this.roomIdleMs - this.idleWarningMs) {
+        room.idleWarned = true;
+        const minutes = Math.max(1, Math.ceil((this.roomIdleMs - idle) / 60000));
+        for (const user of room.humans) {
+          this.send(user.conn, { t: 'notice', message: `This game will close in about ${minutes} min if nobody does anything.` });
+        }
+      }
+    }
+  }
+
   newRoomId() {
     for (;;) {
       let id = '';
@@ -94,10 +132,10 @@ class Lobby {
   }
 
   // Detaches `user` from their room, tidying up the room and notifying everyone affected.
-  leaveRoom(user) {
+  leaveRoom(user, reason = 'leave') {
     const room = user.room;
     if (!room) return;
-    room.leave(user);
+    room.leave(user, reason);
     if (room.humans.length === 0) this.deleteRoom(room);
     else this.broadcastRoom(room);
     this.broadcastLobby();
@@ -160,6 +198,7 @@ class Lobby {
 
   onMessage(user, msg) {
     const room = user.room;
+    room?.touch(); // anything a player sends counts as using the game
     switch (msg.t) {
       case 'createGame': {
         if (room) throw new GameError('Already in a game');
@@ -177,8 +216,20 @@ class Lobby {
         const r = typeof msg.gameId === 'string' ? this.rooms.get(msg.gameId.toUpperCase()) : null;
         if (!r) throw new GameError('That game no longer exists');
         r.join(user);
+        r.touch();
         this.broadcastRoom(r);
         this.broadcastLobby();
+        break;
+      }
+      case 'kick': {
+        if (!room) throw new GameError('Not in a game');
+        if (room.hostId !== user.id) throw new GameError('Only the host can remove players');
+        const target = room.players.find((p) => p.id === msg.id && !p.isBot);
+        if (!target) throw new GameError('No such player');
+        if (target === user) throw new GameError('You cannot remove yourself');
+        room.bannedIds.add(target.id);
+        this.send(target.conn, { t: 'kicked' });
+        this.leaveRoom(target, 'kick'); // also updates the table and sends the lobby list to the kicked player
         break;
       }
       case 'leaveGame': {

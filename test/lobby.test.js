@@ -256,6 +256,94 @@ test('abuse limits: room cap and create-game rate limit', () => {
   assert.equal(limited.rooms.size, 0);
 });
 
+test('kick: host can remove a human (even mid-hand), they cannot rejoin, others cannot kick', () => {
+  const lobby = new Lobby({ botDelayMs: 100000 });
+  const host = connect(lobby, 'Host');
+  const bob = connect(lobby, 'Bob');
+  const cy = connect(lobby, 'Cy');
+  say(lobby, host, { t: 'createGame' });
+  const gameId = host.last('room').room.id;
+  say(lobby, bob, { t: 'joinGame', gameId });
+  say(lobby, cy, { t: 'joinGame', gameId });
+  const bobId = bob.last('room').you;
+
+  say(lobby, bob, { t: 'kick', id: cy.last('room').you });
+  assert.match(bob.last('error').message, /host/i);
+  say(lobby, host, { t: 'kick', id: host.last('room').you });
+  assert.match(host.last('error').message, /yourself/i);
+  say(lobby, host, { t: 'addBot' });
+  say(lobby, host, { t: 'kick', id: host.last('room').room.players.find((p) => p.isBot).id });
+  assert.match(host.last('error').message, /no such player/i);
+
+  say(lobby, host, { t: 'startGame' });
+  say(lobby, host, { t: 'kick', id: bobId });
+  assert.ok(bob.last('kicked'), 'kicked player is told');
+  assert.equal(bob.inbox.at(-1).t, 'lobby', 'and returned to the lobby');
+  const view = host.last('room').room;
+  assert.equal(view.players.some((p) => p.id === bobId), false);
+  assert.ok(view.log.some((e) => e.type === 'kick' && e.pid === bobId));
+  assert.ok(['playing', 'between'].includes(view.status)); // three players became two: the table carries on
+
+  say(lobby, bob, { t: 'joinGame', gameId });
+  assert.match(bob.last('error').message, /removed/i);
+  say(lobby, host, { t: 'leaveGame' });
+});
+
+test('room lifecycle: host leaving passes the host role on; rooms with no humans are deleted', () => {
+  const lobby = new Lobby({ botDelayMs: 100000 });
+  const a = connect(lobby, 'A');
+  const b = connect(lobby, 'B');
+  say(lobby, a, { t: 'createGame' });
+  say(lobby, b, { t: 'joinGame', gameId: a.last('room').room.id });
+  say(lobby, a, { t: 'addBot' });
+  say(lobby, a, { t: 'leaveGame' }); // creator leaves: the room survives, B becomes host
+  assert.equal(lobby.rooms.size, 1);
+  assert.equal(b.last('room').room.hostId, b.last('room').you);
+  say(lobby, b, { t: 'leaveGame' }); // only a bot left: removed
+  assert.equal(lobby.rooms.size, 0);
+
+  say(lobby, a, { t: 'createGame' });
+  say(lobby, a, { t: 'leaveGame' }); // empty: removed
+  assert.equal(lobby.rooms.size, 0);
+});
+
+test('idle rooms: warned, then closed; activity resets the clock', () => {
+  const lobby = new Lobby({ roomIdleMs: 10 * 60000, idleWarningMs: 2 * 60000 });
+  const host = connect(lobby, 'Host');
+  const guest = connect(lobby, 'Guest');
+  say(lobby, host, { t: 'createGame' });
+  const room = [...lobby.rooms.values()][0];
+  say(lobby, guest, { t: 'joinGame', gameId: room.id });
+  const t0 = room.lastActivity;
+
+  lobby.sweepIdleRooms(t0 + 5 * 60000); // not idle enough yet
+  assert.equal(host.last('notice'), undefined);
+
+  lobby.sweepIdleRooms(t0 + 8.5 * 60000); // inside the warning window
+  assert.match(host.last('notice').message, /close in about \d+ min/i);
+  assert.ok(guest.last('notice'));
+  const notices = host.inbox.filter((m) => m.t === 'notice').length;
+  lobby.sweepIdleRooms(t0 + 9 * 60000); // only warned once
+  assert.equal(host.inbox.filter((m) => m.t === 'notice').length, notices);
+
+  say(lobby, guest, { t: 'chat', text: 'still here' }); // any activity resets the timer and the warning
+  const t1 = room.lastActivity;
+  assert.ok(t1 >= t0);
+  lobby.sweepIdleRooms(t1 + 9 * 60000);
+  assert.equal(lobby.rooms.size, 1);
+
+  lobby.sweepIdleRooms(t1 + 10 * 60000 + 1);
+  assert.equal(lobby.rooms.size, 0);
+  assert.match(host.last('closed').message, /closed/i);
+  assert.ok(guest.last('closed'));
+  assert.equal(host.inbox.at(-1).t, 'lobby');
+  assert.equal(host.last('lobby').games.length, 0);
+
+  // Closed players are back in the lobby and can create new games.
+  say(lobby, host, { t: 'createGame' });
+  assert.ok(host.last('room'));
+});
+
 test('input validation', () => {
   const lobby = new Lobby();
   const c = fakeConn();

@@ -67,14 +67,15 @@ const state = {
   room: null,
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
+  confirmKick: null, // player id whose "Kick" button was clicked, waiting for confirmation
 };
 
 let toastTimer;
-function toast(message) {
+function toast(message, ms = 3500) {
   toastEl.textContent = message;
   toastEl.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toastEl.hidden = true), 3500);
+  toastTimer = setTimeout(() => (toastEl.hidden = true), ms);
 }
 
 // Surface script errors in the UI so a broken animation or render never fails silently.
@@ -129,9 +130,20 @@ function onMessage(msg) {
       if (!msg.room.chat) toast('The server is an older version: restart it (npm start) to enable chat, reordering and opponent animations.');
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
+      if (state.confirmKick && !msg.room.players.some((p) => p.id === state.confirmKick)) state.confirmKick = null;
       break;
     case 'chat':
       addChatMessage(msg.message); // no full re-render: keeps typing and drags undisturbed
+      return;
+    case 'kicked':
+      state.confirmKick = null;
+      toast('The host removed you from the game.', 6000);
+      return; // the lobby list that follows takes you back to the lobby
+    case 'closed':
+      toast(msg.message, 7000);
+      return;
+    case 'notice':
+      toast(msg.message, 9000);
       return;
     case 'error':
       toast(msg.message);
@@ -642,7 +654,7 @@ function renderRoom() {
             h('span', null, p.name, p.id === room.hostId ? ' (host)' : '', p.id === state.you ? ' (you)' : '', p.connected ? '' : ' \u2013 disconnected'),
             isHost && p.isBot
               ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
-              : null,
+              : kickControls(p),
           ),
         ),
       ),
@@ -679,7 +691,9 @@ function renderSide(leaveBtn) {
       'div',
       { class: 'panel scores' },
       h('strong', null, 'Scores'),
-      room.players.map((p) => h('div', null, h('span', null, p.name + (p.connected ? '' : ' (offline)')), h('span', null, String(p.score)))),
+      room.players.map((p) =>
+        h('div', null, h('span', null, p.name + (p.connected ? '' : ' (offline)'), ' ', kickControls(p)), h('span', null, String(p.score))),
+      ),
     ),
     chat.el,
     h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
@@ -862,6 +876,49 @@ function renderResult(round) {
   );
 }
 
+// Host only: remove a human player (inline confirmation, no browser popup).
+function kickControls(p) {
+  if (state.room.hostId !== state.you || p.isBot || p.id === state.you) return null;
+  if (state.confirmKick !== p.id) {
+    return h(
+      'button',
+      {
+        class: 'secondary small-btn',
+        title: `Remove ${p.name} from the game`,
+        onClick: () => {
+          state.confirmKick = p.id;
+          render();
+        },
+      },
+      'Kick',
+    );
+  }
+  return [
+    h(
+      'button',
+      {
+        class: 'small-btn',
+        onClick: () => {
+          state.confirmKick = null;
+          send({ t: 'kick', id: p.id });
+        },
+      },
+      'Confirm',
+    ),
+    h(
+      'button',
+      {
+        class: 'secondary small-btn',
+        onClick: () => {
+          state.confirmKick = null;
+          render();
+        },
+      },
+      'Cancel',
+    ),
+  ];
+}
+
 // Host only: bots fill empty seats (up to the table limit).
 function addBotButton() {
   const room = state.room;
@@ -894,6 +951,7 @@ function formatEvent(e) {
   switch (e.type) {
     case 'join': return `${who} joined.`;
     case 'leave': return `${who} left.`;
+    case 'kick': return `${who} was removed by the host.`;
     case 'deal': return `Hand #${e.hand} dealt by ${who}.`;
     case 'draw': return `${who} drew from the pile.`;
     case 'takeDiscard': return `${who} took ${cardLabel(e.card)} from the discard.`;

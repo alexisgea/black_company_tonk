@@ -17,6 +17,13 @@ The host of a game can fill empty seats with computer players: **Add bot** in th
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
+### Games: lifetime and hosts
+
+- A game is deleted when its last **human** leaves, so an empty game and a game with only bots are removed immediately. A player who disconnects (closed tab, lost connection) is removed after 60 seconds, which can trigger the same cleanup.
+- If the creator leaves, the game continues and the host role passes to the next human, who gets the host controls (Start game, bots, Kick).
+- A game nobody has touched for 30 minutes (any message from a player in it counts: moves, chat, button clicks, even reordering cards) is closed: everyone gets a warning 2 minutes before, then returns to the lobby. Change it with `ROOM_IDLE_MINUTES`.
+- The host can **Kick** any human player at any time, with a confirmation (waiting room or the scoreboard during play). Kicked players cannot rejoin that game. Kicking mid-hand removes their cards from play; if only one player would remain, the hand is cancelled with no payoff.
+
 ### Hosting
 
 See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, exposing it with a Cloudflare Tunnel, and the abuse-limit settings (environment variables such as `HOST`, `TRUST_PROXY`, `MAX_CONNECTIONS_PER_IP`).
