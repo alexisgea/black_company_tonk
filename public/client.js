@@ -876,9 +876,10 @@ function renderResult(round) {
   );
 }
 
-// Host only: remove a human player (inline confirmation, no browser popup).
+// Host only: remove a human (Kick) or a bot (Remove), with an inline confirmation (no browser popup).
 function kickControls(p) {
-  if (state.room.hostId !== state.you || p.isBot || p.id === state.you) return null;
+  if (state.room.hostId !== state.you || p.id === state.you) return null;
+  const label = p.isBot ? 'Remove' : 'Kick';
   if (state.confirmKick !== p.id) {
     return h(
       'button',
@@ -890,7 +891,7 @@ function kickControls(p) {
           render();
         },
       },
-      'Kick',
+      label,
     );
   }
   return [
@@ -900,7 +901,7 @@ function kickControls(p) {
         class: 'small-btn',
         onClick: () => {
           state.confirmKick = null;
-          send({ t: 'kick', id: p.id });
+          send({ t: p.isBot ? 'removeBot' : 'kick', id: p.id });
         },
       },
       'Confirm',

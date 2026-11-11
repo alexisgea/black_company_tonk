@@ -216,7 +216,7 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   assert.equal(lobby.rooms.size, 0);
 });
 
-test('bots: can be removed between hands but not mid-hand', () => {
+test('bots: can be removed at any time, including mid-hand', () => {
   const lobby = new Lobby({ botDelayMs: 100000 });
   const host = connect(lobby, 'Host');
   say(lobby, host, { t: 'createGame' });
@@ -224,11 +224,26 @@ test('bots: can be removed between hands but not mid-hand', () => {
   const botId = host.last('room').room.players[1].id;
   say(lobby, host, { t: 'removeBot', id: botId });
   assert.equal(host.last('room').room.players.length, 1);
+
+  // Mid-hand with two bots: removing one keeps the hand going with the rest.
+  say(lobby, host, { t: 'addBot' });
   say(lobby, host, { t: 'addBot' });
   say(lobby, host, { t: 'startGame' });
   if (host.last('room').room.status === 'playing') {
-    say(lobby, host, { t: 'removeBot', id: host.last('room').room.players[1].id });
-    assert.match(host.last('error').message, /finish/i);
+    const [, firstBot] = host.last('room').room.players;
+    say(lobby, host, { t: 'removeBot', id: firstBot.id });
+    const view = host.last('room').room;
+    assert.equal(view.players.length, 2);
+    assert.equal(view.status, 'playing');
+    assert.equal(view.round.order.includes(firstBot.id), false);
+    assert.ok(view.round.turn, 'someone still has the turn');
+
+    // Removing the last bot leaves one player: the hand is cancelled with no payoff.
+    say(lobby, host, { t: 'removeBot', id: view.players[1].id });
+    const after = host.last('room').room;
+    assert.equal(after.status, 'between');
+    assert.equal(after.round.result.type, 'aborted');
+    assert.equal(after.players[0].score, 0);
   }
   say(lobby, host, { t: 'leaveGame' });
 });

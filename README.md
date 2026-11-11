@@ -13,7 +13,7 @@ Open the page, enter a name, create a game or join one from the list (2-6 player
 
 ### Bots
 
-The host of a game can fill empty seats with computer players: **Add bot** in the waiting room and between hands, **Remove** next to each bot (not during a hand). Bots count toward the 2-6 players, so you can play alone against bots. They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A game is removed when its last human leaves.
+The host of a game can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot at any time (in the waiting room, or on the scoreboard during play, with a confirmation). Removing a bot mid-hand takes its cards out of play and the hand carries on; if only one player would remain, the hand is cancelled with no payoff. Bots count toward the 2-6 players, so you can play alone against bots. They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A game is removed when its last human leaves.
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 

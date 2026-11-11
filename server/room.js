@@ -55,10 +55,11 @@ class Room {
     return bot;
   }
 
+  // Allowed mid-hand too: the bot's cards leave play and the turn moves on (the hand is
+  // cancelled with no payoff if fewer than two players would remain).
   removeBot(id) {
     const bot = this.players.find((p) => p.id === id && p.isBot);
     if (!bot) throw new tonk.GameError('No such bot');
-    if (this.status === 'playing') throw new tonk.GameError('Wait for the hand to finish');
     this.leave(bot);
   }
 
