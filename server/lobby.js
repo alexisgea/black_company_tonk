@@ -4,6 +4,8 @@ const { Room } = require('./room');
 const { GameError } = require('./tonk');
 const { chooseAction } = require('./bot');
 
+const { RateLimiter } = require('./limits');
+
 const OPEN = 1; // ws.OPEN
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME = 20;
@@ -19,11 +21,13 @@ function cleanName(raw) {
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
-  // botDelayMs: pause before a bot moves.
-  constructor({ graceMs = 60000, rng = Math.random, botDelayMs = 1200 } = {}) {
+  // botDelayMs: pause before a bot moves. maxRooms / createsPerMinute: abuse limits.
+  constructor({ graceMs = 60000, rng = Math.random, botDelayMs = 1200, maxRooms = 100, createsPerMinute = 5 } = {}) {
     this.graceMs = graceMs;
     this.rng = rng;
     this.botDelayMs = botDelayMs;
+    this.maxRooms = maxRooms;
+    this.createsPerMinute = createsPerMinute;
     this.users = new Map(); // private token -> user
     this.rooms = new Map(); // room id -> Room
   }
@@ -142,6 +146,7 @@ class Lobby {
         room: null,
         timer: null,
         chatTimes: [],
+        createLimiter: new RateLimiter(this.createsPerMinute, 60000),
       };
       this.users.set(user.token, user);
     }
@@ -158,6 +163,8 @@ class Lobby {
     switch (msg.t) {
       case 'createGame': {
         if (room) throw new GameError('Already in a game');
+        if (this.rooms.size >= this.maxRooms) throw new GameError('The server is full right now. Please try again later.');
+        if (!user.createLimiter.hit()) throw new GameError('You are creating games too quickly.');
         const r = new Room(this.newRoomId(), `${user.name}'s game`, this.rng);
         this.rooms.set(r.id, r);
         r.join(user);

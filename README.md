@@ -17,6 +17,10 @@ The host of a game can fill empty seats with computer players: **Add bot** in th
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
+### Hosting
+
+See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, exposing it with a Cloudflare Tunnel, and the abuse-limit settings (environment variables such as `HOST`, `TRUST_PROXY`, `MAX_CONNECTIONS_PER_IP`).
+
 ## Layout
 
 | Path | Purpose |
@@ -24,7 +28,8 @@ Server code changes need a server restart (automatic with `npm run dev`); page c
 | `server/tonk.js` | Pure rules engine (deal, tonk, go down, melds, layoffs, scoring). No I/O. |
 | `server/room.js` | One table: seating, running scores, hand lifecycle, per-player views. |
 | `server/lobby.js` | Connections, identity/reconnect, game list, message routing. |
-| `server/index.js` | HTTP static server + WebSocket glue. |
+| `server/index.js` | HTTP static server + WebSocket glue, connection-level abuse limits. |
+| `server/limits.js` | Rate limiter, client-IP and Origin checks. |
 | `server/bot.js` | Bot decision logic. |
 | `public/client.js` | UI. Card drawing lives in the marked "Theme" section; `style.css` has a matching theme block. |
 

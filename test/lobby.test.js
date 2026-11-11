@@ -233,6 +233,29 @@ test('bots: can be removed between hands but not mid-hand', () => {
   say(lobby, host, { t: 'leaveGame' });
 });
 
+test('abuse limits: room cap and create-game rate limit', () => {
+  const capped = new Lobby({ maxRooms: 2, createsPerMinute: 100 });
+  const players = ['A', 'B', 'C'].map((n) => connect(capped, n));
+  say(capped, players[0], { t: 'createGame' });
+  say(capped, players[1], { t: 'createGame' });
+  say(capped, players[2], { t: 'createGame' });
+  assert.match(players[2].last('error').message, /full/i);
+  assert.equal(capped.rooms.size, 2);
+  say(capped, players[0], { t: 'leaveGame' }); // frees a slot
+  say(capped, players[2], { t: 'createGame' });
+  assert.ok(players[2].last('room'));
+
+  const limited = new Lobby({ createsPerMinute: 3 });
+  const spammer = connect(limited, 'Spammer');
+  for (let i = 0; i < 3; i++) {
+    say(limited, spammer, { t: 'createGame' });
+    say(limited, spammer, { t: 'leaveGame' });
+  }
+  say(limited, spammer, { t: 'createGame' });
+  assert.match(spammer.last('error').message, /too quickly/i);
+  assert.equal(limited.rooms.size, 0);
+});
+
 test('input validation', () => {
   const lobby = new Lobby();
   const c = fakeConn();

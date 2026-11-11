@@ -1,4 +1,4 @@
-- don't commit everytime, let me say when we should commit
+- how to host a game online
 - make the animation pause shorter when drawing -> make a config file for me to tune these values?
 - change the colors to a more gothic theme
 - add emotes like premade messages, though think a bit how they should work before doing that
