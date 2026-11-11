@@ -724,6 +724,7 @@ function renderTable() {
       { class: 'opp' + (round.turn === id ? ' turn' : '') + (info && !info.connected ? ' offline' : ''), 'data-player': id },
       h('strong', null, nameOf(id)),
       h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, over ? ` \u2022 total ${p.total}` : ''),
+      info ? h('span', { class: 'opp-actions' }, kickControls(info)) : null,
       cards,
     );
   });
