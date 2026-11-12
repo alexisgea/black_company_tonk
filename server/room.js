@@ -3,9 +3,27 @@ const crypto = require('crypto');
 const tonk = require('./tonk');
 const { pickBotName } = require('./botnames');
 
-const MAX_LOG = 60;
+// Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
+// so a hidden card can never leak through the log. A draw from the pile deliberately has no card.
+const PUBLIC_LOG_FIELDS = {
+  join: ['pid', 'name'],
+  leave: ['pid', 'name'],
+  kick: ['pid', 'name'],
+  deal: ['pid', 'hand'],
+  draw: ['pid'],
+  takeDiscard: ['pid', 'card'],
+  discard: ['pid', 'card'],
+  meld: ['pid', 'kind', 'cards'],
+  layoff: ['pid', 'card', 'meldId'],
+  goDown: ['pid', 'total'],
+  reshuffle: [],
+};
+// A turn ends with a discard (or going down, which ends the hand).
+const TURN_END_EVENTS = new Set(['discard', 'goDown']);
+const MAX_LOG = 200; // hard cap for the waiting room, where there are no hands to trim by
 const MAX_CHAT = 50;
 const MAX_CHAT_LENGTH = 200;
+const MAX_SPECTATORS = 20;
 const DEFAULT_TONK_TIMEOUT_MS = 15000;
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
@@ -19,6 +37,7 @@ class Room {
     this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
     this.tonkDeadline = null; // epoch ms, only while a hand waits for TONK!
     this.players = []; // users, in seating order
+    this.spectators = []; // guests who only watch and chat; they never see hidden cards
     this.hostId = null;
     this.status = 'waiting'; // 'waiting' (never dealt) | 'playing' | 'between' (hand finished)
     this.round = null;
@@ -47,6 +66,19 @@ class Room {
     return this.players.filter((p) => !p.isBot);
   }
 
+  // Everyone with a connection to this table: human players and spectators.
+  get audience() {
+    return [...this.humans, ...this.spectators];
+  }
+
+  get watchable() {
+    return this.spectators.length < MAX_SPECTATORS;
+  }
+
+  requirePlayer(user) {
+    if (!this.players.includes(user)) throw new tonk.GameError('Spectators cannot do that');
+  }
+
   // Adds a computer player. It has no connection; the lobby plays its turns.
   addBot() {
     const bot = {
@@ -60,17 +92,36 @@ class Room {
     return bot;
   }
 
-  // Allowed mid-hand too: the bot's cards leave play and the turn moves on (the hand is
-  // cancelled with no payoff if fewer than two players would remain).
+  // Only between hands (or before the first one), so a hand is never cut short or changed under the players.
   removeBot(id) {
     const bot = this.players.find((p) => p.id === id && p.isBot);
     if (!bot) throw new tonk.GameError('No such bot');
+    if (this.status === 'playing') throw new tonk.GameError('Bots can only be removed between hands');
     this.leave(bot);
   }
 
+  // The log only needs to cover what a player could have missed by looking away: the current hand,
+  // limited to the last full round (one turn per player) plus the turn in progress.
   addLog(event) {
-    this.log.push({ seq: ++this.logSeq, ...event });
-    if (this.log.length > MAX_LOG) this.log.shift();
+    const pub = { seq: ++this.logSeq, type: event.type };
+    for (const field of PUBLIC_LOG_FIELDS[event.type] ?? []) {
+      pub[field] = Array.isArray(event[field]) ? [...event[field]] : event[field];
+    }
+    this.log.push(pub);
+    this.trimLog();
+  }
+
+  trimLog() {
+    let start = this.log.findLastIndex((e) => e.type === 'deal');
+    let turnEnds = 0;
+    for (let i = this.log.length - 1; i >= Math.max(start, 0); i--) {
+      if (TURN_END_EVENTS.has(this.log[i].type) && ++turnEnds > this.players.length) {
+        start = i + 1;
+        break;
+      }
+    }
+    if (start > 0) this.log.splice(0, start);
+    if (this.log.length > MAX_LOG) this.log.splice(0, this.log.length - MAX_LOG);
   }
 
   join(user) {
@@ -83,8 +134,21 @@ class Room {
     this.addLog({ type: 'join', pid: user.id, name: user.name });
   }
 
+  watch(user) {
+    if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this table by the host');
+    if (!this.watchable) throw new tonk.GameError('This table has too many spectators');
+    this.spectators.push(user);
+    user.room = this;
+  }
+
   // `reason` is the log event type: 'leave' normally, 'kick' when the host removes a player.
   leave(user, reason = 'leave') {
+    const spectatorIdx = this.spectators.indexOf(user);
+    if (spectatorIdx !== -1) {
+      this.spectators.splice(spectatorIdx, 1);
+      user.room = null;
+      return;
+    }
     const idx = this.players.indexOf(user);
     if (idx === -1) return;
     this.addLog({ type: reason, pid: user.id, name: user.name });
@@ -99,6 +163,7 @@ class Room {
   }
 
   startHand(user) {
+    this.requirePlayer(user);
     if (this.status === 'playing') throw new tonk.GameError('A hand is already in progress');
     if (this.status === 'waiting' && user.id !== this.hostId) {
       throw new tonk.GameError('Only the host can start the game');
@@ -127,6 +192,7 @@ class Room {
   // Puts the player's cards down and shouts it in the chat. Called by the button, or automatically
   // for bots and when the timer runs out.
   declareTonk(user) {
+    this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
     tonk.declareTonk(this.round, user.id);
     this.pushChat(user, 'TONK!');
@@ -134,6 +200,7 @@ class Room {
   }
 
   act(user, action) {
+    this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
     const events = tonk.applyAction(this.round, user.id, action);
     events.forEach((e) => this.addLog(e));
@@ -141,7 +208,7 @@ class Room {
   }
 
   addChat(user, raw) {
-    if (!this.players.includes(user)) throw new tonk.GameError('Not at this table');
+    if (!this.players.includes(user) && !this.spectators.includes(user)) throw new tonk.GameError('Not at this table');
     const text = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH) : '';
     if (!text) throw new tonk.GameError('Message is empty');
     return this.pushChat(user, text);
@@ -149,12 +216,14 @@ class Room {
 
   pushChat(user, text) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
+    if (this.spectators.includes(user)) message.spectator = true;
     this.chat.push(message);
     if (this.chat.length > MAX_CHAT) this.chat.shift();
     return message;
   }
 
   reorder(user, cards) {
+    this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
     tonk.reorderHand(this.round, user.id, cards);
   }
@@ -174,6 +243,8 @@ class Room {
       max: tonk.MAX_PLAYERS,
       status: this.status,
       joinable: this.joinable,
+      watchable: this.watchable,
+      spectators: this.spectators.length,
     };
   }
 
@@ -197,6 +268,7 @@ class Room {
           connected: p.isBot || !!p.conn,
           isBot: !!p.isBot,
         })),
+        spectators: this.spectators.map((s) => ({ id: s.id, name: s.name, connected: !!s.conn })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
         tonkMsLeft: this.pendingTonkers.length ? Math.max(0, this.tonkDeadline - Date.now()) : null,
         log: this.log,

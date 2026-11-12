@@ -30,6 +30,10 @@ function requireHost(room, user, what) {
   if (room.hostId !== user.id) throw new GameError(`Only the host can ${what}`);
 }
 
+// A seat the server plays itself: a bot, or a human who is disconnected (they get the seat back
+// when they reconnect, and are removed once the hand is over and the grace period has passed).
+const isAuto = (p) => p.isBot || !p.conn;
+
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
@@ -75,8 +79,22 @@ class Lobby {
   }
 
   broadcastRoom(room) {
-    for (const user of room.players) this.send(user.conn, room.view(user));
+    if (this.dropAbsentPlayers(room)) return;
+    for (const user of room.audience) this.send(user.conn, room.view(user));
     this.scheduleBot(room);
+  }
+
+  // Disconnected players whose grace period ran out during a hand stay seated (a bot plays for
+  // them) and are removed once the hand is over. Returns true if anyone was removed, in which
+  // case leaveRoom has already updated the table.
+  dropAbsentPlayers(room) {
+    if (room.status === 'playing') return false;
+    const absent = room.players.filter((p) => !p.isBot && !p.conn && p.dropAfterHand);
+    for (const user of absent) {
+      this.leaveRoom(user);
+      this.users.delete(user.token);
+    }
+    return absent.length > 0;
   }
 
   // For changes that also alter the game list (players or status): update the table and the lobby.
@@ -95,10 +113,10 @@ class Lobby {
     this.clearTonkTimer(room);
     if (room.botTimer || room.status !== 'playing') return;
     const turnId = room.round.order[room.round.turn];
-    if (!room.players.some((p) => p.isBot && p.id === turnId)) return;
+    if (!room.players.some((p) => isAuto(p) && p.id === turnId)) return;
     room.botTimer = setTimeout(() => {
       room.botTimer = null;
-      const bot = room.players.find((p) => p.isBot && p.id === turnId);
+      const bot = room.players.find((p) => isAuto(p) && p.id === turnId);
       if (!bot || room.status !== 'playing' || room.round.phase === 'tonk' || room.round.order[room.round.turn] !== turnId) {
         this.scheduleBot(room);
         return;
@@ -120,17 +138,17 @@ class Lobby {
   // room.tonkTimeoutMs to press the button before it is pressed for them.
   scheduleTonk(room) {
     const pending = room.pendingTonkers;
-    if (!pending.some((p) => p.isBot)) {
+    if (!pending.some(isAuto)) {
       clearTimeout(room.tonkBotTimer);
       room.tonkBotTimer = null;
     } else if (!room.tonkBotTimer) {
       room.tonkBotTimer = setTimeout(() => {
         room.tonkBotTimer = null;
-        this.autoDeclare(room, (p) => p.isBot);
+        this.autoDeclare(room, isAuto);
       }, this.botDelayMs);
       room.tonkBotTimer.unref?.();
     }
-    if (!pending.some((p) => !p.isBot)) {
+    if (!pending.some((p) => !isAuto(p))) {
       clearTimeout(room.tonkTimer);
       room.tonkTimer = null;
     } else if (!room.tonkTimer) {
@@ -167,7 +185,7 @@ class Lobby {
 
   // Closes a game and sends everyone in it back to the lobby with an explanation.
   closeRoom(room, message) {
-    const members = room.humans;
+    const members = room.audience;
     this.deleteRoom(room);
     for (const user of members) {
       user.room = null;
@@ -185,7 +203,7 @@ class Lobby {
       } else if (!room.idleWarned && this.roomIdleMs > this.idleWarningMs && idle >= this.roomIdleMs - this.idleWarningMs) {
         room.idleWarned = true;
         const minutes = Math.max(1, Math.ceil((this.roomIdleMs - idle) / 60000));
-        for (const user of room.humans) {
+        for (const user of room.audience) {
           this.send(user.conn, { t: 'notice', message: `This table will close in about ${minutes} min if nobody does anything.` });
         }
       }
@@ -205,6 +223,10 @@ class Lobby {
     const room = user.room;
     if (!room) return;
     room.leave(user, reason);
+    if (room.humans.length === 0 && room.spectators.length > 0) {
+      this.closeRoom(room, 'This table was closed because all the players left.');
+      return;
+    }
     if (room.humans.length === 0) this.deleteRoom(room);
     else this.broadcastRoom(room);
     this.broadcastLobby();
@@ -240,6 +262,7 @@ class Lobby {
     let user = typeof msg.token === 'string' ? this.users.get(msg.token) : undefined;
     if (user) {
       clearTimeout(user.timer);
+      user.dropAfterHand = false;
       if (user.conn && user.conn !== conn) {
         this.send(user.conn, { t: 'replaced' });
         user.conn.user = null;
@@ -268,7 +291,7 @@ class Lobby {
 
   onMessage(user, msg) {
     const room = user.room;
-    room?.touch(); // anything a player sends counts as using the game
+    if (room && !room.spectators.includes(user)) room.touch(); // anything a player sends counts as using the game (watching does not)
     switch (msg.t) {
       case 'createGame': {
         if (room) throw new GameError('Already at a table');
@@ -289,9 +312,17 @@ class Lobby {
         this.broadcastAll(r);
         break;
       }
+      case 'watchGame': {
+        if (room) throw new GameError('Already at a table');
+        const r = typeof msg.gameId === 'string' ? this.rooms.get(msg.gameId.toUpperCase()) : null;
+        if (!r) throw new GameError('That table no longer exists');
+        r.watch(user);
+        this.broadcastAll(r);
+        break;
+      }
       case 'kick': {
         requireHost(room, user, 'remove players');
-        const target = room.players.find((p) => p.id === msg.id && !p.isBot);
+        const target = room.players.find((p) => p.id === msg.id && !p.isBot) ?? room.spectators.find((s) => s.id === msg.id);
         if (!target) throw new GameError('No such player');
         if (target === user) throw new GameError('You cannot remove yourself');
         room.bannedIds.add(target.id);
@@ -348,7 +379,7 @@ class Lobby {
         requireRoom(room);
         if (!user.chatLimiter.hit()) throw new GameError('You are sending messages too fast');
         const message = room.addChat(user, msg.text);
-        for (const p of room.players) this.send(p.conn, { t: 'chat', message });
+        for (const p of room.audience) this.send(p.conn, { t: 'chat', message });
         break;
       }
       default:
@@ -367,6 +398,11 @@ class Lobby {
     }
     this.broadcastRoom(user.room);
     user.timer = setTimeout(() => {
+      const room = user.room;
+      if (room && room.status === 'playing' && room.players.includes(user)) {
+        user.dropAfterHand = true; // a bot keeps their seat until the hand is over
+        return;
+      }
       this.leaveRoom(user);
       this.users.delete(user.token);
     }, this.graceMs);

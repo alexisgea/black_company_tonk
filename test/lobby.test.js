@@ -236,7 +236,7 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   assert.equal(lobby.rooms.size, 0);
 });
 
-test('bots: can be removed at any time, including mid-hand', () => {
+test('bots: can be removed before and between hands, but not mid-hand', () => {
   const lobby = new Lobby({ botDelayMs: 100000 });
   const host = connect(lobby, 'Host');
   say(lobby, host, { t: 'createGame' });
@@ -245,26 +245,76 @@ test('bots: can be removed at any time, including mid-hand', () => {
   say(lobby, host, { t: 'removeBot', id: botId });
   assert.equal(host.last('room').room.players.length, 1);
 
-  // Mid-hand with the minimum plus one bots: removing one keeps the hand going with the rest.
   for (let i = 0; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
   say(lobby, host, { t: 'startGame' });
   if (host.last('room').room.status === 'playing') {
-    const [, firstBot] = host.last('room').room.players;
-    say(lobby, host, { t: 'removeBot', id: firstBot.id });
-    const view = host.last('room').room;
-    assert.equal(view.players.length, MIN_PLAYERS);
-    assert.equal(view.status, 'playing');
-    assert.equal(view.round.order.includes(firstBot.id), false);
-    assert.ok(view.round.turn, 'someone still has the turn');
-
-    // Removing another bot drops below the minimum: the hand is cancelled with no payoff.
-    say(lobby, host, { t: 'removeBot', id: view.players[1].id });
-    const after = host.last('room').room;
-    assert.equal(after.status, 'between');
-    assert.equal(after.round.result.type, 'aborted');
-    assert.equal(after.players[0].score, 0);
+    const before = host.last('room').room;
+    say(lobby, host, { t: 'removeBot', id: before.players[1].id });
+    assert.match(host.last('error').message, /between hands/i);
+    assert.equal(host.last('room').room.players.length, before.players.length);
+    assert.equal(host.last('room').room.status, 'playing');
   }
   say(lobby, host, { t: 'leaveGame' });
+});
+
+// Starts hands on fresh lobbies until one is in progress (no Tonk on the deal) with the wanted
+// player to move. Returns the lobby, the humans (seat order of joining) and a view helper.
+function playingGame(opts, moverIndex) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const lobby = new Lobby(opts);
+    const { humans } = seatedGame(lobby);
+    say(lobby, humans[0], { t: 'startGame' });
+    const room = humans[0].last('room').room;
+    if (room.status !== 'playing' || room.round.phase === 'tonk') continue;
+    if (humans[moverIndex].last('room').you !== room.round.turn) continue;
+    return { lobby, humans, state: () => humans[0].last('room').room };
+  }
+  throw new Error('no suitable deal found');
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('a disconnected player is replaced by a bot for the hand and removed once it is over', async () => {
+  const { lobby, humans, state } = playingGame({ graceMs: 10, botDelayMs: 5 }, 1);
+  const bob = humans[1];
+  const bobId = bob.last('room').you;
+  lobby.disconnect(bob);
+
+  // Bob was to move: the server plays his turn for him, and he keeps his seat after the grace period.
+  await wait(80);
+  const seat = state().players.find((p) => p.id === bobId);
+  assert.ok(seat && !seat.connected, 'seat is kept during the hand');
+  assert.equal(state().status, 'playing');
+  assert.ok(
+    state().log.some((e) => e.pid === bobId && e.type === 'discard'),
+    'a bot discarded for Bob',
+  );
+  assert.notEqual(state().round.turn, bobId);
+
+  // The next turn belongs to a connected human, who ends the hand.
+  const next = humans.find((h) => h.last('room').you === state().round.turn);
+  assert.ok(next && next !== bob);
+  say(lobby, next, { t: 'action', action: { type: 'goDown' } });
+  assert.equal(state().status, 'between');
+  assert.equal(
+    state().players.some((p) => p.id === bobId),
+    false,
+    'removed once the hand is over',
+  );
+});
+
+test('a player who reconnects during the hand gets control back', async () => {
+  const { lobby, humans, state } = playingGame({ graceMs: 10, botDelayMs: 100000 }, 1);
+  const bob = humans[1];
+  const { token, id: bobId } = bob.last('welcome');
+  lobby.disconnect(bob);
+  const bob2 = fakeConn();
+  say(lobby, bob2, { t: 'hello', name: 'P2', token });
+  await wait(40);
+  assert.ok(state().players.find((p) => p.id === bobId).connected);
+  say(lobby, bob2, { t: 'action', action: { type: 'draw' } });
+  assert.equal(bob2.last('error'), undefined);
+  assert.equal(bob2.last('room').room.round.phase, 'play');
 });
 
 test('abuse limits: room cap and create-game rate limit', () => {
@@ -457,6 +507,70 @@ test('tonk: the button is pressed automatically when the timer runs out, and bot
   assert.equal(bot.status, 'between');
   assert.ok(bot.chat.some((m) => m.text === 'TONK!' && bot.players.find((p) => p.id === m.pid)?.isBot));
   botRoom.lobby.closeRoom([...botRoom.lobby.rooms.values()][0], 'done');
+});
+
+test('guests can watch and chat but never see hidden hands or play', () => {
+  const lobby = new Lobby({ graceMs: 10 });
+  const { humans, gameId } = seatedGame(lobby);
+  const guest = connect(lobby, 'Guest');
+  say(lobby, guest, { t: 'watchGame', gameId });
+  const waiting = guest.last('room');
+  assert.equal(waiting.room.players.length, MIN_PLAYERS);
+  assert.deepEqual(
+    waiting.room.spectators.map((s) => s.name),
+    ['Guest'],
+  );
+  assert.equal(lobby.gameList()[0].spectators, 1);
+
+  say(lobby, guest, { t: 'startGame' });
+  assert.match(guest.last('error').message, /spectator/i);
+  say(lobby, guest, { t: 'addBot' });
+  assert.match(guest.last('error').message, /host/i);
+
+  say(lobby, humans[0], { t: 'startGame' });
+  const round = guest.last('room').room.round;
+  assert.equal(round.mustDeclareTonk, false);
+  for (const id of round.order) assert.equal(round.players[id].hand, null);
+  if (guest.last('room').room.status === 'playing') {
+    say(lobby, guest, { t: 'action', action: { type: 'draw' } });
+    assert.match(guest.last('error').message, /spectator/i);
+    say(lobby, guest, { t: 'declareTonk' });
+    assert.match(guest.last('error').message, /spectator/i);
+    say(lobby, guest, { t: 'reorder', cards: [] });
+    assert.match(guest.last('error').message, /spectator/i);
+  }
+
+  say(lobby, guest, { t: 'chat', text: 'hello from the stands' });
+  const msg = humans[0].last('chat').message;
+  assert.equal(msg.text, 'hello from the stands');
+  assert.equal(msg.spectator, true);
+  assert.equal(guest.last('chat').message.id, msg.id);
+});
+
+test('guests are kickable, do not keep a table alive, and are sent home when the players leave', () => {
+  const lobby = new Lobby({ roomIdleMs: 10 * 60000, idleWarningMs: 2 * 60000 });
+  const host = connect(lobby, 'Host');
+  const guest = connect(lobby, 'Guest');
+  say(lobby, host, { t: 'createGame' });
+  const room = [...lobby.rooms.values()][0];
+  say(lobby, guest, { t: 'watchGame', gameId: room.id });
+
+  const t0 = room.lastActivity;
+  say(lobby, guest, { t: 'chat', text: 'hi' });
+  assert.equal(room.lastActivity, t0); // watching is not activity
+
+  say(lobby, host, { t: 'kick', id: guest.last('welcome').id });
+  assert.ok(guest.last('kicked'));
+  assert.equal(room.spectators.length, 0);
+  say(lobby, guest, { t: 'watchGame', gameId: room.id });
+  assert.match(guest.last('error').message, /removed/i);
+
+  const other = connect(lobby, 'Other');
+  say(lobby, other, { t: 'watchGame', gameId: room.id });
+  say(lobby, host, { t: 'leaveGame' });
+  assert.ok(other.last('closed'));
+  assert.equal(other.inbox.at(-1).t, 'lobby');
+  assert.equal(lobby.rooms.size, 0);
 });
 
 test('input validation', () => {

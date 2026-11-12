@@ -178,11 +178,50 @@ test('a Tonk on the deal waits until it is declared, then shouts TONK! in the ch
   assert.ok(checked > 0, 'expected at least one Tonk deal among the seeds');
 });
 
-test('the log is capped and sequence numbers keep increasing', () => {
+test('the log is hard-capped and sequence numbers keep increasing', () => {
   const room = new Room('R', 'Test');
-  for (let i = 0; i < 70; i++) room.addLog({ type: 'join', pid: 'x', name: 'x' });
-  assert.equal(room.log.length, 60);
-  assert.equal(room.log.at(-1).seq, 70);
+  for (let i = 0; i < 250; i++) room.addLog({ type: 'join', pid: 'x', name: 'x' });
+  assert.equal(room.log.length, 200);
+  assert.equal(room.log.at(-1).seq, 250);
+});
+
+test('the log keeps only the current hand, the last full round and the turn in progress', () => {
+  const { room, users } = playingRoom();
+  const n = room.players.length;
+  const ids = users.map((u) => u.id);
+  for (let turn = 0; turn < n * 3; turn++) {
+    room.addLog({ type: 'draw', pid: ids[turn % n] });
+    room.addLog({ type: 'discard', pid: ids[turn % n], card: 'S5' });
+  }
+  room.addLog({ type: 'draw', pid: ids[0] }); // turn in progress
+  assert.equal(room.log.filter((e) => e.type === 'discard').length, n);
+  assert.equal(room.log.at(-1).type, 'draw');
+  assert.equal(room.log.at(-2).type, 'discard');
+  assert.ok(room.log.every((e) => e.type !== 'deal' || e.hand === room.handNo));
+});
+
+test('log events expose only public fields and do not alias live game state', () => {
+  const room = new Room('R', 'Test');
+  const cards = ['S1', 'S2', 'S3'];
+  room.addLog({ type: 'draw', pid: 'a', card: 'H9', hand: ['H9'] });
+  room.addLog({ type: 'meld', pid: 'a', kind: 'run', cards, secret: 'x' });
+  cards.push('S4'); // a later lay-off must not rewrite history
+  assert.deepEqual(room.log[0], { seq: 1, type: 'draw', pid: 'a' });
+  assert.deepEqual(room.log[1].cards, ['S1', 'S2', 'S3']);
+  assert.equal('secret' in room.log[1], false);
+});
+
+test('bots cannot be removed mid-hand', () => {
+  const room = new Room('R', 'Test', seeded(7));
+  const host = human('Ann');
+  room.join(host);
+  const bots = [room.addBot(), room.addBot()];
+  room.startHand(host);
+  assert.equal(room.status, 'playing');
+  assert.throws(() => room.removeBot(bots[0].id), /between hands/);
+  room.leave(host); // the hand ends (below the minimum), so removing is allowed again
+  room.removeBot(bots[0].id);
+  assert.equal(room.players.length, 1);
 });
 
 test('views show only the viewer their own hand', () => {

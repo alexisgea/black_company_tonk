@@ -1,5 +1,5 @@
 import { h } from './dom.js';
-import { state, toast, nameOf } from './state.js';
+import { state, toast, nameOf, isSpectator } from './state.js';
 import { send, sendAction, connect } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
@@ -95,9 +95,11 @@ function renderLobby() {
             null,
             h('strong', null, g.name),
             h('span', { class: 'muted' }, `${g.players.join(', ')} (${g.players.length}/${g.max})`),
+            g.spectators ? h('span', { class: 'muted' }, `\u2022 ${g.spectators} watching`) : null,
             h('span', { class: 'spacer' }),
             h('span', { class: 'muted' }, g.status === 'playing' ? 'in progress' : 'open'),
             h('button', { disabled: !g.joinable, onClick: () => send({ t: 'joinGame', gameId: g.id }) }, 'Join'),
+            h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => send({ t: 'watchGame', gameId: g.id }) }, 'Watch'),
           ),
         ),
       )
@@ -134,6 +136,7 @@ function renderRoom() {
   const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, 'Leave table');
   if (room.status === 'waiting') {
     const isHost = room.hostId === state.you;
+    const spectating = isSpectator();
     const canStart = isHost && room.players.length >= room.minPlayers;
     return h(
       'div',
@@ -161,10 +164,11 @@ function renderRoom() {
           ),
         ),
       ),
+      spectatorsPanel(),
       h(
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
-        h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
+        spectating ? null : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
         addBotButton(),
         leave,
         rulesButton(),
@@ -212,6 +216,7 @@ function renderSide(leaveBtn) {
         ),
       ),
     ),
+    spectatorsPanel(),
     chat.el,
     h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
   );
@@ -227,14 +232,14 @@ function renderTable() {
   const myTurn = round.turn === state.you && !tonkPhase;
   const selected = [...state.selected];
 
+  const canDrawPhase = myTurn && round.phase === 'draw';
+  const canPlayPhase = myTurn && round.phase === 'play';
+
   // Opponents in seating order, starting from the seat after mine.
   const seats = round.order;
   const myIdx = seats.indexOf(state.you);
   const opponents = (myIdx === -1 ? seats : [...seats.slice(myIdx + 1), ...seats.slice(0, myIdx)]).filter((id) => id !== state.you);
   const oppEls = opponents.map((id) => {
-  const canDrawPhase = myTurn && round.phase === 'draw';
-  const canPlayPhase = myTurn && round.phase === 'play';
-
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
     const cards = h('div', { class: 'cards' });
@@ -246,6 +251,7 @@ function renderTable() {
       h('strong', null, nameOf(id)),
       h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, p.total !== null ? ` \u2022 total ${p.total}` : ''),
       cards,
+      meldsOf(id),
     );
   });
 
@@ -274,7 +280,6 @@ function renderTable() {
       }),
     );
   }
-      meldsOf(id),
 
   const deck = h(
     'div',
@@ -296,11 +301,11 @@ function renderTable() {
 
   let status = '';
   if (!over) {
-    if (!inHand) status = 'Spectating this hand\u2026';
+    if (!inHand) status = isSpectator() ? 'Watching this hand\u2026' : 'Spectating this hand\u2026';
     else if (tonkPhase)
       status = round.mustDeclareTonk ? 'You have TONK! Press the button to put your cards down.' : 'Waiting for TONK! to be declared\u2026';
     else if (myTurn)
-      status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Meld, lay off, then discard one card.';
+      status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Spread, lay off, then discard one card.';
     else status = `Waiting for ${nameOf(round.turn)}\u2026`;
   }
 
@@ -323,16 +328,17 @@ function renderTable() {
     h(
       'button',
       {
+        class: 'go-down',
         disabled: !canDrawPhase || state.confirmDown,
+        title: canDrawPhase ? '' : 'You can only go down at the start of your turn, before drawing.',
         onClick: () => {
           state.confirmDown = true;
           render();
         },
-        class: 'go-down',
       },
-        title: canDrawPhase ? '' : 'You can only go down at the start of your turn, before drawing.',
-      inHand ? `Go down (${me.total})` : 'Go down',
+      'Go down',
     ),
+    canDrawPhase ? null : h('span', { class: 'muted go-down-hint' }, 'You can only go down at the start of your turn, before drawing.'),
     state.confirmDown && canDrawPhase
       ? [
           h(
@@ -374,17 +380,46 @@ function renderTable() {
     'div',
     { class: 'table' },
     h('div', { class: 'opponents' }, oppEls),
-    h('div', { class: 'center' }, h('div', { class: 'piles' }, deck, discard), h('div', { class: 'melds' }, meldEls)),
+    h('div', { class: 'center' }, h('div', { class: 'piles' }, deck, discard)),
     over ? renderResult(round) : null,
     inHand
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
           h('div', { class: 'status' }, status),
+          meldsOf(state.you),
+          h('div', { class: 'hand-value' }, `Hand value: ${me.total}`),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
         )
-      : h('div', { class: 'me-panel' }, h('div', { class: 'status' }, status || 'Join the next hand when this one ends.')),
+      : h(
+          'div',
+          { class: 'me-panel' },
+          h(
+            'div',
+            { class: 'status' },
+            isSpectator() ? status || 'You are watching this table.' : status || 'Join the next hand when this one ends.',
+          ),
+        ),
+  );
+}
+
+// Guests who watch and chat but never see hidden cards. Shown only when there are some.
+function spectatorsPanel() {
+  const room = state.room;
+  if (!room.spectators.length) return null;
+  return h(
+    'div',
+    { class: 'panel scores' },
+    h('strong', null, 'Watching'),
+    room.spectators.map((s) =>
+      h(
+        'div',
+        { class: 'score-row' },
+        h('span', { class: 'score-name' }, s.name + (s.id === state.you ? ' (you)' : '') + (s.connected ? '' : ' (offline)')),
+        h('span', { class: 'score-actions' }, kickControls(s)),
+      ),
+    ),
   );
 }
 
@@ -439,22 +474,26 @@ function renderResult(round) {
     { class: 'panel result' },
     h('strong', null, headline),
     h('div', { class: 'hands' }, rows),
-    h(
-      'div',
-      { class: 'row' },
-      h(
-        'button',
-        { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
-        canDeal ? 'Deal next hand' : 'Waiting for players\u2026',
-      ),
-      addBotButton(),
-    ),
+    isSpectator()
+      ? null
+      : h(
+          'div',
+          { class: 'row' },
+          h(
+            'button',
+            { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
+            canDeal ? 'Deal next hand' : 'Waiting for players\u2026',
+          ),
+          addBotButton(),
+        ),
   );
 }
 
 // Host only: remove a human (Kick) or a bot (Remove), with an inline confirmation (no browser popup).
+// Bots can only be removed between hands.
 function kickControls(p) {
   if (state.room.hostId !== state.you || p.id === state.you) return null;
+  if (p.isBot && state.room.status === 'playing') return null;
   const label = p.isBot ? 'Remove' : 'Kick';
   if (state.confirmKick !== p.id) {
     return h(
