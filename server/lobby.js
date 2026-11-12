@@ -18,6 +18,15 @@ function cleanName(raw) {
   return name || null;
 }
 
+function requireRoom(room) {
+  if (!room) throw new GameError('Not in a game');
+}
+
+function requireHost(room, user, what) {
+  requireRoom(room);
+  if (room.hostId !== user.id) throw new GameError(`Only the host can ${what}`);
+}
+
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
@@ -63,6 +72,12 @@ class Lobby {
   broadcastRoom(room) {
     for (const user of room.players) this.send(user.conn, room.view(user));
     this.scheduleBot(room);
+  }
+
+  // For changes that also alter the game list (players or status): update the table and the lobby.
+  broadcastAll(room) {
+    this.broadcastRoom(room);
+    this.broadcastLobby();
   }
 
   // If it is a bot's turn, play it after a short pause. Every state change flows through
@@ -183,7 +198,7 @@ class Lobby {
         conn: null,
         room: null,
         timer: null,
-        chatTimes: [],
+        chatLimiter: new RateLimiter(CHAT_BURST, CHAT_WINDOW_MS),
         createLimiter: new RateLimiter(this.createsPerMinute, 60000),
       };
       this.users.set(user.token, user);
@@ -207,8 +222,7 @@ class Lobby {
         const r = new Room(this.newRoomId(), `${user.name}'s game`, this.rng);
         this.rooms.set(r.id, r);
         r.join(user);
-        this.broadcastRoom(r);
-        this.broadcastLobby();
+        this.broadcastAll(r);
         break;
       }
       case 'joinGame': {
@@ -217,13 +231,11 @@ class Lobby {
         if (!r) throw new GameError('That game no longer exists');
         r.join(user);
         r.touch();
-        this.broadcastRoom(r);
-        this.broadcastLobby();
+        this.broadcastAll(r);
         break;
       }
       case 'kick': {
-        if (!room) throw new GameError('Not in a game');
-        if (room.hostId !== user.id) throw new GameError('Only the host can remove players');
+        requireHost(room, user, 'remove players');
         const target = room.players.find((p) => p.id === msg.id && !p.isBot);
         if (!target) throw new GameError('No such player');
         if (target === user) throw new GameError('You cannot remove yourself');
@@ -233,20 +245,19 @@ class Lobby {
         break;
       }
       case 'leaveGame': {
-        if (!room) throw new GameError('Not in a game');
+        requireRoom(room);
         this.leaveRoom(user);
         this.send(user.conn, { t: 'lobby', games: this.gameList() });
         break;
       }
       case 'startGame': {
-        if (!room) throw new GameError('Not in a game');
+        requireRoom(room);
         room.startHand(user);
-        this.broadcastRoom(room);
-        this.broadcastLobby();
+        this.broadcastAll(room);
         break;
       }
       case 'action': {
-        if (!room) throw new GameError('Not in a game');
+        requireRoom(room);
         const wasPlaying = room.status === 'playing';
         room.act(user, msg.action);
         this.broadcastRoom(room);
@@ -254,34 +265,27 @@ class Lobby {
         break;
       }
       case 'reorder': {
-        if (!room) throw new GameError('Not in a game');
+        requireRoom(room);
         room.reorder(user, msg.cards);
         this.send(user.conn, room.view(user)); // only the owner can see their hand order
         break;
       }
       case 'addBot': {
-        if (!room) throw new GameError('Not in a game');
-        if (room.hostId !== user.id) throw new GameError('Only the host can add bots');
+        requireHost(room, user, 'add bots');
         room.addBot();
-        this.broadcastRoom(room);
-        this.broadcastLobby();
+        this.broadcastAll(room);
         break;
       }
       case 'removeBot': {
-        if (!room) throw new GameError('Not in a game');
-        if (room.hostId !== user.id) throw new GameError('Only the host can remove bots');
+        requireHost(room, user, 'remove bots');
         room.removeBot(msg.id);
-        this.broadcastRoom(room);
-        this.broadcastLobby();
+        this.broadcastAll(room);
         break;
       }
       case 'chat': {
-        if (!room) throw new GameError('Not in a game');
-        const now = Date.now();
-        user.chatTimes = user.chatTimes.filter((t) => now - t < CHAT_WINDOW_MS);
-        if (user.chatTimes.length >= CHAT_BURST) throw new GameError('You are sending messages too fast');
+        requireRoom(room);
+        if (!user.chatLimiter.hit()) throw new GameError('You are sending messages too fast');
         const message = room.addChat(user, msg.text);
-        user.chatTimes.push(now);
         for (const p of room.players) this.send(p.conn, { t: 'chat', message });
         break;
       }
