@@ -4,7 +4,7 @@ const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = requir
 
 const GO_DOWN_AT = 12;
 
-// Finds a set or run (as card ids) inside a hand, or null. Prefers the largest meld.
+// Finds a set or run (as card ids) inside a hand, or null. Prefers the largest spread.
 function findMeld(hand) {
   const candidates = [];
   const byRank = new Map();

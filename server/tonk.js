@@ -78,7 +78,7 @@ function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false
     melds: [],
     nextMeldId: 1,
     turn: (dealerIdx + 1) % playerIds.length,
-    // 'tonk': waiting for the tonkers to declare; 'draw': go down or take a card; 'play': meld / lay off / discard
+    // 'tonk': waiting for the tonkers to declare; 'draw': go down or take a card; 'play': spread / lay off / discard
     phase: 'draw',
     tonkers: [], // who must declare (only in the 'tonk' phase)
     declared: [], // who already has

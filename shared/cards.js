@@ -1,5 +1,5 @@
 'use strict';
-// Card and meld rules shared by the server (require) and the browser (window.TonkCards), so both
+// Card and spread rules shared by the server (require) and the browser (window.TonkCards), so both
 // always agree on what is a valid spread. Cards are integers 0..51: rank = id % 13 + 1
 // (1 = Ace .. 13 = King), suit = floor(id / 13).
 (function (root, factory) {
@@ -29,7 +29,7 @@
     return { type: 'run', cards: sorted };
   }
 
-  // Which end of a meld the card extends: 'low', 'high' or null. Only runs can be extended.
+  // Which end of a spread the card extends: 'low', 'high' or null. Only runs can be extended.
   function layoffEnd(meld, card) {
     if (meld.type !== 'run') return null;
     const first = meld.cards[0];
