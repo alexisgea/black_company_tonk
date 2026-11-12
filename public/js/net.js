@@ -61,7 +61,7 @@ function onMessage(msg) {
       return;
     case 'kicked':
       state.confirmKick = null;
-      toast('The host removed you from the game.', 6000);
+      toast('The host removed you from the table.', 6000);
       return; // the lobby list that follows takes you back to the lobby
     case 'closed':
       toast(msg.message, 7000);

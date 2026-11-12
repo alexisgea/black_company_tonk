@@ -1,6 +1,7 @@
 'use strict';
 const crypto = require('crypto');
 const tonk = require('./tonk');
+const { pickBotName } = require('./botnames');
 
 const MAX_LOG = 60;
 const MAX_CHAT = 50;
@@ -45,10 +46,9 @@ class Room {
 
   // Adds a computer player. It has no connection; the lobby plays its turns.
   addBot() {
-    const bots = this.players.filter((p) => p.isBot).length;
     const bot = {
       id: crypto.randomBytes(4).toString('hex'),
-      name: `Bot ${bots + 1}`,
+      name: pickBotName(new Set(this.players.map((p) => p.name)), this.rng),
       isBot: true,
       conn: null,
       room: null,
@@ -71,8 +71,8 @@ class Room {
   }
 
   join(user) {
-    if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this game by the host');
-    if (!this.joinable) throw new tonk.GameError('That game cannot be joined right now');
+    if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this table by the host');
+    if (!this.joinable) throw new tonk.GameError('That table cannot be joined right now');
     this.players.push(user);
     this.scores[user.id] = 0;
     if (!this.hostId) this.hostId = user.id;
@@ -129,7 +129,7 @@ class Room {
   }
 
   addChat(user, raw) {
-    if (!this.players.includes(user)) throw new tonk.GameError('Not in this game');
+    if (!this.players.includes(user)) throw new tonk.GameError('Not at this table');
     const text = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH) : '';
     if (!text) throw new tonk.GameError('Message is empty');
     return this.pushChat(user, text);

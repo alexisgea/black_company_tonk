@@ -11,20 +11,20 @@ npm run lint           # ESLint
 npm run format:check   # Prettier check (npm run format fixes); CI runs lint, format:check and tests
 ```
 
-Open the page, enter a name, create a game or join one from the list (2-6 players). The host starts the game.
+Open the page, enter a name, create a table or join one from the list (2-6 players). The host starts the game.
 
 ### Bots
 
-The host of a game can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot at any time (in the waiting room, or on the scoreboard during play, with a confirmation). Removing a bot mid-hand takes its cards out of play and the hand carries on; if only one player would remain, the hand is cancelled with no payoff. Bots count toward the 2-6 players, so you can play alone against bots. They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A game is removed when its last human leaves.
+The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot at any time (in the waiting room, or on the scoreboard during play, with a confirmation). Removing a bot mid-hand takes its cards out of play and the hand carries on; if only one player would remain, the hand is cancelled with no payoff. Bots count toward the 2-6 players, so you can play alone against bots. Each bot gets a random name from a fixed list (Croaker, Goblin, One-Eye, ...) followed by a ★ so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A table is removed when its last human leaves.
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
-### Games: lifetime and hosts
+### Tables: lifetime and hosts
 
-- A game is deleted when its last **human** leaves, so an empty game and a game with only bots are removed immediately. A player who disconnects (closed tab, lost connection) is removed after 60 seconds, which can trigger the same cleanup.
-- If the creator leaves, the game continues and the host role passes to the next human, who gets the host controls (Start game, bots, Kick).
-- A game nobody has touched for 30 minutes (any message from a player in it counts: moves, chat, button clicks, even reordering cards) is closed: everyone gets a warning 2 minutes before, then returns to the lobby. Change it with `ROOM_IDLE_MINUTES`.
-- The host can **Kick** any human player at any time, with a confirmation (waiting room or the scoreboard during play). Kicked players cannot rejoin that game. Kicking mid-hand removes their cards from play; if only one player would remain, the hand is cancelled with no payoff.
+- A table is deleted when its last **human** leaves, so an empty table and a table with only bots are removed immediately. A player who disconnects (closed tab, lost connection) is removed after 60 seconds, which can trigger the same cleanup.
+- If the creator leaves, the table continues and the host role passes to the next human, who gets the host controls (Start game, bots, Kick).
+- A table nobody has touched for 30 minutes (any message from a player in it counts: moves, chat, button clicks, even reordering cards) is closed: everyone gets a warning 2 minutes before, then returns to the lobby. Change it with `ROOM_IDLE_MINUTES`.
+- The host can **Kick** any human player at any time, with a confirmation (waiting room or the scoreboard during play). Kicked players cannot rejoin that table. Kicking mid-hand removes their cards from play; if only one player would remain, the hand is cancelled with no payoff.
 
 ### Hosting
 
@@ -36,10 +36,11 @@ See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, 
 | --- | --- |
 | `server/tonk.js` | Pure rules engine (deal, tonk, go down, melds, layoffs, scoring). No I/O. |
 | `server/room.js` | One table: seating, running scores, hand lifecycle, per-player views. |
-| `server/lobby.js` | Connections, identity/reconnect, game list, message routing. |
+| `server/lobby.js` | Connections, identity/reconnect, table list, message routing. |
 | `server/index.js` | HTTP static server + WebSocket glue, connection-level abuse limits. |
 | `server/limits.js` | Rate limiter, client-IP and Origin checks. |
 | `server/bot.js` | Bot decision logic. |
+| `server/botnames.js` | Bot name list, random pick, and the reserved-name check for players. |
 | `shared/cards.js` | Card ids, hand totals, set/run validation. Loaded by the server (`require`) and the browser (`<script>`), so both always agree. |
 | `public/js/` | UI as native ES modules (no build step): `main.js` (entry), `net.js` (WebSocket + messages), `state.js`, `views.js` (screens), `hand.js` (selection and drag-reorder), `chat.js`, `animation.js`, `rules-dialog.js`, `theme.js` (card drawing; `style.css` has a matching theme block). |
 
@@ -70,4 +71,4 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 
 - No turn timer: a connected but idle player stalls the table.
 - Players can join between hands, not mid-hand. No spectating or persistent accounts yet.
-- Single-process in-memory state; restarting the server drops all games.
+- Single-process in-memory state; restarting the server drops all tables.

@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Room } = require('../server/room');
 const { GameError, MIN_PLAYERS, MAX_PLAYERS } = require('../server/tonk');
+const { BOT_NAMES, isReservedName } = require('../server/botnames');
 
 let nextId = 0;
 const human = (name) => ({ id: `u${++nextId}`, name, conn: {}, room: null });
@@ -78,16 +79,27 @@ test('host role passes to the next human, never to a bot', () => {
   assert.equal(room.hostId, null);
 });
 
-test('bots are named in order and can be removed', () => {
+test('bots get random distinct names from the reserved list, marked with a star, and can be removed', () => {
   const room = new Room('R', 'Test');
   room.join(human('Ann'));
   const bot = room.addBot();
-  assert.equal(bot.name, 'Bot 1');
+  assert.match(bot.name, /★$/);
+  assert.ok(BOT_NAMES.includes(bot.name.replace(/ ★$/, '')));
+  const more = [room.addBot(), room.addBot(), room.addBot()];
+  assert.equal(new Set([bot, ...more].map((b) => b.name)).size, 4);
+  more.forEach((b) => room.removeBot(b.id));
   assert.equal(room.humans.length, 1);
   room.removeBot(bot.id);
   assert.equal(room.players.length, 1);
   assert.throws(() => room.removeBot('nope'), /No such bot/);
   assert.throws(() => room.removeBot(room.players[0].id), /No such bot/); // humans are not bots
+});
+
+test('bot names are reserved', () => {
+  for (const n of ['Croaker', 'goblin', 'ONE EYE', 'One-Eye', 'the lieutenant', 'Raven ★', 'Case (bot)']) {
+    assert.ok(isReservedName(n), n);
+  }
+  for (const n of ['Alice', 'Casey', 'Ravens', 'Bot']) assert.ok(!isReservedName(n), n);
 });
 
 test('a hand that ends settles zero-sum scores', () => {
@@ -125,7 +137,7 @@ test('chat is cleaned, capped and limited to members', () => {
   assert.equal(room.addChat(a, 'x'.repeat(500)).text.length, 200);
   assert.throws(() => room.addChat(a, '   '), /empty/);
   assert.throws(() => room.addChat(a, 42), /empty/);
-  assert.throws(() => room.addChat(human('Stranger'), 'hi'), /Not in this game/);
+  assert.throws(() => room.addChat(human('Stranger'), 'hi'), /Not at this table/);
   for (let i = 0; i < 60; i++) room.addChat(a, `m${i}`);
   assert.equal(room.chat.length, 50);
   assert.equal(room.chat.at(-1).text, 'm59');

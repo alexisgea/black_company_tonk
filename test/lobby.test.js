@@ -171,7 +171,7 @@ test('chat: delivered to everyone in the room, stored in history, sanitised and 
   say(lobby, bob, { t: 'chat', text: 42 });
   assert.match(bob.last('error').message, /empty/i);
   say(lobby, carol, { t: 'chat', text: 'hi' });
-  assert.match(carol.last('error').message, /game/i);
+  assert.match(carol.last('error').message, /table/i);
 
   // History is part of the room view, so rejoining/reconnecting players get it back.
   say(lobby, alice, { t: 'leaveGame' });
@@ -392,4 +392,6 @@ test('input validation', () => {
   assert.match(c.last('error').message, /name/i);
   say(lobby, c, { t: 'hello', name: '<b>x</b>'.repeat(20) });
   assert.equal(c.last('welcome').name.length, 20);
+  say(lobby, c, { t: 'hello', name: 'Croaker' });
+  assert.match(c.last('error').message, /reserved/i);
 });

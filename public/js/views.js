@@ -101,7 +101,7 @@ function renderLobby() {
           ),
         ),
       )
-    : h('p', { class: 'muted' }, 'No games yet. Create one!');
+    : h('p', { class: 'muted' }, 'No tables yet. Create one!');
   return h(
     'div',
     { class: 'screen' },
@@ -123,15 +123,15 @@ function renderLobby() {
         'Change name',
       ),
       rulesButton(),
-      h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create game'),
+      h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
     ),
-    h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open games'), list),
+    h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open tables'), list),
   );
 }
 
 function renderRoom() {
   const room = state.room;
-  const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, 'Leave game');
+  const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, 'Leave table');
   if (room.status === 'waiting') {
     const isHost = room.hostId === state.you;
     const canStart = isHost && room.players.length >= room.minPlayers;
@@ -421,7 +421,7 @@ function kickControls(p) {
       'button',
       {
         class: 'secondary small-btn',
-        title: `Remove ${p.name} from the game`,
+        title: `Remove ${p.name} from the table`,
         onClick: () => {
           state.confirmKick = p.id;
           render();

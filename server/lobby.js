@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { Room } = require('./room');
 const { GameError } = require('./tonk');
 const { chooseAction } = require('./bot');
+const { isReservedName } = require('./botnames');
 
 const { RateLimiter } = require('./limits');
 
@@ -21,7 +22,7 @@ function cleanName(raw) {
 }
 
 function requireRoom(room) {
-  if (!room) throw new GameError('Not in a game');
+  if (!room) throw new GameError('Not at a table');
 }
 
 function requireHost(room, user, what) {
@@ -129,12 +130,12 @@ class Lobby {
     for (const room of [...this.rooms.values()]) {
       const idle = now - room.lastActivity;
       if (idle >= this.roomIdleMs) {
-        this.closeRoom(room, 'This game was closed because nobody did anything for a while.');
+        this.closeRoom(room, 'This table was closed because nobody did anything for a while.');
       } else if (!room.idleWarned && this.roomIdleMs > this.idleWarningMs && idle >= this.roomIdleMs - this.idleWarningMs) {
         room.idleWarned = true;
         const minutes = Math.max(1, Math.ceil((this.roomIdleMs - idle) / 60000));
         for (const user of room.humans) {
-          this.send(user.conn, { t: 'notice', message: `This game will close in about ${minutes} min if nobody does anything.` });
+          this.send(user.conn, { t: 'notice', message: `This table will close in about ${minutes} min if nobody does anything.` });
         }
       }
     }
@@ -184,6 +185,7 @@ class Lobby {
   onHello(conn, msg) {
     const name = cleanName(msg.name);
     if (!name) throw new GameError('Please enter a name');
+    if (isReservedName(name)) throw new GameError('That name is reserved for the bots, please pick another');
     let user = typeof msg.token === 'string' ? this.users.get(msg.token) : undefined;
     if (user) {
       clearTimeout(user.timer);
@@ -218,19 +220,19 @@ class Lobby {
     room?.touch(); // anything a player sends counts as using the game
     switch (msg.t) {
       case 'createGame': {
-        if (room) throw new GameError('Already in a game');
+        if (room) throw new GameError('Already at a table');
         if (this.rooms.size >= this.maxRooms) throw new GameError('The server is full right now. Please try again later.');
-        if (!user.createLimiter.hit()) throw new GameError('You are creating games too quickly.');
-        const r = new Room(this.newRoomId(), `${user.name}'s game`, this.rng);
+        if (!user.createLimiter.hit()) throw new GameError('You are creating tables too quickly.');
+        const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng);
         this.rooms.set(r.id, r);
         r.join(user);
         this.broadcastAll(r);
         break;
       }
       case 'joinGame': {
-        if (room) throw new GameError('Already in a game');
+        if (room) throw new GameError('Already at a table');
         const r = typeof msg.gameId === 'string' ? this.rooms.get(msg.gameId.toUpperCase()) : null;
-        if (!r) throw new GameError('That game no longer exists');
+        if (!r) throw new GameError('That table no longer exists');
         r.join(user);
         r.touch();
         this.broadcastAll(r);
