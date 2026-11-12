@@ -40,8 +40,27 @@ function finish(round, result) {
   round.result = { hands, totals, ...result };
 }
 
-// Deals a new hand and immediately resolves Tonk. `dealerIdx` indexes into playerIds.
-function startRound(playerIds, dealerIdx, rng = Math.random) {
+const findTonkers = (round) =>
+  round.order.filter((id) => {
+    const total = handTotal(round.hands[id]);
+    return total <= TONK_LOW || total >= TONK_HIGH;
+  });
+
+function resolveTonk(round) {
+  const tonkers = findTonkers(round);
+  if (tonkers.length === 1) {
+    const winner = tonkers[0];
+    const deltas = zeroDeltas(round.order);
+    for (const id of round.order) if (id !== winner) pay(deltas, id, winner, 2);
+    finish(round, { type: 'tonk', winners: [winner], deltas });
+  } else if (tonkers.length > 1) {
+    finish(round, { type: 'tonkDraw', winners: tonkers, deltas: zeroDeltas(round.order) });
+  }
+}
+
+// Deals a new hand. `dealerIdx` indexes into playerIds. A Tonk is resolved immediately, unless
+// `deferTonk` is set: then the round waits in the 'tonk' phase until every tonker calls declareTonk.
+function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false } = {}) {
   if (playerIds.length < MIN_PLAYERS || playerIds.length > MAX_PLAYERS) {
     throw new GameError(`Tonk needs ${MIN_PLAYERS}-${MAX_PLAYERS} players`);
   }
@@ -59,23 +78,39 @@ function startRound(playerIds, dealerIdx, rng = Math.random) {
     melds: [],
     nextMeldId: 1,
     turn: (dealerIdx + 1) % playerIds.length,
-    phase: 'draw', // 'draw': go down or take a card; 'play': meld / lay off / discard
+    // 'tonk': waiting for the tonkers to declare; 'draw': go down or take a card; 'play': meld / lay off / discard
+    phase: 'draw',
+    tonkers: [], // who must declare (only in the 'tonk' phase)
+    declared: [], // who already has
     result: null,
   };
 
-  const tonkers = playerIds.filter((id) => {
-    const total = handTotal(hands[id]);
-    return total <= TONK_LOW || total >= TONK_HIGH;
-  });
-  if (tonkers.length === 1) {
-    const winner = tonkers[0];
-    const deltas = zeroDeltas(playerIds);
-    for (const id of playerIds) if (id !== winner) pay(deltas, id, winner, 2);
-    finish(round, { type: 'tonk', winners: [winner], deltas });
-  } else if (tonkers.length > 1) {
-    finish(round, { type: 'tonkDraw', winners: tonkers, deltas: zeroDeltas(playerIds) });
+  const tonkers = findTonkers(round);
+  if (deferTonk && tonkers.length) {
+    round.phase = 'tonk';
+    round.tonkers = tonkers;
+  } else {
+    resolveTonk(round);
   }
   return round;
+}
+
+// A player with Tonk puts their cards down. Once every tonker has, the hand is resolved.
+function declareTonk(round, pid) {
+  if (round.result || round.phase !== 'tonk') throw new GameError('Nobody needs to declare TONK right now');
+  if (!round.tonkers.includes(pid)) throw new GameError('You do not have TONK');
+  if (round.declared.includes(pid)) throw new GameError('You already declared TONK');
+  round.declared.push(pid);
+  if (round.declared.length === round.tonkers.length) resolveTonk(round);
+}
+
+// After a player left during the 'tonk' phase: drop them from the pending tonkers.
+function syncTonk(round) {
+  round.tonkers = findTonkers(round);
+  round.declared = round.declared.filter((id) => round.tonkers.includes(id));
+  if (round.tonkers.length === 0) round.phase = 'draw';
+  else if (round.declared.length === round.tonkers.length) resolveTonk(round);
+  else round.phase = 'tonk';
 }
 
 function goDown(round, pid) {
@@ -132,6 +167,7 @@ function takeFromHand(round, pid, cards) {
 // Throws GameError for anything illegal, leaving the round unchanged.
 function applyAction(round, pid, action) {
   if (round.result) throw new GameError('This hand is over');
+  if (round.phase === 'tonk') throw new GameError('Waiting for TONK! to be declared');
   if (round.order[round.turn] !== pid) throw new GameError('Not your turn');
   if (!action || typeof action !== 'object') throw new GameError('Bad action');
   const events = [];
@@ -232,30 +268,37 @@ function removePlayer(round, pid) {
 
   if (round.order.length < MIN_PLAYERS) {
     finish(round, { type: 'aborted', winners: [], deltas: zeroDeltas(round.order) });
-  } else if (idx < round.turn) {
+    return;
+  }
+  const wasTonk = round.phase === 'tonk';
+  if (idx < round.turn) {
     round.turn--;
   } else if (idx === round.turn) {
     round.turn %= round.order.length;
     round.phase = 'draw';
   }
+  if (wasTonk) syncTonk(round);
 }
 
-// Snapshot for one viewer: own hand in full, opponents' hands only as counts until the hand ends.
+// Snapshot for one viewer: own hand in full, opponents' hands only as counts until the hand ends
+// (or until they declare TONK and put their cards down).
 function viewRound(round, viewerId) {
   const over = !!round.result;
   const players = {};
   for (const id of round.order) {
-    const visible = over || id === viewerId;
+    const visible = over || id === viewerId || round.declared.includes(id);
     players[id] = {
       count: round.hands[id].length,
       total: visible ? handTotal(round.hands[id]) : null,
       hand: visible ? [...round.hands[id]] : null,
     };
   }
+  const tonkPhase = !over && round.phase === 'tonk';
   return {
     order: [...round.order],
     turn: over ? null : round.order[round.turn],
     phase: round.phase,
+    mustDeclareTonk: tonkPhase && round.tonkers.includes(viewerId) && !round.declared.includes(viewerId),
     deckCount: round.deck.length,
     discardTop: round.discard.length ? round.discard[round.discard.length - 1] : null,
     melds: round.melds.map((m) => ({ id: m.id, owner: m.owner, type: m.type, cards: [...m.cards] })),
@@ -276,6 +319,7 @@ module.exports = {
   classifyMeld,
   layoffEnd,
   startRound,
+  declareTonk,
   applyAction,
   reorderHand,
   removePlayer,

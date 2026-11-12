@@ -65,7 +65,7 @@ test('create, list, join, start and play a hand through the lobby', () => {
   assert.equal(aView.room.status === 'playing' || aView.room.status === 'between', true);
 
   // Opponent hands are never leaked mid-hand.
-  if (aView.room.status === 'playing') {
+  if (aView.room.status === 'playing' && aView.room.round.phase !== 'tonk') {
     assert.equal(aView.room.round.players[bView.you].hand, null);
     assert.equal(bView.room.round.players[aView.you].hand, null);
     assert.equal(aView.room.round.players[aView.you].hand.length, 5);
@@ -218,7 +218,7 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   say(lobby, host, { t: 'startGame' });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const state = () => host.last('room').room;
-  if (state().status === 'playing') {
+  if (state().status === 'playing' && state().round.phase !== 'tonk') {
     // Play the human side for a few turns; the bot must answer every time on its own.
     for (let i = 0; i < 3 && state().status === 'playing'; i++) {
       const me = host.last('room').you;
@@ -379,6 +379,84 @@ test('idle rooms: warned, then closed; activity resets the clock', () => {
   // Closed players are back in the lobby and can create new games.
   say(lobby, host, { t: 'createGame' });
   assert.ok(host.last('room'));
+});
+
+// Starts games on seeded lobbies until a human has Tonk on the deal; returns the lobby, humans and the tonker's view.
+function tonkDeal(options, bots = 0) {
+  for (let seed = 1; seed < 500; seed++) {
+    let s = seed;
+    const rng = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const lobby = new Lobby({ rng, ...options });
+    const humans = Array.from({ length: MIN_PLAYERS - bots }, (_, i) => connect(lobby, `P${i + 1}`));
+    say(lobby, humans[0], { t: 'createGame' });
+    const gameId = humans[1]?.last('lobby').games[0].id;
+    humans.slice(1).forEach((h) => say(lobby, h, { t: 'joinGame', gameId }));
+    for (let i = 0; i < bots; i++) say(lobby, humans[0], { t: 'addBot' });
+    say(lobby, humans[0], { t: 'startGame' });
+    const tonker = humans.find((h) => h.last('room').room.round.mustDeclareTonk);
+    if (tonker) return { lobby, humans, tonker };
+    lobby.closeRoom([...lobby.rooms.values()][0], 'seed rejected');
+  }
+  throw new Error('no seed gave a human a Tonk');
+}
+
+test('tonk: the hand is frozen until the tonker presses TONK!, which puts the cards down and chats', () => {
+  const { lobby, humans, tonker } = tonkDeal({ tonkTimeoutMs: 100000 });
+  const view = tonker.last('room');
+  assert.equal(view.room.status, 'playing');
+  assert.equal(view.room.round.phase, 'tonk');
+  assert.equal(view.room.round.result, null);
+  assert.ok(view.room.tonkMsLeft > 0);
+
+  const mover = humans.find((h) => h.last('room').room.round.turn === h.last('room').you);
+  say(lobby, mover, { t: 'action', action: { type: 'draw' } });
+  assert.match(mover.last('error').message, /TONK/);
+
+  const others = humans.filter((h) => h !== tonker);
+  const tonkersLeft = humans.filter((h) => h.last('room').room.round.mustDeclareTonk);
+  const bystander = others.find((h) => !tonkersLeft.includes(h));
+  if (bystander) {
+    say(lobby, bystander, { t: 'declareTonk' });
+    assert.match(bystander.last('error').message, /do not have/i);
+  }
+
+  say(lobby, tonker, { t: 'declareTonk' });
+  assert.ok(tonker.last('room').room.chat.some((m) => m.text === 'TONK!' && m.pid === view.you));
+  for (const h of tonkersLeft.filter((x) => x !== tonker)) say(lobby, h, { t: 'declareTonk' });
+  assert.equal(tonker.last('room').room.status, 'between');
+  assert.ok(['tonk', 'tonkDraw'].includes(tonker.last('room').room.round.result.type));
+  lobby.closeRoom([...lobby.rooms.values()][0], 'done');
+});
+
+test('tonk: the button is pressed automatically when the timer runs out, and bots declare themselves', async () => {
+  const { lobby, tonker } = tonkDeal({ tonkTimeoutMs: 30, botDelayMs: 5 });
+  assert.equal(tonker.last('room').room.round.phase, 'tonk');
+  await new Promise((r) => setTimeout(r, 100));
+  const room = tonker.last('room').room;
+  assert.equal(room.status, 'between');
+  assert.ok(room.chat.some((m) => m.text === 'TONK!' && m.pid === tonker.last('room').you));
+  lobby.closeRoom([...lobby.rooms.values()][0], 'done');
+
+  const botRoom = (() => {
+    for (let seed = 1; seed < 500; seed++) {
+      let s = seed;
+      const rng = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+      const lobby = new Lobby({ rng, tonkTimeoutMs: 100000, botDelayMs: 5 });
+      const host = connect(lobby, 'Host');
+      say(lobby, host, { t: 'createGame' });
+      for (let i = 1; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
+      say(lobby, host, { t: 'startGame' });
+      const round = host.last('room').room.round;
+      if (round.phase === 'tonk' && !round.mustDeclareTonk) return { lobby, host };
+      lobby.closeRoom([...lobby.rooms.values()][0], 'seed rejected');
+    }
+    throw new Error('no seed gave a bot a Tonk');
+  })();
+  await new Promise((r) => setTimeout(r, 50));
+  const bot = botRoom.host.last('room').room;
+  assert.equal(bot.status, 'between');
+  assert.ok(bot.chat.some((m) => m.text === 'TONK!' && bot.players.find((p) => p.id === m.pid)?.isBot));
+  botRoom.lobby.closeRoom([...botRoom.lobby.rooms.values()][0], 'done');
 });
 
 test('input validation', () => {

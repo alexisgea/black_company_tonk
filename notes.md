@@ -1,5 +1,10 @@
 Todo next
 - ability to add bots during a running game -> should it? same for remove? Perhaps the hand needs to be finished first. At the moment a bot can be added at the end of  a hand. Ties in to a player leaving mid-hand.
+- put set in front of each player, not next to draw pile
+- put remove and kick button on the score only, align the button cleanly
+- does the exact log make sense as it's too easy to count no?
+- Carte au milieu
+- deal next hand who should be able to click?
 
 Presentation
 - make the animation pause shorter when drawing -> make a config file for me to tune these values?

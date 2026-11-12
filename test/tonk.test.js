@@ -9,7 +9,19 @@ const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 // Builds a round in a known state, skipping the random deal.
 function makeRound({ hands, deck = [c(2, 'S'), c(3, 'S'), c(4, 'S')], discard = [c(9, 'C')], melds = [], turn = 0, phase = 'draw' }) {
   const order = Object.keys(hands);
-  return { order, hands, deck: [...deck], discard: [...discard], melds, nextMeldId: 10, turn, phase, result: null };
+  return {
+    order,
+    hands,
+    deck: [...deck],
+    discard: [...discard],
+    melds,
+    nextMeldId: 10,
+    turn,
+    phase,
+    tonkers: [],
+    declared: [],
+    result: null,
+  };
 }
 
 test('card values', () => {
@@ -89,6 +101,55 @@ test('tonk at deal: single tonker wins double, multiple tonkers is a draw', () =
     0,
   );
   if (multi) assert.ok(Object.values(multi.result.deltas).every((d) => d === 0));
+});
+
+test('deferred tonk: the hand waits in the tonk phase until every tonker declares', () => {
+  let single = null;
+  let multi = null;
+  for (let seed = 1; seed < 200000 && !(single && multi); seed++) {
+    let s = seed;
+    const rng = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const round = T.startRound(['a', 'b', 'c'], 0, rng, { deferTonk: true });
+    assert.equal(round.result, null);
+    if (round.phase !== 'tonk') continue;
+    if (round.tonkers.length === 1 && !single) single = round;
+    if (round.tonkers.length > 1 && !multi) multi = round;
+  }
+  assert.ok(single && multi);
+
+  const [w] = single.tonkers;
+  const other = single.order.find((id) => id !== w);
+  assert.throws(() => T.applyAction(single, single.order[single.turn], { type: 'draw' }), /TONK/);
+  assert.throws(() => T.declareTonk(single, other), /do not have/);
+  assert.equal(T.viewRound(single, other).players[w].hand, null);
+  assert.equal(T.viewRound(single, w).mustDeclareTonk, true);
+  assert.equal(T.viewRound(single, other).mustDeclareTonk, false);
+  T.declareTonk(single, w);
+  assert.equal(single.result.type, 'tonk');
+  assert.equal(single.result.deltas[w], 4);
+  assert.throws(() => T.declareTonk(single, w), T.GameError);
+
+  const [first, second] = multi.tonkers;
+  T.declareTonk(multi, first);
+  assert.equal(multi.result, null);
+  assert.ok(T.viewRound(multi, second).players[first].hand, 'a declared hand is put down for everyone');
+  assert.equal(T.viewRound(multi, first).mustDeclareTonk, false);
+  T.declareTonk(multi, second);
+  assert.equal(multi.result.type, 'tonkDraw');
+});
+
+test('a tonker leaving during the tonk phase cancels the wait', () => {
+  let round = null;
+  for (let seed = 1; seed < 200000 && !round; seed++) {
+    let s = seed;
+    const rng = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const r = T.startRound(['a', 'b', 'c', 'd'], 0, rng, { deferTonk: true });
+    if (r.tonkers.length === 1) round = r;
+  }
+  assert.ok(round);
+  T.removePlayer(round, round.tonkers[0]);
+  assert.equal(round.phase, 'draw');
+  assert.equal(round.result, null);
 });
 
 test('go down: lowest strictly wins, others pay 1', () => {

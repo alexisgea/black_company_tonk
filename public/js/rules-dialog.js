@@ -29,7 +29,7 @@ function buildRules() {
     section('Card values', ['Ace = 1. Cards 2\u201310 = the number on the card. Jack, Queen and King = 10 each.']),
     section('The deal', [
       'Each player gets 5 cards. One card is turned face up to start the discard pile. The other cards form the draw pile. The player to the left of the dealer plays first.',
-      'TONK: right after the deal, if your hand total is 15 or less, or 49 or more, you win immediately. Every other player pays you double (2). If two or more players have Tonk, nobody wins and the cards are dealt again. You can only get Tonk right after the deal, never later in the hand.',
+      'TONK: right after the deal, if your hand total is 15 or less, or 49 or more, you must call it: press the TONK! button to put your cards down (it is pressed for you if you take too long). Then you win immediately and every other player pays you double (2). If two or more players have Tonk, nobody wins and the cards are dealt again. You can only get Tonk right after the deal, never later in the hand.',
     ]),
     section('Your turn \u2013 choose one option', [
       'Go down (only at the start of your turn): you show your hand and say its total. Everyone\u2019s totals are compared.',

@@ -43,7 +43,9 @@ class Lobby {
     createsPerMinute = 5,
     roomIdleMs = 30 * 60000,
     idleWarningMs = 2 * 60000,
+    tonkTimeoutMs = 15000,
   } = {}) {
+    this.tonkTimeoutMs = tonkTimeoutMs;
     this.graceMs = graceMs;
     this.rng = rng;
     this.botDelayMs = botDelayMs;
@@ -86,13 +88,18 @@ class Lobby {
   // If it is a bot's turn, play it after a short pause. Every state change flows through
   // broadcastRoom, so this is the only hook needed. At most one pending move per room.
   scheduleBot(room) {
+    if (room.status === 'playing' && room.round.phase === 'tonk') {
+      this.scheduleTonk(room);
+      return;
+    }
+    this.clearTonkTimer(room);
     if (room.botTimer || room.status !== 'playing') return;
     const turnId = room.round.order[room.round.turn];
     if (!room.players.some((p) => p.isBot && p.id === turnId)) return;
     room.botTimer = setTimeout(() => {
       room.botTimer = null;
       const bot = room.players.find((p) => p.isBot && p.id === turnId);
-      if (!bot || room.status !== 'playing' || room.round.order[room.round.turn] !== turnId) {
+      if (!bot || room.status !== 'playing' || room.round.phase === 'tonk' || room.round.order[room.round.turn] !== turnId) {
         this.scheduleBot(room);
         return;
       }
@@ -109,8 +116,52 @@ class Lobby {
     room.botTimer.unref?.();
   }
 
+  // While a hand waits for TONK!, bots declare after a short pause and humans are given
+  // room.tonkTimeoutMs to press the button before it is pressed for them.
+  scheduleTonk(room) {
+    const pending = room.pendingTonkers;
+    if (!pending.some((p) => p.isBot)) {
+      clearTimeout(room.tonkBotTimer);
+      room.tonkBotTimer = null;
+    } else if (!room.tonkBotTimer) {
+      room.tonkBotTimer = setTimeout(() => {
+        room.tonkBotTimer = null;
+        this.autoDeclare(room, (p) => p.isBot);
+      }, this.botDelayMs);
+      room.tonkBotTimer.unref?.();
+    }
+    if (!pending.some((p) => !p.isBot)) {
+      clearTimeout(room.tonkTimer);
+      room.tonkTimer = null;
+    } else if (!room.tonkTimer) {
+      room.tonkTimer = setTimeout(
+        () => {
+          room.tonkTimer = null;
+          this.autoDeclare(room, (p) => !p.isBot);
+        },
+        Math.max(0, room.tonkDeadline - Date.now()),
+      );
+      room.tonkTimer.unref?.();
+    }
+  }
+
+  autoDeclare(room, which) {
+    if (!this.rooms.has(room.id)) return;
+    for (const player of room.pendingTonkers.filter(which)) room.declareTonk(player);
+    this.broadcastRoom(room);
+    if (room.status !== 'playing') this.broadcastLobby();
+  }
+
+  clearTonkTimer(room) {
+    clearTimeout(room.tonkTimer);
+    clearTimeout(room.tonkBotTimer);
+    room.tonkTimer = null;
+    room.tonkBotTimer = null;
+  }
+
   deleteRoom(room) {
     clearTimeout(room.botTimer);
+    this.clearTonkTimer(room);
     this.rooms.delete(room.id);
   }
 
@@ -223,7 +274,7 @@ class Lobby {
         if (room) throw new GameError('Already at a table');
         if (this.rooms.size >= this.maxRooms) throw new GameError('The server is full right now. Please try again later.');
         if (!user.createLimiter.hit()) throw new GameError('You are creating tables too quickly.');
-        const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng);
+        const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng, { tonkTimeoutMs: this.tonkTimeoutMs });
         this.rooms.set(r.id, r);
         r.join(user);
         this.broadcastAll(r);
@@ -266,6 +317,13 @@ class Lobby {
         room.act(user, msg.action);
         this.broadcastRoom(room);
         if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
+        break;
+      }
+      case 'declareTonk': {
+        requireRoom(room);
+        room.declareTonk(user);
+        this.broadcastRoom(room);
+        if (room.status !== 'playing') this.broadcastLobby();
         break;
       }
       case 'reorder': {

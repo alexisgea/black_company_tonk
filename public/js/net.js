@@ -50,6 +50,7 @@ function onMessage(msg) {
     case 'room':
       state.you = msg.you;
       state.room = msg.room;
+      state.tonkDeadline = Date.now() + (msg.room.tonkMsLeft ?? 0);
       state.view = 'room';
       chat.messages = msg.room.chat;
       pruneSelection();

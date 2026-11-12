@@ -19,13 +19,16 @@ function seeded(seed) {
 const namesFor = (n) => Array.from({ length: n }, (_, i) => `P${i + 1}`);
 
 // A table with the given humans (first one hosts). Deals until a hand is actually in progress,
-// since a Tonk on the deal ends the hand immediately.
+// since a Tonk on the deal ends the hand once it has been declared.
 function playingRoom(names = namesFor(MIN_PLAYERS)) {
   const room = new Room('ROOM', 'Test', seeded(7));
   const users = names.map(human);
   users.forEach((u) => room.join(u));
   room.startHand(users[0]);
-  for (let i = 0; i < 50 && room.status !== 'playing'; i++) room.startHand(users[0]);
+  for (let i = 0; i < 50 && !(room.status === 'playing' && room.round.phase !== 'tonk'); i++) {
+    for (const p of room.pendingTonkers) room.declareTonk(p);
+    room.startHand(users[0]);
+  }
   assert.equal(room.status, 'playing');
   return { room, users };
 }
@@ -143,20 +146,34 @@ test('chat is cleaned, capped and limited to members', () => {
   assert.equal(room.chat.at(-1).text, 'm59');
 });
 
-test('a Tonk on the deal is shouted in the chat by each player who has it', () => {
+test('a Tonk on the deal waits until it is declared, then shouts TONK! in the chat', () => {
   let checked = 0;
   for (let seed = 1; seed < 300 && checked < 5; seed++) {
     const room = new Room('ROOM', 'Test', seeded(seed));
     const users = namesFor(MIN_PLAYERS).map(human);
     users.forEach((u) => room.join(u));
     room.startHand(users[0]);
-    if (!room.round.result || !room.round.result.winners.length) {
+    if (room.round.phase !== 'tonk') {
       assert.deepEqual(room.chat, []);
+      assert.equal(room.tonkDeadline, null);
       continue;
     }
     checked++;
+    assert.equal(room.status, 'playing');
+    assert.ok(room.tonkDeadline > Date.now());
+    assert.equal(room.round.result, null);
+    assert.deepEqual(room.chat, []);
+    assert.throws(() => room.act(users[0], { type: 'draw' }), GameError);
+    assert.ok(room.view(room.pendingTonkers[0]).room.tonkMsLeft > 0);
+
+    const tonkers = room.pendingTonkers.map((p) => p.id);
+    const nonTonker = users.find((u) => !tonkers.includes(u.id));
+    if (nonTonker) assert.throws(() => room.declareTonk(nonTonker), /do not have/);
+    for (const p of [...room.pendingTonkers]) room.declareTonk(p);
+    assert.equal(room.status, 'between');
+    assert.ok(room.round.result.winners.length);
     const shouts = room.chat.filter((m) => m.text === 'TONK!').map((m) => m.pid);
-    assert.deepEqual(shouts.sort(), [...room.round.result.winners].sort());
+    assert.deepEqual(shouts.sort(), tonkers.sort());
   }
   assert.ok(checked > 0, 'expected at least one Tonk deal among the seeds');
 });

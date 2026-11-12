@@ -203,7 +203,13 @@ function renderSide(leaveBtn) {
       { class: 'panel scores' },
       h('strong', null, 'Scores'),
       room.players.map((p) =>
-        h('div', null, h('span', null, p.name + (p.connected ? '' : ' (offline)'), ' ', kickControls(p)), h('span', null, String(p.score))),
+        h(
+          'div',
+          { class: 'score-row' },
+          h('span', { class: 'score-name' }, p.name + (p.connected ? '' : ' (offline)')),
+          h('span', { class: 'score-actions' }, kickControls(p)),
+          h('span', { class: 'score-value' }, String(p.score)),
+        ),
       ),
     ),
     chat.el,
@@ -216,8 +222,9 @@ function renderTable() {
   const round = room.round;
   const me = round.players[state.you];
   const inHand = !!me;
-  const myTurn = round.turn === state.you;
   const over = !!round.result;
+  const tonkPhase = !over && round.phase === 'tonk';
+  const myTurn = round.turn === state.you && !tonkPhase;
   const selected = [...state.selected];
 
   // Opponents in seating order, starting from the seat after mine.
@@ -228,14 +235,13 @@ function renderTable() {
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
     const cards = h('div', { class: 'cards' });
-    if (over) p.hand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
+    if (p.hand) p.hand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
     else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
     return h(
       'div',
-      { class: 'opp' + (round.turn === id ? ' turn' : '') + (info && !info.connected ? ' offline' : ''), 'data-player': id },
+      { class: 'opp' + (round.turn === id && !tonkPhase ? ' turn' : '') + (info && !info.connected ? ' offline' : ''), 'data-player': id },
       h('strong', null, nameOf(id)),
-      h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, over ? ` \u2022 total ${p.total}` : ''),
-      info ? h('span', { class: 'opp-actions' }, kickControls(info)) : null,
+      h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, p.total !== null ? ` \u2022 total ${p.total}` : ''),
       cards,
     );
   });
@@ -281,6 +287,8 @@ function renderTable() {
   let status = '';
   if (!over) {
     if (!inHand) status = 'Spectating this hand\u2026';
+    else if (tonkPhase)
+      status = round.mustDeclareTonk ? 'You have TONK! Press the button to put your cards down.' : 'Waiting for TONK! to be declared\u2026';
     else if (myTurn)
       status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Meld, lay off, then discard one card.';
     else status = `Waiting for ${nameOf(round.turn)}\u2026`;
@@ -289,6 +297,16 @@ function renderTable() {
   const handEls = (inHand ? me.hand : []).map((c) => handCardEl(c, !over));
 
   const validMeld = selected.length >= 3 && classifyMeld(selected);
+  const tonkControls = h(
+    'div',
+    { class: 'row' },
+    round.mustDeclareTonk
+      ? [
+          h('button', { class: 'tonk-btn', onClick: () => send({ t: 'declareTonk' }) }, 'TONK!'),
+          h('span', { class: 'muted tonk-timer' }, tonkCountdownText()),
+        ]
+      : null,
+  );
   const controls = h(
     'div',
     { class: 'row' },
@@ -352,11 +370,21 @@ function renderTable() {
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
           h('div', { class: 'status' }, status),
           h('div', { class: 'hand' }, handEls),
-          over ? null : controls,
+          over ? null : tonkPhase ? tonkControls : controls,
         )
       : h('div', { class: 'me-panel' }, h('div', { class: 'status' }, status || 'Join the next hand when this one ends.')),
   );
 }
+
+function tonkCountdownText() {
+  const secs = Math.max(0, Math.ceil((state.tonkDeadline - Date.now()) / 1000));
+  return `Automatic in ${secs}s`;
+}
+
+setInterval(() => {
+  const el = document.querySelector('.tonk-timer');
+  if (el) el.textContent = tonkCountdownText();
+}, 250);
 
 function renderResult(round) {
   const r = round.result;

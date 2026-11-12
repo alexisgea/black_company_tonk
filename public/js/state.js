@@ -14,6 +14,7 @@ export const state = {
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
   confirmKick: null, // player id whose "Kick" button was clicked, waiting for confirmation
+  tonkDeadline: 0, // local time when TONK! is pressed automatically
 };
 
 let toastTimer;

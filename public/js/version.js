@@ -1,5 +1,5 @@
 // Keep in sync with "version" in package.json (test/server.test.js checks this).
-export const CLIENT_VERSION = '0.1.1';
+export const CLIENT_VERSION = '0.2.0';
 
 // Shows "client x / server y" in the bottom-right corner; the server version comes from GET /version.
 export async function showVersions() {

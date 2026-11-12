@@ -6,15 +6,18 @@ const { pickBotName } = require('./botnames');
 const MAX_LOG = 60;
 const MAX_CHAT = 50;
 const MAX_CHAT_LENGTH = 200;
+const DEFAULT_TONK_TIMEOUT_MS = 15000;
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 // One table of players: seating, running scores and the current hand.
 class Room {
-  constructor(id, name, rng = Math.random) {
+  constructor(id, name, rng = Math.random, { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS } = {}) {
     this.id = id;
     this.name = name;
     this.rng = rng;
+    this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
+    this.tonkDeadline = null; // epoch ms, only while a hand waits for TONK!
     this.players = []; // users, in seating order
     this.hostId = null;
     this.status = 'waiting'; // 'waiting' (never dealt) | 'playing' | 'between' (hand finished)
@@ -108,17 +111,26 @@ class Room {
       this.players.map((p) => p.id),
       this.dealerIdx,
       this.rng,
+      { deferTonk: true },
     );
     this.status = 'playing';
     this.addLog({ type: 'deal', pid: this.players[this.dealerIdx].id, hand: this.handNo });
-    if (this.round.result) {
-      // Whoever was dealt a Tonk shouts it in the chat automatically.
-      for (const id of this.round.result.winners) {
-        const player = this.players.find((p) => p.id === id);
-        if (player) this.pushChat(player, 'TONK!');
-      }
-      this.settle();
-    }
+    this.tonkDeadline = this.round.phase === 'tonk' ? Date.now() + this.tonkTimeoutMs : null;
+  }
+
+  // Players who still have to press TONK! (everyone who holds a Tonk and has not declared yet).
+  get pendingTonkers() {
+    if (this.status !== 'playing' || this.round.phase !== 'tonk') return [];
+    return this.players.filter((p) => this.round.tonkers.includes(p.id) && !this.round.declared.includes(p.id));
+  }
+
+  // Puts the player's cards down and shouts it in the chat. Called by the button, or automatically
+  // for bots and when the timer runs out.
+  declareTonk(user) {
+    if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
+    tonk.declareTonk(this.round, user.id);
+    this.pushChat(user, 'TONK!');
+    if (this.round.result) this.settle();
   }
 
   act(user, action) {
@@ -186,6 +198,7 @@ class Room {
           isBot: !!p.isBot,
         })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
+        tonkMsLeft: this.pendingTonkers.length ? Math.max(0, this.tonkDeadline - Date.now()) : null,
         log: this.log,
         chat: this.chat,
       },
