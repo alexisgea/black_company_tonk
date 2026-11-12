@@ -6,8 +6,8 @@ const { rankOf, suitOf, cardValue, handTotal, isCard, classifyMeld, layoffEnd } 
 const HAND_SIZE = 5;
 const TONK_LOW = 15; // total <= 15 is Tonk
 const TONK_HIGH = 49; // total >= 49 is Tonk
-const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 6;
+const MIN_PLAYERS = 3;
+const MAX_PLAYERS = 5;
 
 class GameError extends Error {}
 
