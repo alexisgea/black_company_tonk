@@ -101,13 +101,12 @@ input[type=text] { font: inherit; padding: 8px 10px; border-radius: 6px; border:
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
 .opp.offline { opacity: 0.5; }
 
-/* Piles sit in the middle row; the empty top row balances the melds row so they stay centered. */
-.center { flex: 1; display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center; gap: 16px; padding: 10px; }
-.piles { grid-row: 2; display: flex; gap: 28px; align-items: flex-start; }
-.melds { grid-row: 3; align-self: start; }
+/* Piles sit in the middle of the table. */
+.center { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; }
+.piles { display: flex; gap: 28px; align-items: flex-start; }
 .pile { text-align: center; font-size: 13px; }
-.melds { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
-.meld { background: var(--panel); border-radius: 8px; padding: 6px; }
+.melds { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+.meld { background: #0003; border-radius: 8px; padding: 6px; }
 .meld.target { outline: 2px solid var(--accent); cursor: pointer; }
 .meld .cards { display: flex; gap: 3px; }
 .meld .label { font-size: 12px; margin-bottom: 4px; }

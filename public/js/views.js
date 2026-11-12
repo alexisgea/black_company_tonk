@@ -232,6 +232,9 @@ function renderTable() {
   const myIdx = seats.indexOf(state.you);
   const opponents = (myIdx === -1 ? seats : [...seats.slice(myIdx + 1), ...seats.slice(0, myIdx)]).filter((id) => id !== state.you);
   const oppEls = opponents.map((id) => {
+  const canDrawPhase = myTurn && round.phase === 'draw';
+  const canPlayPhase = myTurn && round.phase === 'play';
+
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
     const cards = h('div', { class: 'cards' });
@@ -246,8 +249,32 @@ function renderTable() {
     );
   });
 
-  const canDrawPhase = myTurn && round.phase === 'draw';
-  const canPlayPhase = myTurn && round.phase === 'play';
+  // Sets and spreads a player has put down, shown in front of that player's hand.
+  function meldsOf(owner) {
+    const mine = round.melds.filter((m) => m.owner === owner);
+    if (!mine.length) return null;
+    return h(
+      'div',
+      { class: 'melds' },
+      mine.map((m) => {
+        const canLayoff = canPlayPhase && selected.length === 1 && layoffEnd(m, selected[0]);
+        return h(
+          'div',
+          {
+            class: 'meld' + (canLayoff ? ' target' : ''),
+            onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null,
+          },
+          h('div', { class: 'label' }, m.type === 'set' ? 'set' : 'spread'),
+          h(
+            'div',
+            { class: 'cards' },
+            m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' })),
+          ),
+        );
+      }),
+    );
+  }
+      meldsOf(id),
 
   const deck = h(
     'div',
@@ -266,23 +293,6 @@ function renderTable() {
     cardEl(round.discardTop, { onClick: discardClick, zone: 'discard' }),
     h('div', null, canPlayPhase ? 'Discard here' : 'Discard'),
   );
-
-  const meldEls = round.melds.map((m) => {
-    const canLayoff = canPlayPhase && selected.length === 1 && layoffEnd(m, selected[0]);
-    return h(
-      'div',
-      {
-        class: 'meld' + (canLayoff ? ' target' : ''),
-        onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null,
-      },
-      h('div', { class: 'label' }, `${nameOf(m.owner)} \u2013 ${m.type === 'set' ? 'set' : 'spread'}`),
-      h(
-        'div',
-        { class: 'cards' },
-        m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' })),
-      ),
-    );
-  });
 
   let status = '';
   if (!over) {
@@ -318,7 +328,9 @@ function renderTable() {
           state.confirmDown = true;
           render();
         },
+        class: 'go-down',
       },
+        title: canDrawPhase ? '' : 'You can only go down at the start of your turn, before drawing.',
       inHand ? `Go down (${me.total})` : 'Go down',
     ),
     state.confirmDown && canDrawPhase
