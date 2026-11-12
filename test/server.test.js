@@ -3,7 +3,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('node:net');
-const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
@@ -81,13 +80,16 @@ test('server abuse limits', async (t) => {
     assert.equal((await fetch(`${base}/missing.js`)).status, 404);
   });
 
-  await t.test('/version reports the server version and matches the client version', async () => {
-    const res = await fetch(`http://127.0.0.1:${server.port}/version`);
+  await t.test('/version and the client-loaded version both come from package.json', async () => {
+    const base = `http://127.0.0.1:${server.port}`;
+    const expected = require('../package.json').version;
+    const res = await fetch(`${base}/version`);
     assert.equal(res.status, 200);
-    const { version } = await res.json();
-    assert.equal(version, require('../package.json').version);
-    const clientSrc = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'version.js'), 'utf8');
-    assert.equal(clientSrc.match(/CLIENT_VERSION = '([^']+)'/)[1], version);
+    assert.equal((await res.json()).version, expected);
+    const mod = await fetch(`${base}/js/app-version.js`);
+    assert.equal(mod.status, 200);
+    assert.match(mod.headers.get('content-type'), /javascript/);
+    assert.equal(await mod.text(), `export const LOADED_VERSION = ${JSON.stringify(expected)};\n`);
   });
 
   await t.test('too many connections from one address are refused', async () => {

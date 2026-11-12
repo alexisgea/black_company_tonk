@@ -1,16 +1,14 @@
-// Keep in sync with "version" in package.json (test/server.test.js checks this).
-export const CLIENT_VERSION = '0.2.0';
+import { LOADED_VERSION } from './app-version.js';
 
-// Shows "client x / server y" in the bottom-right corner; the server version comes from GET /version.
-export async function showVersions() {
+// Shows "v x" in the bottom-right corner. If the server has been updated since this page loaded, asks for a reload.
+export async function showVersion() {
   const label = document.getElementById('version');
-  const text = (server) => `client v${CLIENT_VERSION} · server ${server}`;
-  label.textContent = text('…');
+  label.textContent = `v${LOADED_VERSION}`;
   try {
     const res = await fetch('/version');
     const { version } = await res.json();
-    label.textContent = text(`v${version}`);
+    if (version !== LOADED_VERSION) label.textContent = `v${LOADED_VERSION} · v${version} available, reload`;
   } catch {
-    label.textContent = text('unknown');
+    // Keep showing the loaded version if the server can't be reached.
   }
 }

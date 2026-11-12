@@ -6,7 +6,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Lobby } = require('./lobby');
 const { RateLimiter, clientIp, originAllowed } = require('./limits');
-const { version: SERVER_VERSION } = require('../package.json');
+const { version: APP_VERSION } = require('../package.json');
 
 const intEnv = (name, fallback) => {
   const n = Number(process.env[name]);
@@ -64,7 +64,18 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
     });
-    res.end(JSON.stringify({ version: SERVER_VERSION }));
+    res.end(JSON.stringify({ version: APP_VERSION }));
+    return;
+  }
+  // The version the client was loaded with, generated from package.json so it has a single source.
+  if (pathname === '/js/app-version.js') {
+    res.writeHead(200, {
+      'Content-Type': MIME['.js'],
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': CSP,
+    });
+    res.end(`export const LOADED_VERSION = ${JSON.stringify(APP_VERSION)};\n`);
     return;
   }
   if (pathname === '/') pathname = '/index.html';
