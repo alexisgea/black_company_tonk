@@ -22,30 +22,41 @@ function buildRules() {
       h('span', { class: 'spacer' }),
       h('button', { onClick: closeRules }, 'Close'),
     ),
-    section('Goal', ['Have the lowest hand total when someone goes down, or get rid of all your cards. Losers pay the winner.']),
-    section('Card values', ['Ace = 1, 2\u201310 = face value, Jack / Queen / King = 10.']),
-    section('The deal', [
-      'Everyone gets 5 cards. One card is flipped to start the discard pile; the rest is the draw pile. Play starts to the left of the dealer.',
-      'TONK: right after the deal, a hand totalling 15 or less, or 49 or more, wins on the spot and every other player pays double. If several players have Tonk it is a draw and the hand is redealt. Tonk can only happen on the deal.',
+    section('Goal', [
+      'This game is played by 3 to 5 players.',
+      'Win the hand in one of two ways: have the lowest total when a player goes down, or get rid of all your cards. The losers pay the winner.',
     ]),
-    section('Your turn \u2013 choose one path', [
-      'Go down (only at the start of your turn): your hand total is compared with everyone\u2019s. If yours is strictly the lowest, you win and each other player pays 1.',
-      'If you are not strictly the lowest, you pay double (2) to every player whose total is equal or lower than yours, and the players with a higher total pay the lowest hand 1. Ties lose for the player who went down.',
-      'Normal play: take the top card of the draw pile or the discard pile. Then you may put down melds and add to spreads (below). Finish by discarding one card.',
+    section('Card values', ['Ace = 1. Cards 2\u201310 = the number on the card. Jack, Queen and King = 10 each.']),
+    section('The deal', [
+      'Each player gets 5 cards. One card is turned face up to start the discard pile. The other cards form the draw pile. The player to the left of the dealer plays first.',
+      'TONK: right after the deal, if your hand total is 15 or less, or 49 or more, you win immediately. Every other player pays you double (2). If two or more players have Tonk, nobody wins and the cards are dealt again. You can only get Tonk right after the deal, never later in the hand.',
+    ]),
+    section('Your turn \u2013 choose one option', [
+      'Go down (only at the start of your turn): you show your hand and say its total. Everyone\u2019s totals are compared.',
+      'If your total is lower than every other player\u2019s total, you win. Each other player pays you 1.',
+      'If any other player has the same total as you or a lower one, you lose. A tie is a loss for you, not a win. You pay 2 to each player whose total is the same as yours or lower. Each player with a higher total pays 1 to the player with the lowest total.',
+      'Normal play: take the top card of the draw pile or the top card of the discard pile. Then you may put down sets and spreads (see below) and add cards to spreads. At the end of your turn, discard one card.',
     ]),
     section('Putting cards down', [
-      'Set: 3 or 4 cards of the same rank.',
-      'Spread: 3 or more cards of the same suit in order (Ace is low only: A-2-3\u2026 J-Q-K, no wrapping from King to Ace).',
-      'Select the cards in your hand and press \u201cPut down selected\u201d. Cards put down no longer count toward your total.',
-      'You may add a card to either end of any spread on the table, including other players\u2019 spreads: select the card, then click the spread. Sets cannot be added to.',
+      'Set: 3 or 4 cards with the same number or letter (for example 8-8-8).',
+      'Spread: 3 or more cards of the same suit in number order (for example 4-5-6 of hearts). Ace is only low: A-2-3 is allowed, but Q-K-A is not. You cannot continue from King to Ace.',
+      'To put cards down, select them in your hand and press \u201cPut down selected\u201d. Cards you put down do not count in your hand total.',
+      'You can add cards to either end of any spread on the table, including spreads of other players: select a card, then click the spread. You cannot add cards to sets.',
     ]),
     section('Winning by emptying your hand', [
-      'If you get rid of all your cards during your turn (by putting down, adding to a spread, or discarding your last card), you win and every other player pays you 1.',
+      'If you have no cards left during your turn (after putting cards down, adding to a spread, or discarding your last card), you win. Every other player pays you 1.',
     ]),
     section('Other', [
-      'If the draw pile runs out, the discard pile (except its top card) is reshuffled.',
-      'Scores in the side panel are a running total of what each player has won (+) or paid (\u2212) in this game.',
+      'If the draw pile is empty, the discard pile is shuffled to make a new draw pile. The top discard card stays in place.',
+      'The scores in the side panel are running totals for this game: money won (+) and money paid (\u2212).',
     ]),
+    h('h3', null, 'Credits'),
+    h(
+      'ul',
+      null,
+      h('li', null, h('a', { href: 'https://www.bsfs.org/bsfstonk.htm', target: '_blank', rel: 'noopener noreferrer' }, 'BSFS \u2013 Tonk')),
+      h('li', null, h('a', { href: 'http://www.gamecabinet.com/rules/Tonk.html', target: '_blank', rel: 'noopener noreferrer' }, 'Game Cabinet \u2013 Tonk')),
+    ),
   );
   rulesEl.replaceChildren(dialog);
   rulesEl.addEventListener('click', (e) => e.target === rulesEl && closeRules());
