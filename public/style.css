@@ -75,6 +75,9 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: 0.45; cursor: default; }
+button.go-down:disabled { opacity: 1; background: #8a8f8a; color: #d4d6d4; border-color: #0003; }
+.go-down-hint { font-size: 0.9em; }
+.hand-value { font-weight: 600; margin-bottom: 4px; }
 button.secondary { background: #ffffff22; color: var(--text); border-color: #fff4; }
 button.tonk-btn { font-size: 1.6rem; padding: 10px 34px; background: #d83a2e; color: #fff; letter-spacing: 0.05em; animation: tonk-pulse 0.9s ease-in-out infinite alternate; }
 @keyframes tonk-pulse { to { transform: scale(1.08); box-shadow: 0 0 14px 2px rgba(216, 58, 46, 0.7); } }
