@@ -100,7 +100,7 @@ class Room {
     if (this.status === 'waiting' && user.id !== this.hostId) {
       throw new tonk.GameError('Only the host can start the game');
     }
-    if (this.players.length < tonk.MIN_PLAYERS) throw new tonk.GameError('Need at least 2 players');
+    if (this.players.length < tonk.MIN_PLAYERS) throw new tonk.GameError(`Need at least ${tonk.MIN_PLAYERS} players`);
     const n = this.players.length;
     this.dealerIdx = this.handNo === 0 ? Math.floor(this.rng() * n) : (this.dealerIdx + 1) % n;
     this.handNo++;

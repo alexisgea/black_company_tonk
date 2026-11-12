@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Lobby } = require('../server/lobby');
+const { MIN_PLAYERS } = require('../server/tonk');
 
 // Minimal fake connection that records what the server sends.
 function fakeConn() {
@@ -32,10 +33,19 @@ function connect(lobby, name) {
   return conn;
 }
 
+// Creates a game with MIN_PLAYERS humans; the first one hosts.
+function seatedGame(lobby) {
+  const humans = Array.from({ length: MIN_PLAYERS }, (_, i) => connect(lobby, `P${i + 1}`));
+  say(lobby, humans[0], { t: 'createGame' });
+  const gameId = humans[1].last('lobby').games[0].id;
+  humans.slice(1).forEach((h) => say(lobby, h, { t: 'joinGame', gameId }));
+  return { humans, gameId };
+}
+
 test('create, list, join, start and play a hand through the lobby', () => {
   const lobby = new Lobby({ graceMs: 10 });
-  const alice = connect(lobby, 'Alice');
-  const bob = connect(lobby, 'Bob');
+  const humans = Array.from({ length: MIN_PLAYERS }, (_, i) => connect(lobby, `P${i + 1}`));
+  const [alice, bob, ...others] = humans;
   assert.equal(alice.last('lobby').games.length, 0);
 
   say(lobby, alice, { t: 'createGame' });
@@ -43,7 +53,8 @@ test('create, list, join, start and play a hand through the lobby', () => {
   const gameId = bob.last('lobby').games[0].id;
 
   say(lobby, bob, { t: 'joinGame', gameId });
-  assert.equal(alice.last('room').room.players.length, 2);
+  others.forEach((h) => say(lobby, h, { t: 'joinGame', gameId }));
+  assert.equal(alice.last('room').room.players.length, MIN_PLAYERS);
 
   // Non-host cannot start; host can.
   say(lobby, bob, { t: 'startGame' });
@@ -60,8 +71,8 @@ test('create, list, join, start and play a hand through the lobby', () => {
     assert.equal(aView.room.round.players[aView.you].hand.length, 5);
 
     const turnId = aView.room.round.turn;
-    const mover = turnId === aView.you ? alice : bob;
-    const other = mover === alice ? bob : alice;
+    const mover = humans.find((h) => h.last('room').you === turnId);
+    const other = humans.find((h) => h !== mover);
     say(lobby, other, { t: 'action', action: { type: 'draw' } });
     assert.match(other.last('error').message, /turn/i);
     say(lobby, mover, { t: 'action', action: { type: 'draw' } });
@@ -69,7 +80,9 @@ test('create, list, join, start and play a hand through the lobby', () => {
     assert.equal(mv.phase, 'play');
     assert.equal(mv.players[turnId].hand.length, 6);
     say(lobby, mover, { t: 'action', action: { type: 'discard', card: mv.players[turnId].hand[0] } });
-    assert.equal(other.last('room').room.round.turn, other.last('room').you);
+    const nextId = other.last('room').room.round.turn;
+    assert.notEqual(nextId, turnId);
+    assert.ok(humans.some((h) => h.last('room').you === nextId));
   }
 });
 
@@ -104,16 +117,14 @@ test('a second connection with the same token takes the seat and tells the old o
   assert.equal(lobby.users.size, 1);
 });
 
-test('leaving hands over host; mid-hand leave with two players aborts the hand', () => {
+test('leaving hands over host; mid-hand leave below the minimum aborts the hand', () => {
   const lobby = new Lobby();
-  const alice = connect(lobby, 'Alice');
-  const bob = connect(lobby, 'Bob');
-  say(lobby, alice, { t: 'createGame' });
-  say(lobby, bob, { t: 'joinGame', gameId: bob.last('lobby').games[0].id });
+  const { humans } = seatedGame(lobby);
+  const [alice, bob] = humans;
   say(lobby, alice, { t: 'startGame' });
   say(lobby, alice, { t: 'leaveGame' });
   const view = bob.last('room').room;
-  assert.equal(view.players.length, 1);
+  assert.equal(view.players.length, MIN_PLAYERS - 1);
   assert.equal(view.hostId, bob.last('welcome').id);
   assert.equal(view.status, 'between');
   assert.ok(['aborted', 'tonk', 'tonkDraw'].includes(view.round.result.type));
@@ -121,10 +132,8 @@ test('leaving hands over host; mid-hand leave with two players aborts the hand',
 
 test('reorder: only the owner gets the new order back, opponents are not notified', () => {
   const lobby = new Lobby();
-  const alice = connect(lobby, 'Alice');
-  const bob = connect(lobby, 'Bob');
-  say(lobby, alice, { t: 'createGame' });
-  say(lobby, bob, { t: 'joinGame', gameId: bob.last('lobby').games[0].id });
+  const { humans } = seatedGame(lobby);
+  const [alice, bob] = humans;
   say(lobby, alice, { t: 'startGame' });
   const view = alice.last('room');
   if (view.room.status !== 'playing') return; // rare Tonk on the deal ends the hand immediately
@@ -199,11 +208,12 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   const lobby = new Lobby({ botDelayMs: 5 });
   const host = connect(lobby, 'Host');
   say(lobby, host, { t: 'createGame' });
-  say(lobby, host, { t: 'addBot' });
+  for (let i = 1; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
   const players = host.last('room').room.players;
-  assert.equal(players.length, 2);
+  assert.equal(players.length, MIN_PLAYERS);
   assert.equal(players[1].isBot, true);
   assert.equal(players[1].connected, true);
+  const botIds = players.filter((p) => p.isBot).map((p) => p.id);
 
   say(lobby, host, { t: 'startGame' });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -219,7 +229,7 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
       const hand = state().round.players[me].hand;
       say(lobby, host, { t: 'action', action: { type: 'discard', card: hand[hand.length - 1] } });
     }
-    assert.ok(state().log.some((e) => e.type === 'draw' || e.type === 'takeDiscard') && state().log.some((e) => e.pid === players[1].id));
+    assert.ok(state().log.some((e) => e.type === 'draw' || e.type === 'takeDiscard') && state().log.some((e) => botIds.includes(e.pid)));
   }
 
   say(lobby, host, { t: 'leaveGame' });
@@ -235,20 +245,19 @@ test('bots: can be removed at any time, including mid-hand', () => {
   say(lobby, host, { t: 'removeBot', id: botId });
   assert.equal(host.last('room').room.players.length, 1);
 
-  // Mid-hand with two bots: removing one keeps the hand going with the rest.
-  say(lobby, host, { t: 'addBot' });
-  say(lobby, host, { t: 'addBot' });
+  // Mid-hand with the minimum plus one bots: removing one keeps the hand going with the rest.
+  for (let i = 0; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
   say(lobby, host, { t: 'startGame' });
   if (host.last('room').room.status === 'playing') {
     const [, firstBot] = host.last('room').room.players;
     say(lobby, host, { t: 'removeBot', id: firstBot.id });
     const view = host.last('room').room;
-    assert.equal(view.players.length, 2);
+    assert.equal(view.players.length, MIN_PLAYERS);
     assert.equal(view.status, 'playing');
     assert.equal(view.round.order.includes(firstBot.id), false);
     assert.ok(view.round.turn, 'someone still has the turn');
 
-    // Removing the last bot leaves one player: the hand is cancelled with no payoff.
+    // Removing another bot drops below the minimum: the hand is cancelled with no payoff.
     say(lobby, host, { t: 'removeBot', id: view.players[1].id });
     const after = host.last('room').room;
     assert.equal(after.status, 'between');
@@ -310,7 +319,7 @@ test('kick: host can remove a human (even mid-hand), they cannot rejoin, others 
     false,
   );
   assert.ok(view.log.some((e) => e.type === 'kick' && e.pid === bobId));
-  assert.ok(['playing', 'between'].includes(view.status)); // three players became two: the table carries on
+  assert.ok(['playing', 'between'].includes(view.status)); // one fewer than before, still at or above the minimum: the table carries on
 
   say(lobby, bob, { t: 'joinGame', gameId });
   assert.match(bob.last('error').message, /removed/i);

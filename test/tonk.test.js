@@ -207,17 +207,24 @@ test('draw is refused when no cards can be drawn, but the discard can still be t
 });
 
 test('removePlayer: turn bookkeeping and abort with too few players', () => {
-  const round = makeRound({ hands: { a: [c(2, 'C')], b: [c(3, 'C')], c: [c(4, 'C')] }, turn: 1, phase: 'play' });
-  T.removePlayer(round, 'a');
-  assert.equal(round.order[round.turn], 'b');
-  assert.equal(round.phase, 'play');
-  T.removePlayer(round, 'b');
-  assert.equal(round.result.type, 'aborted');
-  assert.deepEqual(round.result.deltas, { c: 0 });
+  // One more player than the minimum, so a single removal keeps the hand alive.
+  const ids = Array.from({ length: T.MIN_PLAYERS + 1 }, (_, i) => String.fromCharCode(97 + i));
+  const hands = () => Object.fromEntries(ids.map((id, i) => [id, [c(2 + i, 'C')]]));
+  const [first, second] = ids;
+  const last = ids.at(-1);
 
-  const r2 = makeRound({ hands: { a: [c(2, 'C')], b: [c(3, 'C')], c: [c(4, 'C')] }, turn: 2, phase: 'play' });
-  T.removePlayer(r2, 'c');
-  assert.equal(r2.order[r2.turn], 'a');
+  const round = makeRound({ hands: hands(), turn: 1, phase: 'play' });
+  T.removePlayer(round, first);
+  assert.equal(round.result, null);
+  assert.equal(round.order[round.turn], second);
+  assert.equal(round.phase, 'play');
+  T.removePlayer(round, second);
+  assert.equal(round.result.type, 'aborted');
+  assert.deepEqual(round.result.deltas, Object.fromEntries(ids.slice(2).map((id) => [id, 0])));
+
+  const r2 = makeRound({ hands: hands(), turn: ids.length - 1, phase: 'play' });
+  T.removePlayer(r2, last);
+  assert.equal(r2.order[r2.turn], first);
   assert.equal(r2.phase, 'draw');
 });
 

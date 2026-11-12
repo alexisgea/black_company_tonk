@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Room } = require('../server/room');
-const { GameError } = require('../server/tonk');
+const { GameError, MIN_PLAYERS, MAX_PLAYERS } = require('../server/tonk');
 
 let nextId = 0;
 const human = (name) => ({ id: `u${++nextId}`, name, conn: {}, room: null });
@@ -15,9 +15,11 @@ function seeded(seed) {
   };
 }
 
+const namesFor = (n) => Array.from({ length: n }, (_, i) => `P${i + 1}`);
+
 // A table with the given humans (first one hosts). Deals until a hand is actually in progress,
 // since a Tonk on the deal ends the hand immediately.
-function playingRoom(names = ['Ann', 'Bob']) {
+function playingRoom(names = namesFor(MIN_PLAYERS)) {
   const room = new Room('ROOM', 'Test', seeded(7));
   const users = names.map(human);
   users.forEach((u) => room.join(u));
@@ -38,15 +40,14 @@ test('first player to join is the host and starts at zero', () => {
   assert.equal(a.room, room);
 });
 
-test('only the host can start a new game, and it needs two players', () => {
+test('only the host can start a new game, and it needs the minimum number of players', () => {
   const room = new Room('R', 'Test');
-  const a = human('Ann');
-  const b = human('Bob');
-  room.join(a);
-  assert.throws(() => room.startHand(a), /at least 2/);
-  room.join(b);
-  assert.throws(() => room.startHand(b), /Only the host/);
-  room.startHand(a);
+  const users = namesFor(MIN_PLAYERS).map(human);
+  users.slice(0, -1).forEach((u) => room.join(u));
+  assert.throws(() => room.startHand(users[0]), new RegExp(`at least ${MIN_PLAYERS}`));
+  room.join(users.at(-1));
+  assert.throws(() => room.startHand(users.at(-1)), /Only the host/);
+  room.startHand(users[0]);
   assert.notEqual(room.status, 'waiting');
 });
 
@@ -55,8 +56,8 @@ test('cannot join mid-hand, when full, or after being removed', () => {
   assert.throws(() => room.join(human('Late')), GameError);
 
   const full = new Room('R', 'Test');
-  for (let i = 0; i < 6; i++) full.join(human(`P${i}`));
-  assert.throws(() => full.join(human('Seventh')), GameError);
+  namesFor(MAX_PLAYERS).forEach((n) => full.join(human(n)));
+  assert.throws(() => full.join(human('Extra')), GameError);
 
   const kicked = users[1];
   room.leave(kicked, 'kick');
@@ -90,13 +91,13 @@ test('bots are named in order and can be removed', () => {
 });
 
 test('a hand that ends settles zero-sum scores', () => {
-  const { room, users } = playingRoom(['Ann', 'Bob', 'Cy']);
+  const { room, users } = playingRoom();
   const mover = users.find((u) => u.id === room.round.order[room.round.turn]);
   room.act(mover, { type: 'goDown' });
   assert.equal(room.status, 'between');
   const total = Object.values(room.scores).reduce((a, b) => a + b, 0);
   assert.equal(total, 0);
-  assert.notDeepEqual(Object.values(room.scores), [0, 0, 0]);
+  assert.notDeepEqual(Object.values(room.scores), Array(MIN_PLAYERS).fill(0));
 });
 
 test('acting without a hand in progress is an error', () => {
@@ -107,12 +108,12 @@ test('acting without a hand in progress is an error', () => {
   assert.throws(() => room.reorder(a, []), /No hand/);
 });
 
-test('leaving a two-player hand aborts it with no payoff', () => {
+test('leaving a minimum-size hand aborts it with no payoff', () => {
   const { room, users } = playingRoom();
-  room.leave(users[1]);
+  room.leave(users.at(-1));
   assert.equal(room.status, 'between');
   assert.equal(room.round.result.type, 'aborted');
-  assert.deepEqual(room.scores, { [users[0].id]: 0 });
+  assert.deepEqual(room.scores, Object.fromEntries(users.slice(0, -1).map((u) => [u.id, 0])));
 });
 
 test('chat is cleaned, capped and limited to members', () => {
@@ -149,11 +150,11 @@ test('views show only the viewer their own hand', () => {
 
 test('joinable and summary reflect status and seats', () => {
   const room = new Room('R', 'Test');
-  const a = human('Ann');
+  const [a, ...rest] = namesFor(MIN_PLAYERS).map(human);
   room.join(a);
   assert.equal(room.summary().joinable, true);
-  room.join(human('Bob'));
+  rest.forEach((u) => room.join(u));
   room.startHand(a);
-  assert.deepEqual(room.summary().players, ['Ann', 'Bob']);
+  assert.deepEqual(room.summary().players, namesFor(MIN_PLAYERS));
   assert.equal(room.summary().joinable, room.status !== 'playing');
 });

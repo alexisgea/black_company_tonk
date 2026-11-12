@@ -27,7 +27,8 @@ test('bots only ever make legal moves and always finish the hand', () => {
   let wins = { down: 0, empty: 0 };
   for (let seed = 1; seed <= 300; seed++) {
     const rng = seededRng(seed);
-    const players = ['a', 'b', 'c'].slice(0, 2 + (seed % 2));
+    const count = T.MIN_PLAYERS + (seed % (T.MAX_PLAYERS - T.MIN_PLAYERS + 1));
+    const players = Array.from({ length: count }, (_, i) => `p${i}`);
     const round = T.startRound(players, 0, rng);
     let steps = 0;
     while (!round.result) {

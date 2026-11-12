@@ -46,7 +46,8 @@ const discardHelps = (round, hand, card) => !!findLayoff([card], round.melds) ||
 function chooseAction(round, id) {
   const hand = round.hands[id];
   if (round.phase === 'draw') {
-    if (handTotal(hand) <= GO_DOWN_AT) return { type: 'goDown' };
+    // An empty draw pile means the table is cycling without anyone getting low enough; end the hand.
+    if (handTotal(hand) <= GO_DOWN_AT || round.deck.length === 0) return { type: 'goDown' };
     const top = round.discard[round.discard.length - 1];
     if (top !== undefined && discardHelps(round, hand, top)) return { type: 'takeDiscard' };
     const canDraw = round.deck.length > 0 || round.discard.length > 1;
