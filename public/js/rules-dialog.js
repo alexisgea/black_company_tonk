@@ -54,8 +54,20 @@ function buildRules() {
     h(
       'ul',
       null,
-      h('li', null, h('a', { href: 'https://www.bsfs.org/bsfstonk.htm', target: '_blank', rel: 'noopener noreferrer' }, 'BSFS \u2013 Tonk')),
-      h('li', null, h('a', { href: 'http://www.gamecabinet.com/rules/Tonk.html', target: '_blank', rel: 'noopener noreferrer' }, 'Game Cabinet \u2013 Tonk')),
+      h(
+        'li',
+        null,
+        h('a', { href: 'https://www.bsfs.org/bsfstonk.htm', target: '_blank', rel: 'noopener noreferrer' }, 'BSFS \u2013 Tonk'),
+      ),
+      h(
+        'li',
+        null,
+        h(
+          'a',
+          { href: 'http://www.gamecabinet.com/rules/Tonk.html', target: '_blank', rel: 'noopener noreferrer' },
+          'Game Cabinet \u2013 Tonk',
+        ),
+      ),
     ),
   );
   rulesEl.replaceChildren(dialog);
