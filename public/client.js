@@ -8,7 +8,6 @@ const RANK_LABELS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'
 const SUIT_LABELS = ['\u2663', '\u2666', '\u2665', '\u2660'];
 const rankOf = (id) => (id % 13) + 1;
 const suitOf = (id) => Math.floor(id / 13);
-const cardValue = (id) => Math.min(rankOf(id), 10);
 const cardLabel = (id) => RANK_LABELS[rankOf(id) - 1] + SUIT_LABELS[suitOf(id)];
 
 // `zone` ('hand' | 'discard' | 'meld') marks cards the animation layer should track by id.
@@ -52,7 +51,6 @@ function h(tag, props, ...children) {
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
-localStorage.removeItem('tonk.token'); // older builds shared one token across tabs
 
 const state = {
   ws: null,
@@ -126,8 +124,7 @@ function onMessage(msg) {
       state.you = msg.you;
       state.room = msg.room;
       state.view = 'room';
-      chat.messages = msg.room.chat || [];
-      if (!msg.room.chat) toast('The server is an older version: restart it (npm start) to enable chat, reordering and opponent animations.');
+      chat.messages = msg.room.chat;
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
       if (state.confirmKick && !msg.room.players.some((p) => p.id === state.confirmKick)) state.confirmKick = null;
@@ -369,7 +366,6 @@ buildChat();
 // card we have never seen, so it can fly in from their panel.
 // ---------------------------------------------------------------------------
 const fx = document.getElementById('fx');
-localStorage.removeItem('tonk.motion'); // leftover from the removed animations toggle
 const anim = { meta: null };
 
 const EASE_OUT = 'cubic-bezier(0.2, 0.8, 0.2, 1)';

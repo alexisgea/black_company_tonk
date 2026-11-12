@@ -1,6 +1,6 @@
 'use strict';
-// Simple bot opponent for development/testing. Pure decision logic: given the round, pick an action.
-const { rankOf, suitOf, handTotal, classifyMeld, layoffEnd } = require('./tonk');
+// Computer opponent. Pure decision logic: given the round, pick an action.
+const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('./tonk');
 
 const GO_DOWN_AT = 12;
 
@@ -57,7 +57,7 @@ function chooseAction(round, id) {
   if (layoff) return { type: 'layoff', ...layoff };
   const meld = findMeld(hand);
   if (meld) return { type: 'meld', cards: meld };
-  const worst = [...hand].sort((a, b) => Math.min(rankOf(b), 10) - Math.min(rankOf(a), 10))[0];
+  const worst = [...hand].sort((a, b) => cardValue(b) - cardValue(a))[0];
   return { type: 'discard', card: worst };
 }
 

@@ -291,7 +291,6 @@ function viewRound(round, viewerId) {
     phase: round.phase,
     deckCount: round.deck.length,
     discardTop: round.discard.length ? round.discard[round.discard.length - 1] : null,
-    discardCount: round.discard.length,
     melds: round.melds.map((m) => ({ id: m.id, owner: m.owner, type: m.type, cards: [...m.cards] })),
     players,
     result: round.result,

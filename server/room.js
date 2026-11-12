@@ -41,7 +41,7 @@ class Room {
     return this.players.filter((p) => !p.isBot);
   }
 
-  // Dev-only computer player. It has no connection; the lobby plays its turns.
+  // Adds a computer player. It has no connection; the lobby plays its turns.
   addBot() {
     const bots = this.players.filter((p) => p.isBot).length;
     const bot = {
