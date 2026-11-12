@@ -31,7 +31,12 @@ function buildChat() {
 export function fillChatLog() {
   chat.logEl.replaceChildren(
     ...chat.messages.map((m) =>
-      h('div', { class: 'chat-msg' + (m.pid === state.you ? ' mine' : '') }, h('strong', null, m.name + ': '), m.text),
+      h(
+        'div',
+        { class: 'chat-msg' + (m.pid === state.you ? ' mine' : '') },
+        h('strong', null, m.name + (m.spectator ? ' (guest): ' : ': ')),
+        m.text,
+      ),
     ),
   );
 }

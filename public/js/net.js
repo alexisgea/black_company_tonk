@@ -55,7 +55,8 @@ function onMessage(msg) {
       chat.messages = msg.room.chat;
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
-      if (state.confirmKick && !msg.room.players.some((p) => p.id === state.confirmKick)) state.confirmKick = null;
+      if (state.confirmKick && ![...msg.room.players, ...msg.room.spectators].some((p) => p.id === state.confirmKick))
+        state.confirmKick = null;
       break;
     case 'chat':
       addChatMessage(msg.message); // no full re-render: keeps typing and drags undisturbed

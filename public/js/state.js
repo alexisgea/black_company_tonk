@@ -25,4 +25,7 @@ export function toast(message, ms = 3500) {
   toastTimer = setTimeout(() => (toastEl.hidden = true), ms);
 }
 
-export const nameOf = (id, fallback) => state.room?.players.find((p) => p.id === id)?.name || fallback || 'Someone';
+export const nameOf = (id, fallback) =>
+  state.room?.players.find((p) => p.id === id)?.name || state.room?.spectators.find((s) => s.id === id)?.name || fallback || 'Someone';
+
+export const isSpectator = () => !!state.room && !state.room.players.some((p) => p.id === state.you);
