@@ -28,7 +28,7 @@ export function render() {
       h(
         'div',
         { class: 'screen' },
-        h('h1', null, 'Tonk'),
+        h('h1', null, 'Black Company Tonk'),
         h(
           'div',
           { class: 'panel' },
@@ -79,7 +79,7 @@ function renderName() {
   return h(
     'div',
     { class: 'screen' },
-    h('h1', null, 'Tonk'),
+    h('h1', null, 'Black Company Tonk'),
     h('div', { class: 'panel row' }, input, h('button', { onClick: go }, 'Play')),
   );
 }
@@ -105,7 +105,7 @@ function renderLobby() {
   return h(
     'div',
     { class: 'screen' },
-    h('h1', null, 'Tonk'),
+    h('h1', null, 'Black Company Tonk'),
     h(
       'div',
       { class: 'panel row' },
