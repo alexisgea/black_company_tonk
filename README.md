@@ -38,7 +38,8 @@ See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, 
 | `server/index.js` | HTTP static server + WebSocket glue, connection-level abuse limits. |
 | `server/limits.js` | Rate limiter, client-IP and Origin checks. |
 | `server/bot.js` | Bot decision logic. |
-| `public/client.js` | UI. Card drawing lives in the marked "Theme" section; `style.css` has a matching theme block. |
+| `shared/cards.js` | Card ids, hand totals, set/run validation. Loaded by the server (`require`) and the browser (`<script>`), so both always agree. |
+| `public/js/` | UI as native ES modules (no build step): `main.js` (entry), `net.js` (WebSocket + messages), `state.js`, `views.js` (screens), `hand.js` (selection and drag-reorder), `chat.js`, `animation.js`, `rules-dialog.js`, `theme.js` (card drawing; `style.css` has a matching theme block). |
 
 The server is authoritative; clients only send intents (`draw`, `takeDiscard`, `meld`, `layoff`, `discard`, `goDown`) and receive a per-player view (opponent hands are never sent until the hand ends). Hand order is stored server-side: dealt cards are unsorted, new cards are appended on the right, and players can drag cards to reorder (`reorder` message, never affects game state).
 
@@ -46,7 +47,7 @@ Identity is a random token kept in `sessionStorage` (per browser tab): refreshin
 
 Chat is per table (waiting room and in game): messages are trimmed, capped at 200 characters, limited to 5 per 5 seconds per player, rendered as plain text, and the last 50 are replayed on rejoin.
 
-Animations live in the "Animation" section of `public/client.js`. The UI re-renders from scratch on every update, so tracked cards (`data-card`) have their positions captured before each render and compared afterwards (FLIP, via the Web Animations API). Server log events carry a `seq`, which tells the client which opponent just moved a card it has never seen, so it can fly in from their panel. Animations always play: they deliberately ignore the OS "reduce motion" flag.
+Animations live in `public/js/animation.js`. The UI re-renders from scratch on every update, so tracked cards (`data-card`) have their positions captured before each render and compared afterwards (FLIP, via the Web Animations API). Server log events carry a `seq`, which tells the client which opponent just moved a card it has never seen, so it can fly in from their panel. Animations always play: they deliberately ignore the OS "reduce motion" flag.
 
 ## Rules as implemented
 

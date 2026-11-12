@@ -1,0 +1,437 @@
+import { h } from './dom.js';
+import { state, toast, nameOf } from './state.js';
+import { send, sendAction, connect } from './net.js';
+import { classifyMeld, layoffEnd } from './rules.js';
+import { cardEl, cardLabel } from './theme.js';
+import { chat, fillChatLog, isChatAtBottom } from './chat.js';
+import { rulesButton } from './rules-dialog.js';
+import { drag, handCardEl } from './hand.js';
+import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
+
+const app = document.getElementById('app');
+
+export function render() {
+  if (drag.active) {
+    drag.pendingRender = true; // never rebuild the DOM under an active drag
+    return;
+  }
+  const hadFocus = document.activeElement === chat.input;
+  const caret = [chat.input.selectionStart, chat.input.selectionEnd];
+  const wasAtBottom = isChatAtBottom();
+  const scrollTop = chat.logEl.scrollTop;
+  const prevMeta = anim.meta;
+  const prevCards = captureCards();
+  anim.meta = null;
+  app.replaceChildren();
+  if (state.replaced) {
+    app.append(
+      h(
+        'div',
+        { class: 'screen' },
+        h('h1', null, 'Tonk'),
+        h(
+          'div',
+          { class: 'panel' },
+          h('p', null, 'This game was opened in another tab or window, so this one was disconnected.'),
+          h(
+            'button',
+            {
+              onClick: () => {
+                state.replaced = false;
+                connect();
+              },
+            },
+            'Use this tab',
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+  if (!state.connected) {
+    app.append(h('div', { class: 'screen' }, h('p', null, 'Connecting to server\u2026')));
+    return;
+  }
+  if (state.view === 'name') app.append(renderName());
+  else if (state.view === 'lobby') app.append(renderLobby());
+  else if (state.view === 'room') {
+    app.append(renderRoom());
+    fillChatLog();
+    chat.logEl.scrollTop = wasAtBottom ? chat.logEl.scrollHeight : scrollTop;
+    anim.meta = currentMeta();
+    playAnimations(prevMeta, prevCards);
+    if (hadFocus) {
+      chat.input.focus();
+      chat.input.setSelectionRange(caret[0], caret[1]);
+    }
+  }
+}
+
+function renderName() {
+  const input = h('input', { type: 'text', maxLength: 20, placeholder: 'Your name', value: state.name, autofocus: true });
+  const go = () => {
+    const name = input.value.trim();
+    if (!name) return toast('Please enter a name');
+    state.name = name;
+    send({ t: 'hello', name, token: state.token });
+  };
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && go());
+  return h(
+    'div',
+    { class: 'screen' },
+    h('h1', null, 'Tonk'),
+    h('div', { class: 'panel row' }, input, h('button', { onClick: go }, 'Play')),
+  );
+}
+
+function renderLobby() {
+  const list = state.games.length
+    ? h(
+        'ul',
+        { class: 'games' },
+        state.games.map((g) =>
+          h(
+            'li',
+            null,
+            h('strong', null, g.name),
+            h('span', { class: 'muted' }, `${g.players.join(', ')} (${g.players.length}/${g.max})`),
+            h('span', { class: 'spacer' }),
+            h('span', { class: 'muted' }, g.status === 'playing' ? 'in progress' : 'open'),
+            h('button', { disabled: !g.joinable, onClick: () => send({ t: 'joinGame', gameId: g.id }) }, 'Join'),
+          ),
+        ),
+      )
+    : h('p', { class: 'muted' }, 'No games yet. Create one!');
+  return h(
+    'div',
+    { class: 'screen' },
+    h('h1', null, 'Tonk'),
+    h(
+      'div',
+      { class: 'panel row' },
+      h('span', null, 'Playing as ', h('strong', null, state.name)),
+      h('span', { class: 'spacer' }),
+      h('button', { class: 'secondary', onClick: () => { state.view = 'name'; render(); } }, 'Change name'),
+      rulesButton(),
+      h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create game'),
+    ),
+    h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open games'), list),
+  );
+}
+
+function renderRoom() {
+  const room = state.room;
+  const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, 'Leave game');
+  if (room.status === 'waiting') {
+    const isHost = room.hostId === state.you;
+    const canStart = isHost && room.players.length >= room.minPlayers;
+    return h(
+      'div',
+      { class: 'screen' },
+      h('h1', null, room.name),
+      h(
+        'div',
+        { class: 'panel' },
+        h('h3', { style: 'margin-top:0' }, 'Players'),
+        room.players.map((p) =>
+          h(
+            'div',
+            { class: 'row' },
+            h('span', null, p.name, p.id === room.hostId ? ' (host)' : '', p.id === state.you ? ' (you)' : '', p.connected ? '' : ' \u2013 disconnected'),
+            isHost && p.isBot
+              ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
+              : kickControls(p),
+          ),
+        ),
+      ),
+      h(
+        'div',
+        { class: 'row', style: 'margin-bottom:14px' },
+        h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
+        addBotButton(),
+        leave,
+        rulesButton(),
+        h('span', { class: 'muted' }, isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026'),
+      ),
+      chat.el,
+    );
+  }
+  return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave));
+}
+
+function renderSide(leaveBtn) {
+  const room = state.room;
+  const lines = room.log.map(formatEvent).filter(Boolean);
+  const logEl = h('div', { class: 'log' }, lines.map((l) => h('div', null, l)));
+  requestAnimationFrame(() => (logEl.scrollTop = logEl.scrollHeight));
+  return h(
+    'div',
+    { class: 'side' },
+    h(
+      'div',
+      { class: 'panel' },
+      h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
+      h('div', { class: 'muted' }, `Hand #${room.handNo}`),
+    ),
+    h(
+      'div',
+      { class: 'panel scores' },
+      h('strong', null, 'Scores'),
+      room.players.map((p) =>
+        h('div', null, h('span', null, p.name + (p.connected ? '' : ' (offline)'), ' ', kickControls(p)), h('span', null, String(p.score))),
+      ),
+    ),
+    chat.el,
+    h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
+  );
+}
+
+function renderTable() {
+  const room = state.room;
+  const round = room.round;
+  const me = round.players[state.you];
+  const inHand = !!me;
+  const myTurn = round.turn === state.you;
+  const over = !!round.result;
+  const selected = [...state.selected];
+
+  // Opponents in seating order, starting from the seat after mine.
+  const seats = round.order;
+  const myIdx = seats.indexOf(state.you);
+  const opponents = (myIdx === -1 ? seats : [...seats.slice(myIdx + 1), ...seats.slice(0, myIdx)]).filter((id) => id !== state.you);
+  const oppEls = opponents.map((id) => {
+    const p = round.players[id];
+    const info = room.players.find((x) => x.id === id);
+    const cards = h('div', { class: 'cards' });
+    if (over) p.hand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
+    else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
+    return h(
+      'div',
+      { class: 'opp' + (round.turn === id ? ' turn' : '') + (info && !info.connected ? ' offline' : ''), 'data-player': id },
+      h('strong', null, nameOf(id)),
+      h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, over ? ` \u2022 total ${p.total}` : ''),
+      info ? h('span', { class: 'opp-actions' }, kickControls(info)) : null,
+      cards,
+    );
+  });
+
+  const canDrawPhase = myTurn && round.phase === 'draw';
+  const canPlayPhase = myTurn && round.phase === 'play';
+
+  const deck = h(
+    'div',
+    { class: 'pile', 'data-pile': 'deck' },
+    cardEl(null, { back: round.deckCount > 0, size: '', onClick: canDrawPhase ? () => sendAction({ type: 'draw' }) : null }),
+    h('div', null, `Draw (${round.deckCount})`),
+  );
+  const discardClick = canDrawPhase
+    ? () => sendAction({ type: 'takeDiscard' })
+    : canPlayPhase && selected.length === 1
+      ? () => sendAction({ type: 'discard', card: selected[0] })
+      : null;
+  const discard = h(
+    'div',
+    { class: 'pile', 'data-pile': 'discard' },
+    cardEl(round.discardTop, { onClick: discardClick, zone: 'discard' }),
+    h('div', null, canPlayPhase ? 'Discard here' : 'Discard'),
+  );
+
+  const meldEls = round.melds.map((m) => {
+    const canLayoff = canPlayPhase && selected.length === 1 && layoffEnd(m, selected[0]);
+    return h(
+      'div',
+      { class: 'meld' + (canLayoff ? ' target' : ''), onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null },
+      h('div', { class: 'label' }, `${nameOf(m.owner)} \u2013 ${m.type === 'set' ? 'set' : 'spread'}`),
+      h('div', { class: 'cards' }, m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' }))),
+    );
+  });
+
+  let status = '';
+  if (!over) {
+    if (!inHand) status = 'Spectating this hand\u2026';
+    else if (myTurn) status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Meld, lay off, then discard one card.';
+    else status = `Waiting for ${nameOf(round.turn)}\u2026`;
+  }
+
+  const handEls = (inHand ? me.hand : []).map((c) => handCardEl(c, !over));
+
+  const validMeld = selected.length >= 3 && classifyMeld(selected);
+  const controls = h(
+    'div',
+    { class: 'row' },
+    h(
+      'button',
+      {
+        disabled: !canDrawPhase || state.confirmDown,
+        onClick: () => {
+          state.confirmDown = true;
+          render();
+        },
+      },
+      inHand ? `Go down (${me.total})` : 'Go down',
+    ),
+    state.confirmDown && canDrawPhase
+      ? [
+          h(
+            'button',
+            {
+              onClick: () => {
+                state.confirmDown = false;
+                sendAction({ type: 'goDown' });
+              },
+            },
+            "I'm sure",
+          ),
+          h(
+            'button',
+            {
+              class: 'secondary',
+              onClick: () => {
+                state.confirmDown = false;
+                render();
+              },
+            },
+            'Cancel',
+          ),
+        ]
+      : null,
+    h('button', { disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) }, 'Put down selected'),
+    h('button', { disabled: !(canPlayPhase && selected.length === 1), onClick: () => sendAction({ type: 'discard', card: selected[0] }) }, 'Discard selected'),
+  );
+
+  return h(
+    'div',
+    { class: 'table' },
+    h('div', { class: 'opponents' }, oppEls),
+    h('div', { class: 'center' }, h('div', { class: 'piles' }, deck, discard), h('div', { class: 'melds' }, meldEls)),
+    over ? renderResult(round) : null,
+    inHand
+      ? h(
+          'div',
+          { class: 'me-panel' + (myTurn ? ' turn' : '') },
+          h('div', { class: 'status' }, status),
+          h('div', { class: 'hand' }, handEls),
+          over ? null : controls,
+        )
+      : h('div', { class: 'me-panel' }, h('div', { class: 'status' }, status || 'Join the next hand when this one ends.')),
+  );
+}
+
+function renderResult(round) {
+  const r = round.result;
+  const room = state.room;
+  let headline;
+  switch (r.type) {
+    case 'tonk':
+      headline = `${nameOf(r.winners[0])} has TONK and wins double!`;
+      break;
+    case 'tonkDraw':
+      headline = 'More than one player has TONK \u2013 the hand is a draw.';
+      break;
+    case 'down':
+      headline = r.success
+        ? `${nameOf(r.actor)} went down with ${r.totals[r.actor]} and wins!`
+        : `${nameOf(r.actor)} went down with ${r.totals[r.actor]} but was beaten and pays double.`;
+      break;
+    case 'empty':
+      headline = `${nameOf(r.actor)} emptied their hand and wins!`;
+      break;
+    default:
+      headline = 'Hand aborted: not enough players.';
+  }
+  const rows = round.order.map((id) =>
+    h(
+      'div',
+      { class: 'hand-row', 'data-player': id },
+      h('span', { class: 'who' }, `${nameOf(id)} (${r.totals[id]})`),
+      r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
+      h('span', { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') }, r.deltas[id] > 0 ? `+${r.deltas[id]}` : String(r.deltas[id])),
+    ),
+  );
+  const canDeal = room.players.length >= room.minPlayers;
+  return h(
+    'div',
+    { class: 'panel result' },
+    h('strong', null, headline),
+    h('div', { class: 'hands' }, rows),
+    h(
+      'div',
+      { class: 'row' },
+      h('button', { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) }, canDeal ? 'Deal next hand' : 'Waiting for players\u2026'),
+      addBotButton(),
+    ),
+  );
+}
+
+// Host only: remove a human (Kick) or a bot (Remove), with an inline confirmation (no browser popup).
+function kickControls(p) {
+  if (state.room.hostId !== state.you || p.id === state.you) return null;
+  const label = p.isBot ? 'Remove' : 'Kick';
+  if (state.confirmKick !== p.id) {
+    return h(
+      'button',
+      {
+        class: 'secondary small-btn',
+        title: `Remove ${p.name} from the game`,
+        onClick: () => {
+          state.confirmKick = p.id;
+          render();
+        },
+      },
+      label,
+    );
+  }
+  return [
+    h(
+      'button',
+      {
+        class: 'small-btn',
+        onClick: () => {
+          state.confirmKick = null;
+          send({ t: p.isBot ? 'removeBot' : 'kick', id: p.id });
+        },
+      },
+      'Confirm',
+    ),
+    h(
+      'button',
+      {
+        class: 'secondary small-btn',
+        onClick: () => {
+          state.confirmKick = null;
+          render();
+        },
+      },
+      'Cancel',
+    ),
+  ];
+}
+
+// Host only: bots fill empty seats (up to the table limit).
+function addBotButton() {
+  const room = state.room;
+  if (room.hostId !== state.you) return null;
+  return h(
+    'button',
+    { class: 'secondary', disabled: room.players.length >= room.maxPlayers, onClick: () => send({ t: 'addBot' }) },
+    'Add bot',
+  );
+}
+
+function formatEvent(e) {
+  const who = nameOf(e.pid, e.name);
+  switch (e.type) {
+    case 'join': return `${who} joined.`;
+    case 'leave': return `${who} left.`;
+    case 'kick': return `${who} was removed by the host.`;
+    case 'deal': return `Hand #${e.hand} dealt by ${who}.`;
+    case 'draw': return `${who} drew from the pile.`;
+    case 'takeDiscard': return `${who} took ${cardLabel(e.card)} from the discard.`;
+    case 'discard': return `${who} discarded ${cardLabel(e.card)}.`;
+    case 'meld': return `${who} put down ${e.kind === 'set' ? 'a set' : 'a spread'}: ${e.cards.map(cardLabel).join(' ')}.`;
+    case 'layoff': return `${who} added ${cardLabel(e.card)} to a spread.`;
+    case 'goDown': return `${who} went down with ${e.total}.`;
+    case 'reshuffle': return 'Discard pile reshuffled into the draw pile.';
+    default: return null;
+  }
+}

@@ -26,6 +26,7 @@ const LIMITS = {
   roomIdleMinutes: intEnv('ROOM_IDLE_MINUTES', 30),
 };
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const SHARED_DIR = path.join(__dirname, '..', 'shared');
 
 // IPv4 addresses other devices on the network can use to reach this machine.
 const lanUrls = (port) =>
@@ -51,8 +52,11 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (pathname === '/') pathname = '/index.html';
-  const file = path.normalize(path.join(PUBLIC_DIR, pathname));
-  if (file !== PUBLIC_DIR && !file.startsWith(PUBLIC_DIR + path.sep)) {
+  // /shared/* (rules used by both sides) comes from the top-level shared folder, everything else from public.
+  const shared = pathname.startsWith('/shared/');
+  const root = shared ? SHARED_DIR : PUBLIC_DIR;
+  const file = path.normalize(path.join(root, shared ? pathname.slice('/shared'.length) : pathname));
+  if (file !== root && !file.startsWith(root + path.sep)) {
     res.writeHead(403).end();
     return;
   }
