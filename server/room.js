@@ -111,7 +111,14 @@ class Room {
     );
     this.status = 'playing';
     this.addLog({ type: 'deal', pid: this.players[this.dealerIdx].id, hand: this.handNo });
-    if (this.round.result) this.settle();
+    if (this.round.result) {
+      // Whoever was dealt a Tonk shouts it in the chat automatically.
+      for (const id of this.round.result.winners) {
+        const player = this.players.find((p) => p.id === id);
+        if (player) this.pushChat(player, 'TONK!');
+      }
+      this.settle();
+    }
   }
 
   act(user, action) {
@@ -125,6 +132,10 @@ class Room {
     if (!this.players.includes(user)) throw new tonk.GameError('Not in this game');
     const text = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH) : '';
     if (!text) throw new tonk.GameError('Message is empty');
+    return this.pushChat(user, text);
+  }
+
+  pushChat(user, text) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
     this.chat.push(message);
     if (this.chat.length > MAX_CHAT) this.chat.shift();

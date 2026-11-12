@@ -131,6 +131,24 @@ test('chat is cleaned, capped and limited to members', () => {
   assert.equal(room.chat.at(-1).text, 'm59');
 });
 
+test('a Tonk on the deal is shouted in the chat by each player who has it', () => {
+  let checked = 0;
+  for (let seed = 1; seed < 300 && checked < 5; seed++) {
+    const room = new Room('ROOM', 'Test', seeded(seed));
+    const users = namesFor(MIN_PLAYERS).map(human);
+    users.forEach((u) => room.join(u));
+    room.startHand(users[0]);
+    if (!room.round.result || !room.round.result.winners.length) {
+      assert.deepEqual(room.chat, []);
+      continue;
+    }
+    checked++;
+    const shouts = room.chat.filter((m) => m.text === 'TONK!').map((m) => m.pid);
+    assert.deepEqual(shouts.sort(), [...room.round.result.winners].sort());
+  }
+  assert.ok(checked > 0, 'expected at least one Tonk deal among the seeds');
+});
+
 test('the log is capped and sequence numbers keep increasing', () => {
   const room = new Room('R', 'Test');
   for (let i = 0; i < 70; i++) room.addLog({ type: 'join', pid: 'x', name: 'x' });
