@@ -58,10 +58,10 @@ function flyFrom(el, from, { duration = MOVE_MS, delay = 0, easing = EASE_OUT } 
 }
 
 function animateSelection(el, selected) {
-  el.animate(
-    [{ transform: selected ? 'none' : SELECT_LIFT }, { transform: selected ? SELECT_LIFT : 'none' }],
-    { duration: 160, easing: EASE_OUT },
-  );
+  el.animate([{ transform: selected ? 'none' : SELECT_LIFT }, { transform: selected ? SELECT_LIFT : 'none' }], {
+    duration: 160,
+    easing: EASE_OUT,
+  });
 }
 
 // My own draw: out of the pile, up above the hand for a moment, then slides into place.
@@ -90,7 +90,12 @@ function ghostFly(card, from, to) {
   if (!from || !to) return;
   const g = cardEl(card, { back: card === null });
   g.classList.add('ghost');
-  Object.assign(g.style, { left: `${from.cx - from.w / 2}px`, top: `${from.cy - from.h / 2}px`, width: `${from.w}px`, height: `${from.h}px` });
+  Object.assign(g.style, {
+    left: `${from.cx - from.w / 2}px`,
+    top: `${from.cy - from.h / 2}px`,
+    width: `${from.w}px`,
+    height: `${from.h}px`,
+  });
   fx.append(g);
   const a = g.animate(
     [

@@ -41,8 +41,7 @@ const findLayoff = (hand, melds) => {
 };
 
 // Would taking this card from the discard pile let the bot put cards down right away?
-const discardHelps = (round, hand, card) =>
-  !!findLayoff([card], round.melds) || !!findMeld([...hand, card])?.includes(card);
+const discardHelps = (round, hand, card) => !!findLayoff([card], round.melds) || !!findMeld([...hand, card])?.includes(card);
 
 function chooseAction(round, id) {
   const hand = round.hands[id];

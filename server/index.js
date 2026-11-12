@@ -16,7 +16,10 @@ const PORT = intEnv('PORT', 3000);
 const HOST = process.env.HOST || undefined; // e.g. 127.0.0.1 when only a local tunnel/proxy should reach the server
 // Only set TRUST_PROXY=1 when the server is reachable solely through the proxy (see docs/hosting.md).
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 const LIMITS = {
   maxConnections: intEnv('MAX_CONNECTIONS', 300),
   maxConnectionsPerIp: intEnv('MAX_CONNECTIONS_PER_IP', 12),
@@ -27,6 +30,9 @@ const LIMITS = {
 };
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const SHARED_DIR = path.join(__dirname, '..', 'shared');
+// The client has no inline scripts or styles and only talks to its own origin (HTTP and WebSocket).
+const CSP =
+  "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 
 // IPv4 addresses other devices on the network can use to reach this machine.
 const lanUrls = (port) =>
@@ -70,6 +76,7 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': CSP,
     });
     res.end(data);
   });

@@ -5,6 +5,8 @@ const tonk = require('./tonk');
 const MAX_LOG = 60;
 const MAX_CHAT = 50;
 const MAX_CHAT_LENGTH = 200;
+// eslint-disable-next-line no-control-regex -- stripping control characters is the point
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 // One table of players: seating, running scores and the current hand.
 class Room {
@@ -121,10 +123,7 @@ class Room {
 
   addChat(user, raw) {
     if (!this.players.includes(user)) throw new tonk.GameError('Not in this game');
-    const text =
-      typeof raw === 'string'
-        ? raw.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH)
-        : '';
+    const text = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH) : '';
     if (!text) throw new tonk.GameError('Message is empty');
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
     this.chat.push(message);

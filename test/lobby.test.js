@@ -10,9 +10,16 @@ function fakeConn() {
     user: null,
     inbox: [],
     closed: false,
-    send(s) { this.inbox.push(JSON.parse(s)); },
-    close() { this.closed = true; this.readyState = 3; },
-    last(type) { return [...this.inbox].reverse().find((m) => m.t === type); },
+    send(s) {
+      this.inbox.push(JSON.parse(s));
+    },
+    close() {
+      this.closed = true;
+      this.readyState = 3;
+    },
+    last(type) {
+      return [...this.inbox].reverse().find((m) => m.t === type);
+    },
   };
   return conn;
 }
@@ -160,7 +167,10 @@ test('chat: delivered to everyone in the room, stored in history, sanitised and 
   // History is part of the room view, so rejoining/reconnecting players get it back.
   say(lobby, alice, { t: 'leaveGame' });
   say(lobby, alice, { t: 'joinGame', gameId: alice.last('lobby').games[0].id });
-  assert.deepEqual(alice.last('room').room.chat.map((m) => m.text), ['hello <b>there</b>', 'x'.repeat(200)]);
+  assert.deepEqual(
+    alice.last('room').room.chat.map((m) => m.text),
+    ['hello <b>there</b>', 'x'.repeat(200)],
+  );
 
   // Rate limit: at most 5 messages per 5 seconds per player.
   for (let i = 0; i < 6; i++) say(lobby, alice, { t: 'chat', text: `spam ${i}` });
@@ -295,7 +305,10 @@ test('kick: host can remove a human (even mid-hand), they cannot rejoin, others 
   assert.ok(bob.last('kicked'), 'kicked player is told');
   assert.equal(bob.inbox.at(-1).t, 'lobby', 'and returned to the lobby');
   const view = host.last('room').room;
-  assert.equal(view.players.some((p) => p.id === bobId), false);
+  assert.equal(
+    view.players.some((p) => p.id === bobId),
+    false,
+  );
   assert.ok(view.log.some((e) => e.type === 'kick' && e.pid === bobId));
   assert.ok(['playing', 'between'].includes(view.status)); // three players became two: the table carries on
 

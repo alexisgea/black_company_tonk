@@ -65,6 +65,19 @@ test('server abuse limits', async (t) => {
     const res = await fetch(`http://127.0.0.1:${server.port}/`);
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(res.headers.get('referrer-policy'), 'no-referrer');
+    assert.match(res.headers.get('content-security-policy'), /default-src 'self'/);
+  });
+
+  await t.test('serves the client modules and the shared rules, and nothing outside those folders', async () => {
+    const base = `http://127.0.0.1:${server.port}`;
+    const shared = await fetch(`${base}/shared/cards.js`);
+    assert.equal(shared.status, 200);
+    assert.match(shared.headers.get('content-type'), /javascript/);
+    assert.equal((await fetch(`${base}/js/main.js`)).status, 200);
+    assert.equal((await fetch(`${base}/shared/..%2fpackage.json`)).status, 403);
+    assert.equal((await fetch(`${base}/..%2fpackage.json`)).status, 403);
+    assert.equal((await fetch(`${base}/shared/../package.json`)).status, 404); // normalised to /package.json, not in public
+    assert.equal((await fetch(`${base}/missing.js`)).status, 404);
   });
 
   await t.test('too many connections from one address are refused', async () => {

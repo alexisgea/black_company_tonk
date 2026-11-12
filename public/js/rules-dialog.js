@@ -4,11 +4,24 @@ import { h } from './dom.js';
 const rulesEl = document.getElementById('rules');
 
 function buildRules() {
-  const section = (title, items) => [h('h3', null, title), h('ul', null, items.map((t) => h('li', null, t)))];
+  const section = (title, items) => [
+    h('h3', null, title),
+    h(
+      'ul',
+      null,
+      items.map((t) => h('li', null, t)),
+    ),
+  ];
   const dialog = h(
     'div',
     { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Rules' },
-    h('div', { class: 'dialog-head' }, h('h2', null, 'Tonk rules'), h('span', { class: 'spacer' }), h('button', { onClick: closeRules }, 'Close')),
+    h(
+      'div',
+      { class: 'dialog-head' },
+      h('h2', null, 'Tonk rules'),
+      h('span', { class: 'spacer' }),
+      h('button', { onClick: closeRules }, 'Close'),
+    ),
     section('Goal', ['Have the lowest hand total when someone goes down, or get rid of all your cards. Losers pay the winner.']),
     section('Card values', ['Ace = 1, 2\u201310 = face value, Jack / Queen / King = 10.']),
     section('The deal', [

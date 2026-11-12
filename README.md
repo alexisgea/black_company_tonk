@@ -7,6 +7,8 @@ npm install
 npm start        # http://localhost:3000  (PORT env var to change)
 npm run dev      # same, but the server restarts itself when server files change
 npm test
+npm run lint           # ESLint
+npm run format:check   # Prettier check (npm run format fixes); CI runs lint, format:check and tests
 ```
 
 Open the page, enter a name, create a game or join one from the list (2-6 players). The host starts the game.

@@ -11,10 +11,12 @@ const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME = 20;
 const CHAT_BURST = 5; // messages allowed per window
 const CHAT_WINDOW_MS = 5000;
+// eslint-disable-next-line no-control-regex -- stripping control characters is the point
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 function cleanName(raw) {
   if (typeof raw !== 'string') return null;
-  const name = raw.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
+  const name = raw.replace(CONTROL_CHARS, '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
   return name || null;
 }
 

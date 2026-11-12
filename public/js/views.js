@@ -111,7 +111,17 @@ function renderLobby() {
       { class: 'panel row' },
       h('span', null, 'Playing as ', h('strong', null, state.name)),
       h('span', { class: 'spacer' }),
-      h('button', { class: 'secondary', onClick: () => { state.view = 'name'; render(); } }, 'Change name'),
+      h(
+        'button',
+        {
+          class: 'secondary',
+          onClick: () => {
+            state.view = 'name';
+            render();
+          },
+        },
+        'Change name',
+      ),
       rulesButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create game'),
     ),
@@ -137,7 +147,14 @@ function renderRoom() {
           h(
             'div',
             { class: 'row' },
-            h('span', null, p.name, p.id === room.hostId ? ' (host)' : '', p.id === state.you ? ' (you)' : '', p.connected ? '' : ' \u2013 disconnected'),
+            h(
+              'span',
+              null,
+              p.name,
+              p.id === room.hostId ? ' (host)' : '',
+              p.id === state.you ? ' (you)' : '',
+              p.connected ? '' : ' \u2013 disconnected',
+            ),
             isHost && p.isBot
               ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
               : kickControls(p),
@@ -151,7 +168,11 @@ function renderRoom() {
         addBotButton(),
         leave,
         rulesButton(),
-        h('span', { class: 'muted' }, isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026'),
+        h(
+          'span',
+          { class: 'muted' },
+          isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026',
+        ),
       ),
       chat.el,
     );
@@ -162,7 +183,11 @@ function renderRoom() {
 function renderSide(leaveBtn) {
   const room = state.room;
   const lines = room.log.map(formatEvent).filter(Boolean);
-  const logEl = h('div', { class: 'log' }, lines.map((l) => h('div', null, l)));
+  const logEl = h(
+    'div',
+    { class: 'log' },
+    lines.map((l) => h('div', null, l)),
+  );
   requestAnimationFrame(() => (logEl.scrollTop = logEl.scrollHeight));
   return h(
     'div',
@@ -240,16 +265,24 @@ function renderTable() {
     const canLayoff = canPlayPhase && selected.length === 1 && layoffEnd(m, selected[0]);
     return h(
       'div',
-      { class: 'meld' + (canLayoff ? ' target' : ''), onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null },
+      {
+        class: 'meld' + (canLayoff ? ' target' : ''),
+        onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null,
+      },
       h('div', { class: 'label' }, `${nameOf(m.owner)} \u2013 ${m.type === 'set' ? 'set' : 'spread'}`),
-      h('div', { class: 'cards' }, m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' }))),
+      h(
+        'div',
+        { class: 'cards' },
+        m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' })),
+      ),
     );
   });
 
   let status = '';
   if (!over) {
     if (!inHand) status = 'Spectating this hand\u2026';
-    else if (myTurn) status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Meld, lay off, then discard one card.';
+    else if (myTurn)
+      status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Meld, lay off, then discard one card.';
     else status = `Waiting for ${nameOf(round.turn)}\u2026`;
   }
 
@@ -295,8 +328,16 @@ function renderTable() {
           ),
         ]
       : null,
-    h('button', { disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) }, 'Put down selected'),
-    h('button', { disabled: !(canPlayPhase && selected.length === 1), onClick: () => sendAction({ type: 'discard', card: selected[0] }) }, 'Discard selected'),
+    h(
+      'button',
+      { disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) },
+      'Put down selected',
+    ),
+    h(
+      'button',
+      { disabled: !(canPlayPhase && selected.length === 1), onClick: () => sendAction({ type: 'discard', card: selected[0] }) },
+      'Discard selected',
+    ),
   );
 
   return h(
@@ -345,7 +386,11 @@ function renderResult(round) {
       { class: 'hand-row', 'data-player': id },
       h('span', { class: 'who' }, `${nameOf(id)} (${r.totals[id]})`),
       r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
-      h('span', { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') }, r.deltas[id] > 0 ? `+${r.deltas[id]}` : String(r.deltas[id])),
+      h(
+        'span',
+        { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') },
+        r.deltas[id] > 0 ? `+${r.deltas[id]}` : String(r.deltas[id]),
+      ),
     ),
   );
   const canDeal = room.players.length >= room.minPlayers;
@@ -357,7 +402,11 @@ function renderResult(round) {
     h(
       'div',
       { class: 'row' },
-      h('button', { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) }, canDeal ? 'Deal next hand' : 'Waiting for players\u2026'),
+      h(
+        'button',
+        { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
+        canDeal ? 'Deal next hand' : 'Waiting for players\u2026',
+      ),
       addBotButton(),
     ),
   );
@@ -421,17 +470,29 @@ function addBotButton() {
 function formatEvent(e) {
   const who = nameOf(e.pid, e.name);
   switch (e.type) {
-    case 'join': return `${who} joined.`;
-    case 'leave': return `${who} left.`;
-    case 'kick': return `${who} was removed by the host.`;
-    case 'deal': return `Hand #${e.hand} dealt by ${who}.`;
-    case 'draw': return `${who} drew from the pile.`;
-    case 'takeDiscard': return `${who} took ${cardLabel(e.card)} from the discard.`;
-    case 'discard': return `${who} discarded ${cardLabel(e.card)}.`;
-    case 'meld': return `${who} put down ${e.kind === 'set' ? 'a set' : 'a spread'}: ${e.cards.map(cardLabel).join(' ')}.`;
-    case 'layoff': return `${who} added ${cardLabel(e.card)} to a spread.`;
-    case 'goDown': return `${who} went down with ${e.total}.`;
-    case 'reshuffle': return 'Discard pile reshuffled into the draw pile.';
-    default: return null;
+    case 'join':
+      return `${who} joined.`;
+    case 'leave':
+      return `${who} left.`;
+    case 'kick':
+      return `${who} was removed by the host.`;
+    case 'deal':
+      return `Hand #${e.hand} dealt by ${who}.`;
+    case 'draw':
+      return `${who} drew from the pile.`;
+    case 'takeDiscard':
+      return `${who} took ${cardLabel(e.card)} from the discard.`;
+    case 'discard':
+      return `${who} discarded ${cardLabel(e.card)}.`;
+    case 'meld':
+      return `${who} put down ${e.kind === 'set' ? 'a set' : 'a spread'}: ${e.cards.map(cardLabel).join(' ')}.`;
+    case 'layoff':
+      return `${who} added ${cardLabel(e.card)} to a spread.`;
+    case 'goDown':
+      return `${who} went down with ${e.total}.`;
+    case 'reshuffle':
+      return 'Discard pile reshuffled into the draw pile.';
+    default:
+      return null;
   }
 }

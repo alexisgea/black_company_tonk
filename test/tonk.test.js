@@ -74,7 +74,7 @@ test('tonk at deal: single tonker wins double, multiple tonkers is a draw', () =
   let multi = null;
   for (let seed = 1; seed < 200000 && !(single && multi); seed++) {
     let s = seed;
-    const rng = () => ((s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296);
+    const rng = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
     const round = T.startRound(['a', 'b', 'c'], 0, rng);
     if (round.result?.type === 'tonk' && !single) single = round;
     if (round.result?.type === 'tonkDraw' && !multi) multi = round;
@@ -84,7 +84,10 @@ test('tonk at deal: single tonker wins double, multiple tonkers is a draw', () =
   const total = T.handTotal(single.hands[w]);
   assert.ok(total <= 15 || total >= 49);
   assert.equal(single.result.deltas[w], 4);
-  assert.equal(Object.values(single.result.deltas).reduce((a, b) => a + b, 0), 0);
+  assert.equal(
+    Object.values(single.result.deltas).reduce((a, b) => a + b, 0),
+    0,
+  );
   if (multi) assert.ok(Object.values(multi.result.deltas).every((d) => d === 0));
 });
 
@@ -109,7 +112,10 @@ test('go down: a tie loses; goer pays double to equal/lower, higher players pay 
   assert.equal(r.success, false);
   assert.deepEqual(r.winners.sort(), ['b', 'c']);
   assert.deepEqual(r.deltas, { a: -4, b: 2, c: 3, d: -1 });
-  assert.equal(Object.values(r.deltas).reduce((x, y) => x + y, 0), 0);
+  assert.equal(
+    Object.values(r.deltas).reduce((x, y) => x + y, 0),
+    0,
+  );
 });
 
 test('draw then discard advances the turn; cannot act out of order or phase', () => {
@@ -147,7 +153,7 @@ test('meld removes cards from hand; invalid melds and unheld cards are rejected 
   assert.equal(round.melds[0].owner, 'a');
 });
 
-test('layoff extends spreads at either end, even other players\' ones; sets cannot be extended', () => {
+test("layoff extends spreads at either end, even other players' ones; sets cannot be extended", () => {
   const round = makeRound({
     hands: { a: [c(8, 'S'), c(13, 'S'), c(7, 'C'), c(1, 'H')], b: [c(5, 'C'), c(6, 'D')] },
     melds: [
@@ -215,7 +221,7 @@ test('removePlayer: turn bookkeeping and abort with too few players', () => {
   assert.equal(r2.phase, 'draw');
 });
 
-test('viewRound hides opponents\' hands until the hand ends', () => {
+test("viewRound hides opponents' hands until the hand ends", () => {
   const round = makeRound({ hands: { a: [c(2, 'C')], b: [c(3, 'C')] } });
   const v = T.viewRound(round, 'a');
   assert.deepEqual(v.players.a.hand, [c(2, 'C')]);
