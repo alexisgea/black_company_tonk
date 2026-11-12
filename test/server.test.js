@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('node:net');
+const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
@@ -78,6 +79,15 @@ test('server abuse limits', async (t) => {
     assert.equal((await fetch(`${base}/..%2fpackage.json`)).status, 403);
     assert.equal((await fetch(`${base}/shared/../package.json`)).status, 404); // normalised to /package.json, not in public
     assert.equal((await fetch(`${base}/missing.js`)).status, 404);
+  });
+
+  await t.test('/version reports the server version and matches the client version', async () => {
+    const res = await fetch(`http://127.0.0.1:${server.port}/version`);
+    assert.equal(res.status, 200);
+    const { version } = await res.json();
+    assert.equal(version, require('../package.json').version);
+    const clientSrc = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'version.js'), 'utf8');
+    assert.equal(clientSrc.match(/CLIENT_VERSION = '([^']+)'/)[1], version);
   });
 
   await t.test('too many connections from one address are refused', async () => {

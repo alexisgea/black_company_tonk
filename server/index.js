@@ -6,6 +6,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Lobby } = require('./lobby');
 const { RateLimiter, clientIp, originAllowed } = require('./limits');
+const { version: SERVER_VERSION } = require('../package.json');
 
 const intEnv = (name, fallback) => {
   const n = Number(process.env[name]);
@@ -55,6 +56,15 @@ const server = http.createServer((req, res) => {
     pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
   } catch {
     res.writeHead(400).end();
+    return;
+  }
+  if (pathname === '/version') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(JSON.stringify({ version: SERVER_VERSION }));
     return;
   }
   if (pathname === '/') pathname = '/index.html';
