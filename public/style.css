@@ -191,6 +191,10 @@ input[type=text]:focus, input[type=number]:focus { outline: none; border-color: 
   position: fixed; right: 8px; bottom: 6px; font-size: 11px; opacity: 0.6; pointer-events: none; z-index: 1;
 }
 
+#version.update {
+  opacity: 1; pointer-events: auto; cursor: pointer; text-decoration: underline;
+}
+
 #settings-btn {
   position: fixed; top: 8px; left: 8px; z-index: 5; width: 36px; height: 36px; padding: 0;
   font-size: 22px; line-height: 1; background: var(--panel); color: var(--text); border-color: #fff4;
