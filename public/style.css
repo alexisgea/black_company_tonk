@@ -8,7 +8,7 @@
   --iron: #2b2c2d;
   --rust: #7a4a2e;
   --blood: #8a2e26;
-  --font-body: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+  --font-body: "EB Garamond", Georgia, "Palatino Linotype", serif;
   --font-display: Cinzel, Georgia, "Palatino Linotype", serif;
   --font-scale: 1;
   --card-scale: 1;
@@ -19,6 +19,10 @@
 @font-face { font-family: Cinzel; font-weight: 400; font-style: normal; font-display: swap; src: url(/fonts/cinzel-latin-400-normal.woff2) format("woff2"); }
 @font-face { font-family: Cinzel; font-weight: 700; font-style: normal; font-display: swap; src: url(/fonts/cinzel-latin-700-normal.woff2) format("woff2"); }
 
+@font-face { font-family: "EB Garamond"; font-weight: 400; font-style: normal; font-display: swap; src: url(/fonts/eb-garamond-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-weight: 400; font-style: italic; font-display: swap; src: url(/fonts/eb-garamond-latin-400-italic.woff2) format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-weight: 700; font-style: normal; font-display: swap; src: url(/fonts/eb-garamond-latin-700-normal.woff2) format("woff2"); }
+
 html { font-size: calc(16px * var(--font-scale)); }
 
 * { box-sizing: border-box; }
@@ -28,8 +32,11 @@ body {
   min-height: 100vh;
   background: radial-gradient(ellipse at center, var(--felt), var(--felt-dark));
   color: var(--text);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  color-scheme: dark;
 }
+h1, h2, h3, .card { font-family: var(--font-display); }
 
 .card {
   position: relative;
@@ -78,6 +85,7 @@ body {
 
 button {
   font: inherit;
+  font-family: var(--font-display);
   padding: 8px 14px;
   border-radius: 6px;
   border: 1px solid #0006;
@@ -94,7 +102,9 @@ button.go-down:disabled { opacity: 1; background: #55575a; color: #a09a8c; borde
 button.secondary { background: #d8d0bf1a; color: var(--text); border-color: #d8d0bf44; }
 button.tonk-btn { font-size: 1.6rem; padding: 10px 34px; background: var(--blood); color: #e8dfcb; letter-spacing: 0.05em; animation: tonk-pulse 0.9s ease-in-out infinite alternate; }
 @keyframes tonk-pulse { to { transform: scale(1.08); box-shadow: 0 0 14px 2px rgba(138, 46, 38, 0.7); } }
-input[type=text] { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid #0006; background: #c9bfa6; color: #1d1b18; }
+input[type=text], input[type=number] { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid #b59a5b66; background: #1b1c1d; color: var(--text); }
+input[type=text]::placeholder { color: #d8d0bf80; }
+input[type=text]:focus, input[type=number]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px #b59a5b55; }
 
 .screen { max-width: 720px; margin: 0 auto; padding: 32px 16px; }
 .screen h1 { margin-top: 0; }
@@ -152,7 +162,6 @@ input[type=text] { font: inherit; padding: 8px 10px; border-radius: 6px; border:
 .broke-line { margin: 4px 0; color: #c4776b; font-style: italic; }
 .log { font-size: 0.8125rem; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
 
-.chat-log, .log, input[type=text] { font-family: var(--font-body); }
 .chat-log { height: 150px; overflow-y: auto; font-size: 0.875rem; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
 .chat-msg.mine strong { color: var(--accent); }
 .chat-form { display: flex; gap: 6px; }
