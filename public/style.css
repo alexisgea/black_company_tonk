@@ -132,7 +132,7 @@ input[type=text]:focus, input[type=number]:focus { outline: none; border-color: 
 /* Piles sit in the middle of the table. */
 .center { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; }
 .piles { display: flex; gap: 28px; align-items: flex-start; }
-.pile { text-align: center; font-size: 0.8125rem; }
+.pile { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 0.8125rem; }
 .melds { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
 .meld { background: #0003; border-radius: 8px; padding: 6px; }
 .meld.target { outline: 2px solid var(--accent); cursor: pointer; }
