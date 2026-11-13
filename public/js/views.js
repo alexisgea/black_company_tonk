@@ -325,20 +325,23 @@ function renderTable() {
   const controls = h(
     'div',
     { class: 'row' },
+    // The tooltip sits on a wrapper: disabled buttons do not reliably show their own title.
     h(
-      'button',
-      {
-        class: 'go-down',
-        disabled: !canDrawPhase || state.confirmDown,
-        title: canDrawPhase ? '' : 'You can only go down at the start of your turn, before drawing.',
-        onClick: () => {
-          state.confirmDown = true;
-          render();
+      'span',
+      { class: 'go-down-wrap', title: canDrawPhase ? '' : 'You can only go down at the start of your turn, before drawing.' },
+      h(
+        'button',
+        {
+          class: 'go-down',
+          disabled: !canDrawPhase || state.confirmDown,
+          onClick: () => {
+            state.confirmDown = true;
+            render();
+          },
         },
-      },
-      'Go down',
+        'Go down',
+      ),
     ),
-    canDrawPhase ? null : h('span', { class: 'muted go-down-hint' }, 'You can only go down at the start of your turn, before drawing.'),
     state.confirmDown && canDrawPhase
       ? [
           h(

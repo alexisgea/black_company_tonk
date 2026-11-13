@@ -76,7 +76,8 @@ button {
 }
 button:disabled { opacity: 0.45; cursor: default; }
 button.go-down:disabled { opacity: 1; background: #8a8f8a; color: #d4d6d4; border-color: #0003; }
-.go-down-hint { font-size: 0.9em; }
+.go-down-wrap { display: inline-flex; }
+.go-down-wrap > button:disabled { pointer-events: none; }
 .hand-value { font-weight: 600; margin-bottom: 4px; }
 button.secondary { background: #ffffff22; color: var(--text); border-color: #fff4; }
 button.tonk-btn { font-size: 1.6rem; padding: 10px 34px; background: #d83a2e; color: #fff; letter-spacing: 0.05em; animation: tonk-pulse 0.9s ease-in-out infinite alternate; }
@@ -114,7 +115,8 @@ input[type=text] { font: inherit; padding: 8px 10px; border-radius: 6px; border:
 .meld .cards { display: flex; gap: 3px; }
 .meld .label { font-size: 12px; margin-bottom: 4px; }
 
-.me-panel { background: var(--panel); border-radius: 10px; padding: 12px; }
+.me-panel { background: var(--panel); border-radius: 10px; padding: 12px; text-align: center; }
+.me-panel .row { justify-content: center; }
 .hand { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 16px 0 6px; min-height: 110px; }
 .status { margin-bottom: 4px; font-weight: 600; }
 
