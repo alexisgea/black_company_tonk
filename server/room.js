@@ -190,7 +190,7 @@ class Room {
   // The host can change the settings until the first hand is dealt. Everyone's coins are reset to the new pool.
   updateSettings(user, raw) {
     this.requirePlayer(user);
-    if (this.status !== 'waiting') throw new tonk.GameError('Settings can only be changed before the game starts');
+    if (this.status !== 'waiting') throw new tonk.GameError('The table rules can only be changed before the game starts');
     this.settings = validateSettings(raw);
     for (const p of this.players) this.coins[p.id] = this.settings.startingCoins;
   }

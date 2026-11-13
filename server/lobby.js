@@ -384,7 +384,7 @@ class Lobby {
         break;
       }
       case 'updateSettings': {
-        requireHost(room, user, 'change the table settings');
+        requireHost(room, user, 'change the table rules');
         room.updateSettings(user, msg.settings);
         this.broadcastAll(room);
         break;

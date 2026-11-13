@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.9.3',
+    date: '2026-11-13',
+    changes: ['"Settings" for the starting coins and the bet are now called "Table rules", and the bet is shown next to Coins during the game.'],
+  },
+  {
     version: '0.9.0',
     date: '2026-11-13',
     changes: [

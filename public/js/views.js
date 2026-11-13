@@ -6,7 +6,6 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { rulesButton } from './rules-dialog.js';
 import { changelogButton } from './changelog-dialog.js';
-import { settingsButton } from './settings-dialog.js';
 import { drag, handCardEl } from './hand.js';
 import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
 
@@ -141,7 +140,6 @@ function renderLobby() {
       ),
       rulesButton(),
       changelogButton(),
-      settingsButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
     ),
     h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open tables'), list),
@@ -191,7 +189,6 @@ function renderRoom() {
         addBotButton(),
         leave,
         rulesButton(),
-        settingsButton(),
         h(
           'span',
           { class: 'muted' },
@@ -219,13 +216,19 @@ function renderSide(leaveBtn) {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), settingsButton(), leaveBtn),
+      h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
       h('div', { class: 'muted' }, `Hand #${room.handNo}`),
     ),
     h(
       'div',
       { class: 'panel scores' },
-      h('strong', null, 'Coins'),
+      h(
+        'div',
+        { class: 'row' },
+        h('strong', null, 'Coins'),
+        h('span', { class: 'spacer' }),
+        h('span', { class: 'muted' }, `Bet: ${room.settings.bet}`),
+      ),
       room.players.map((p) =>
         h(
           'div',
@@ -582,7 +585,7 @@ function brokeText(name, bot) {
     : `${name} lost every last coin and is out of the game. They watch from the shadows as a guest now.`;
 }
 
-// Table settings: the host edits them in the waiting room, everyone else just sees them.
+// Table rules: the host edits them in the waiting room, everyone else just sees them.
 function settingsPanel(isHost) {
   const { settings, settingLimits } = state.room;
   const field = (key, hint) => {
@@ -595,7 +598,7 @@ function settingsPanel(isHost) {
   return h(
     'div',
     { class: 'panel' },
-    h('h3', { style: 'margin-top:0' }, 'Table settings'),
+    h('h3', { style: 'margin-top:0' }, 'Table rules'),
     field('startingCoins', 'coins for each player at the start'),
     field('bet', 'coins per payoff unit (a plain win pays 1 bet, TONK or getting caught 2)'),
     h('div', { class: 'muted' }, 'Run out of coins and you are out of the game.'),

@@ -69,7 +69,7 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
   - Adding to a spread (also called laying off or hitting): you may extend any run on the table (yours or others') at either end; sets cannot be extended.
   - Emptying your hand (by putting down spreads, adding to a spread, or discarding) wins; everyone else pays 1.
 - **Going down:** the lowest total strictly wins and everyone pays 1. Otherwise the goer pays double to each player with an equal or lower total, and players with a higher total pay the lowest hand(s) 1 (BSFS wording). Ties therefore lose for the goer.
-- Players start with coins and every payoff unit is worth one **bet**. The host sets both ("Table settings" in the waiting room, before the first deal; defaults 50 coins and bet 1). Nobody pays more than they have: when a loser is short the winners split what could be paid. A player who loses their last coin is out of the game after that hand: a human becomes a guest (can keep watching and chatting), a bot is removed, and the table is closed if no human player is left.
+- Players start with coins and every payoff unit is worth one **bet**. The host sets both ("Table rules" in the waiting room, before the first deal; defaults 50 coins and bet 1). Nobody pays more than they have: when a loser is short the winners split what could be paid. A player who loses their last coin is out of the game after that hand: a human becomes a guest (can keep watching and chatting), a bot is removed, and the table is closed if no human player is left.
 - If the draw pile runs out, the discard pile (minus its top card) is reshuffled.
 
 ## Known gaps / ideas
