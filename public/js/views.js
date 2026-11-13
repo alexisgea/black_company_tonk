@@ -448,7 +448,7 @@ function renderResult(round) {
   let headline;
   switch (r.type) {
     case 'tonk':
-      headline = `${nameFor(r.winners[0])} has TONK and the Company pays double!`;
+      headline = `${nameFor(r.winners[0])} has TONK and everyone pays double!`;
       break;
     case 'tonkDraw':
       headline = 'More than one player has TONK \u2013 the hand is a draw and no coins change hands.';
@@ -560,7 +560,7 @@ function addBotButton() {
 // The Company's reaction to a player losing their last coin.
 function brokeText(name, bot) {
   return bot
-    ? `${name} lost every last coin and was thrown out of the camp.`
+    ? `${name} lost every last coin and left the table.`
     : `${name} lost every last coin and is out of the game. They watch from the shadows as a guest now.`;
 }
 
@@ -588,7 +588,7 @@ function formatEvent(e) {
   const who = nameOf(e.pid, e.name);
   switch (e.type) {
     case 'broke':
-      return e.bot ? `${who} lost every last coin and was thrown out.` : `${who} lost every last coin and is now a guest.`;
+      return e.bot ? `${who} lost every last coin and left the table.` : `${who} lost every last coin and is now a guest.`;
     case 'join':
       return `${who} joined.`;
     case 'leave':
