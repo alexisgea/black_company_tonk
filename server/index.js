@@ -13,7 +13,7 @@ const intEnv = (name, fallback) => {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 };
 
-const PORT = intEnv('PORT', 3000);
+const PORT = intEnv('PORT', 3100);
 const HOST = process.env.HOST || undefined; // e.g. 127.0.0.1 when only a local tunnel/proxy should reach the server
 // Only set TRUST_PROXY=1 when the server is reachable solely through the proxy (see docs/hosting.md).
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';

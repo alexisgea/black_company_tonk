@@ -4,7 +4,7 @@ Small multiplayer web card game. Node server (`ws` + plain `http`), vanilla JS c
 
 ```
 npm install
-npm start        # http://localhost:3000  (PORT env var to change)
+npm start        # http://localhost:3100  (PORT env var to change)
 npm run dev      # same, but the server restarts itself when server files change
 npm test
 npm run lint           # ESLint

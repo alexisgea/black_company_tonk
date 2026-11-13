@@ -17,7 +17,7 @@ This guide covers a Raspberry Pi 4 exposed to the internet with a Cloudflare Tun
    npm ci --omit=dev
    npm start
    ```
-3. From another device on your network open `http://<pi-ip>:3000` (not `localhost`, which means "this device"). The server prints the addresses it can be reached at when it starts: `journalctl -u <service> -n 20`, or `hostname -I` on the Pi. It should work.
+3. From another device on your network open `http://<pi-ip>:3100` (not `localhost`, which means "this device"). The server prints the addresses it can be reached at when it starts: `journalctl -u <service> -n 20`, or `hostname -I` on the Pi. It should work.
 
 ### Keep it running (systemd)
 
@@ -32,7 +32,7 @@ After=network.target
 User=pi
 WorkingDirectory=/home/pi/bc-tonk
 ExecStart=/usr/bin/node server/index.js
-Environment=PORT=3000
+Environment=PORT=3100
 Environment=HOST=127.0.0.1
 Environment=TRUST_PROXY=1
 Restart=always
@@ -56,7 +56,7 @@ A tunnel lets the Pi make an outbound connection to Cloudflare, so you need no p
 ### Option A: quick test link (no account, no domain)
 
 ```
-cloudflared tunnel --url http://localhost:3000
+cloudflared tunnel --url http://localhost:3100
 ```
 
 It prints a random `https://<words>.trycloudflare.com` address that works until you stop the command. Good for a first test; the address changes every time.
@@ -70,7 +70,7 @@ Prerequisites: a free Cloudflare account and a **domain added to Cloudflare** (i
 3. Open your tunnel, go to the **Routes** tab, select **Add route**, then **Published application**:
    - **Subdomain**: for example `tonk`
    - **Domain**: pick your domain, giving `tonk.yourdomain.com`
-   - **Service URL**: `http://localhost:3000`
+   - **Service URL**:    `http://localhost:3100`
 4. Select **Add route**. Open `https://tonk.yourdomain.com`. The tunnel should show as **Healthy**.
 
 (Dashboard labels move around occasionally; Cloudflare's guide is "Create a tunnel (dashboard)" in their Tunnel docs.)
@@ -98,7 +98,7 @@ These protect a public server. All have safe defaults and can be changed with en
 | Chat messages per player per 5 seconds | 5 | (built in) |
 | Chat message length / name length / message size | 200 / 20 / 4 KB | (built in) |
 
-Other variables: `PORT` (default 3000), `HOST` (default: all interfaces), `TRUST_PROXY` (see above).
+Other variables: `PORT` (default 3100), `HOST` (default: all interfaces), `TRUST_PROXY` (see above).
 
 Not covered: there is no login, banning across games, or moderation of names and chat. Cloudflare itself absorbs ordinary traffic floods. Games that are connected but untouched are handled by the idle timeout above; the host can also remove players (**Kick**).
 
