@@ -6,6 +6,7 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { rulesButton } from './rules-dialog.js';
 import { changelogButton } from './changelog-dialog.js';
+import { settingsButton } from './settings-dialog.js';
 import { drag, handCardEl } from './hand.js';
 import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
 
@@ -68,6 +69,17 @@ export function render() {
   }
 }
 
+function credits() {
+  return h(
+    'p',
+    { class: 'credits muted' },
+    'Thanks to Glen Cook for his Black Company series. Based on the rules from John P. Speno and the Baltimore Science Fiction Society. ' +
+      'Programming by Claude Sonnet 5.5 with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: ',
+    h('a', { href: 'mailto:alexis@geaxle.com' }, 'alexis@geaxle.com'),
+    '.',
+  );
+}
+
 function renderName() {
   const input = h('input', { type: 'text', maxLength: 20, placeholder: 'Your name', value: state.name, autofocus: true });
   const go = () => {
@@ -82,6 +94,7 @@ function renderName() {
     { class: 'screen' },
     h('h1', null, 'Black Company Tonk'),
     h('div', { class: 'panel row' }, input, h('button', { onClick: go }, 'Play')),
+    credits(),
   );
 }
 
@@ -128,9 +141,11 @@ function renderLobby() {
       ),
       rulesButton(),
       changelogButton(),
+      settingsButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
     ),
     h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open tables'), list),
+    credits(),
   );
 }
 
@@ -176,6 +191,7 @@ function renderRoom() {
         addBotButton(),
         leave,
         rulesButton(),
+        settingsButton(),
         h(
           'span',
           { class: 'muted' },
@@ -203,7 +219,7 @@ function renderSide(leaveBtn) {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
+      h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), settingsButton(), leaveBtn),
       h('div', { class: 'muted' }, `Hand #${room.handNo}`),
     ),
     h(

@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.7.0',
+    date: '2026-11-13',
+    changes: ['Added a Settings popup with sliders for the font size and the card size.'],
+  },
+  {
     version: '0.6.0',
     date: '2026-11-13',
     changes: ['Added this changelog, readable from the main page.'],
