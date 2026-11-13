@@ -112,14 +112,14 @@ input[type=text], input[type=number] { font: inherit; padding: 8px 10px; border-
 input[type=text]::placeholder { color: #d8d0bf80; }
 input[type=text]:focus, input[type=number]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px #b59a5b55; }
 
-.screen { max-width: 720px; margin: 0 auto; padding: 32px 16px; }
+.screen { max-width: 720px; margin: 0 auto; padding: 32px 16px; min-height: 100vh; display: flex; flex-direction: column; }
 .screen h1 { margin-top: 0; }
 .panel { background: var(--panel); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
 .small-btn { padding: 2px 8px; font-size: 0.75rem; }
 .muted { opacity: 0.7; }
-.credits { font-size: 0.75rem; line-height: 1.5; margin-top: 24px; }
+.credits { font-size: 0.75rem; line-height: 1.5; margin-top: auto; padding-top: 24px; }
 .credits a { color: inherit; }
 
 .games { list-style: none; margin: 0; padding: 0; }
