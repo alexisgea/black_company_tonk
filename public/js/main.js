@@ -2,6 +2,7 @@ import { toast } from './state.js';
 import { connect } from './net.js';
 import { render } from './views.js';
 import { showVersion } from './version.js';
+import './settings-dialog.js';
 
 // Surface script errors in the UI so a broken animation or render never fails silently.
 window.addEventListener('error', (e) => toast(`Script error: ${e.message}`));
