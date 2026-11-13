@@ -16,7 +16,15 @@ const PUBLIC_LOG_FIELDS = {
   meld: ['pid', 'kind', 'cards'],
   layoff: ['pid', 'card', 'meldId'],
   goDown: ['pid', 'total'],
+  broke: ['pid', 'name', 'bot'],
   reshuffle: [],
+};
+// What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
+// (a plain win is 1 bet, a Tonk or a failed go-down is 2).
+const DEFAULT_SETTINGS = { startingCoins: 50, bet: 1 };
+const SETTING_LIMITS = {
+  startingCoins: { min: 10, max: 10000, label: 'Starting coins' },
+  bet: { min: 1, max: 1000, label: 'Bet' },
 };
 // A turn ends with a discard (or going down, which ends the hand).
 const TURN_END_EVENTS = new Set(['discard', 'goDown']);
@@ -28,12 +36,28 @@ const DEFAULT_TONK_TIMEOUT_MS = 15000;
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
-// One table of players: seating, running scores and the current hand.
+// Checks table settings from a client. Unknown fields are ignored; anything invalid is an error.
+function validateSettings(raw) {
+  if (!raw || typeof raw !== 'object') throw new tonk.GameError('Bad settings');
+  const settings = {};
+  for (const [key, { min, max, label }] of Object.entries(SETTING_LIMITS)) {
+    const value = raw[key];
+    if (!Number.isInteger(value) || value < min || value > max) {
+      throw new tonk.GameError(`${label} must be a whole number from ${min} to ${max}`);
+    }
+    settings[key] = value;
+  }
+  if (settings.bet > settings.startingCoins) throw new tonk.GameError('The bet cannot be more than the starting coins');
+  return settings;
+}
+
+// One table of players: seating, coins and the current hand.
 class Room {
-  constructor(id, name, rng = Math.random, { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS } = {}) {
+  constructor(id, name, rng = Math.random, { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, settings = DEFAULT_SETTINGS } = {}) {
     this.id = id;
     this.name = name;
     this.rng = rng;
+    this.settings = { ...settings };
     this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
     this.tonkDeadline = null; // epoch ms, only while a hand waits for TONK!
     this.players = []; // users, in seating order
@@ -43,7 +67,8 @@ class Room {
     this.round = null;
     this.handNo = 0;
     this.dealerIdx = 0;
-    this.scores = {};
+    this.coins = {}; // player id -> coins left
+    this.newlyBroke = [];
     this.log = [];
     this.logSeq = 0; // lets clients tell which events are new
     this.chat = [];
@@ -128,7 +153,7 @@ class Room {
     if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this table by the host');
     if (!this.joinable) throw new tonk.GameError('That table cannot be joined right now');
     this.players.push(user);
-    this.scores[user.id] = 0;
+    this.coins[user.id] = this.settings.startingCoins;
     if (!this.hostId) this.hostId = user.id;
     user.room = this;
     this.addLog({ type: 'join', pid: user.id, name: user.name });
@@ -152,14 +177,22 @@ class Room {
     const idx = this.players.indexOf(user);
     if (idx === -1) return;
     this.addLog({ type: reason, pid: user.id, name: user.name });
+    this.players.splice(idx, 1);
+    delete this.coins[user.id];
+    user.room = null;
+    if (this.hostId === user.id) this.hostId = this.humans[0]?.id ?? null;
     if (this.status === 'playing') {
       tonk.removePlayer(this.round, user.id);
       if (this.round.result) this.settle();
     }
-    this.players.splice(idx, 1);
-    delete this.scores[user.id];
-    user.room = null;
-    if (this.hostId === user.id) this.hostId = this.humans[0]?.id ?? null;
+  }
+
+  // The host can change the settings until the first hand is dealt. Everyone's coins are reset to the new pool.
+  updateSettings(user, raw) {
+    this.requirePlayer(user);
+    if (this.status !== 'waiting') throw new tonk.GameError('Settings can only be changed before the game starts');
+    this.settings = validateSettings(raw);
+    for (const p of this.players) this.coins[p.id] = this.settings.startingCoins;
   }
 
   startHand(user) {
@@ -228,11 +261,61 @@ class Room {
     tonk.reorderHand(this.round, user.id, cards);
   }
 
-  settle() {
-    for (const [id, delta] of Object.entries(this.round.result.deltas)) {
-      if (id in this.scores) this.scores[id] += delta;
+  // Turns the payoff units of a finished hand into coins. Nobody can pay more than they have, so when
+  // a loser is short the winners split what that loser could actually pay, in proportion to their wins.
+  payout(units) {
+    const raw = {};
+    for (const [id, delta] of Object.entries(units)) if (id in this.coins) raw[id] = delta * this.settings.bet;
+    const entries = Object.entries(raw);
+    const losers = entries.filter(([, d]) => d < 0);
+    const winners = entries.filter(([, d]) => d > 0);
+    const owed = losers.reduce((sum, [, d]) => sum - d, 0);
+    const paid = losers.reduce((sum, [id, d]) => sum + Math.min(-d, this.coins[id]), 0);
+    if (paid === owed) return raw;
+    const deltas = { ...raw };
+    for (const [id, d] of losers) deltas[id] = -Math.min(-d, this.coins[id]);
+    const wonTotal = winners.reduce((sum, [, d]) => sum + d, 0);
+    let left = paid;
+    for (const [id, d] of winners) {
+      deltas[id] = Math.floor((d * paid) / wonTotal);
+      left -= deltas[id];
     }
+    for (let i = 0; left > 0; i = (i + 1) % winners.length, left--) deltas[winners[i][0]]++; // spread the rounding leftovers
+    return deltas;
+  }
+
+  settle() {
+    const result = this.round.result;
+    result.deltas = this.payout(result.deltas);
+    for (const [id, delta] of Object.entries(result.deltas)) this.coins[id] += delta;
+    result.names = Object.fromEntries(this.round.order.map((id) => [id, this.nameOfPlayer(id)]));
+    const broke = this.players.filter((p) => this.coins[p.id] <= 0);
+    result.broke = broke.map((p) => ({ id: p.id, bot: !!p.isBot }));
     this.status = 'between';
+    for (const user of broke) this.sendBroke(user);
+    this.newlyBroke.push(...broke);
+  }
+
+  // The players the last hand left without coins, once; the lobby uses this to tell them.
+  takeBroke() {
+    return this.newlyBroke.splice(0);
+  }
+
+  nameOfPlayer(id) {
+    return this.players.find((p) => p.id === id)?.name ?? this.spectators.find((s) => s.id === id)?.name ?? 'Someone';
+  }
+
+  // A player with no coins left cannot play on: bots are sent away, humans keep watching as guests.
+  sendBroke(user) {
+    this.addLog({ type: 'broke', pid: user.id, name: user.name, bot: !!user.isBot });
+    this.players.splice(this.players.indexOf(user), 1);
+    delete this.coins[user.id];
+    if (user.isBot) {
+      user.room = null;
+    } else {
+      this.spectators.push(user);
+      if (this.hostId === user.id) this.hostId = this.humans[0]?.id ?? null;
+    }
   }
 
   summary() {
@@ -245,6 +328,8 @@ class Room {
       joinable: this.joinable,
       watchable: this.watchable,
       spectators: this.spectators.length,
+      startingCoins: this.settings.startingCoins,
+      bet: this.settings.bet,
     };
   }
 
@@ -261,10 +346,12 @@ class Room {
         dealerId: this.players[this.dealerIdx % this.players.length]?.id ?? null,
         minPlayers: tonk.MIN_PLAYERS,
         maxPlayers: tonk.MAX_PLAYERS,
+        settings: { ...this.settings },
+        settingLimits: SETTING_LIMITS,
         players: this.players.map((p) => ({
           id: p.id,
           name: p.name,
-          score: this.scores[p.id],
+          coins: this.coins[p.id],
           connected: p.isBot || !!p.conn,
           isBot: !!p.isBot,
         })),
@@ -278,4 +365,4 @@ class Room {
   }
 }
 
-module.exports = { Room };
+module.exports = { Room, DEFAULT_SETTINGS, SETTING_LIMITS, validateSettings };

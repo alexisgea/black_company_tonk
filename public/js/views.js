@@ -96,6 +96,7 @@ function renderLobby() {
             h('strong', null, g.name),
             h('span', { class: 'muted' }, `${g.players.join(', ')} (${g.players.length}/${g.max})`),
             g.spectators ? h('span', { class: 'muted' }, `\u2022 ${g.spectators} watching`) : null,
+            h('span', { class: 'muted' }, `\u2022 ${g.startingCoins} coins, bet ${g.bet}`),
             h('span', { class: 'spacer' }),
             h('span', { class: 'muted' }, g.status === 'playing' ? 'in progress' : 'open'),
             h('button', { disabled: !g.joinable, onClick: () => send({ t: 'joinGame', gameId: g.id }) }, 'Join'),
@@ -165,6 +166,7 @@ function renderRoom() {
         ),
       ),
       spectatorsPanel(),
+      settingsPanel(isHost),
       h(
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
@@ -205,14 +207,14 @@ function renderSide(leaveBtn) {
     h(
       'div',
       { class: 'panel scores' },
-      h('strong', null, 'Scores'),
+      h('strong', null, 'Coins'),
       room.players.map((p) =>
         h(
           'div',
           { class: 'score-row' },
           h('span', { class: 'score-name' }, p.name + (p.connected ? '' : ' (offline)')),
           h('span', { class: 'score-actions' }, kickControls(p)),
-          h('span', { class: 'score-value' }, String(p.score)),
+          h('span', { class: 'score-value' }, String(p.coins)),
         ),
       ),
     ),
@@ -305,7 +307,10 @@ function renderTable() {
     else if (tonkPhase)
       status = round.mustDeclareTonk ? 'You have TONK! Press the button to put your cards down.' : 'Waiting for TONK! to be declared\u2026';
     else if (myTurn)
-      status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Put down a spread or add cards to a spread, then discard one card.';
+      status =
+        round.phase === 'draw'
+          ? 'Your turn: draw, take the discard, or go down.'
+          : 'Put down a spread or add cards to a spread, then discard one card.';
     else status = `Waiting for ${nameOf(round.turn)}\u2026`;
   }
 
@@ -439,44 +444,47 @@ setInterval(() => {
 function renderResult(round) {
   const r = round.result;
   const room = state.room;
+  const nameFor = (id) => r.names?.[id] ?? nameOf(id);
   let headline;
   switch (r.type) {
     case 'tonk':
-      headline = `${nameOf(r.winners[0])} has TONK and wins double!`;
+      headline = `${nameFor(r.winners[0])} has TONK and the Company pays double!`;
       break;
     case 'tonkDraw':
-      headline = 'More than one player has TONK \u2013 the hand is a draw.';
+      headline = 'More than one player has TONK \u2013 the hand is a draw and no coins change hands.';
       break;
     case 'down':
       headline = r.success
-        ? `${nameOf(r.actor)} went down with ${r.totals[r.actor]} and wins!`
-        : `${nameOf(r.actor)} went down with ${r.totals[r.actor]} but was beaten and pays double.`;
+        ? `${nameFor(r.actor)} went down with ${r.totals[r.actor]} and pockets the coins!`
+        : `${nameFor(r.actor)} went down with ${r.totals[r.actor]} but was caught and pays double.`;
       break;
     case 'empty':
-      headline = `${nameOf(r.actor)} emptied their hand and wins!`;
+      headline = `${nameFor(r.actor)} emptied their hand and sweeps the pot!`;
       break;
     default:
-      headline = 'Hand aborted: not enough players.';
+      headline = 'Hand aborted: not enough players. Every coin stays where it was.';
   }
   const rows = round.order.map((id) =>
     h(
       'div',
       { class: 'hand-row', 'data-player': id },
-      h('span', { class: 'who' }, `${nameOf(id)} (${r.totals[id]})`),
+      h('span', { class: 'who' }, `${nameFor(id)} (${r.totals[id]})`),
       r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
       h(
         'span',
         { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') },
-        r.deltas[id] > 0 ? `+${r.deltas[id]}` : String(r.deltas[id]),
+        `${r.deltas[id] > 0 ? '+' : ''}${r.deltas[id]} ${Math.abs(r.deltas[id]) === 1 ? 'coin' : 'coins'}`,
       ),
     ),
   );
+  const brokeLines = (r.broke ?? []).map((b) => h('div', { class: 'broke-line' }, brokeText(nameFor(b.id), b.bot)));
   const canDeal = room.players.length >= room.minPlayers;
   return h(
     'div',
     { class: 'panel result' },
     h('strong', null, headline),
     h('div', { class: 'hands' }, rows),
+    brokeLines,
     isSpectator()
       ? null
       : h(
@@ -549,9 +557,38 @@ function addBotButton() {
   );
 }
 
+// The Company's reaction to a player losing their last coin.
+function brokeText(name, bot) {
+  return bot
+    ? `${name} lost every last coin and was thrown out of the camp.`
+    : `${name} lost every last coin and is out of the game. They watch from the shadows as a guest now.`;
+}
+
+// Table settings: the host edits them in the waiting room, everyone else just sees them.
+function settingsPanel(isHost) {
+  const { settings, settingLimits } = state.room;
+  const field = (key, hint) => {
+    const { min, max, label } = settingLimits[key];
+    if (!isHost) return h('div', null, `${label}: `, h('strong', null, String(settings[key])), h('span', { class: 'muted' }, ` ${hint}`));
+    const input = h('input', { type: 'number', min, max, step: 1, value: settings[key], class: 'setting-input' });
+    input.addEventListener('change', () => send({ t: 'updateSettings', settings: { ...settings, [key]: Number(input.value) } }));
+    return h('label', { class: 'row' }, h('span', null, `${label} `), input, h('span', { class: 'muted' }, hint));
+  };
+  return h(
+    'div',
+    { class: 'panel' },
+    h('h3', { style: 'margin-top:0' }, 'Table settings'),
+    field('startingCoins', 'coins for each player at the start'),
+    field('bet', 'coins per payoff unit (a plain win pays 1 bet, TONK or getting caught 2)'),
+    h('div', { class: 'muted' }, 'Run out of coins and you are out of the game.'),
+  );
+}
+
 function formatEvent(e) {
   const who = nameOf(e.pid, e.name);
   switch (e.type) {
+    case 'broke':
+      return e.bot ? `${who} lost every last coin and was thrown out.` : `${who} lost every last coin and is now a guest.`;
     case 'join':
       return `${who} joined.`;
     case 'leave':

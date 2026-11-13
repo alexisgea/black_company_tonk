@@ -587,3 +587,39 @@ test('input validation', () => {
   say(lobby, c, { t: 'hello', name: 'Croaker' });
   assert.match(c.last('error').message, /reserved/i);
 });
+
+test('only the host can change the table settings, and everyone sees them', () => {
+  const lobby = new Lobby();
+  const { humans } = seatedGame(lobby);
+  const [host, guest] = humans;
+  say(lobby, guest, { t: 'updateSettings', settings: { startingCoins: 20, bet: 2 } });
+  assert.match(guest.last('error').message, /Only the host/);
+  say(lobby, host, { t: 'updateSettings', settings: { startingCoins: 20, bet: 2 } });
+  const room = guest.last('room').room;
+  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2 });
+  assert.ok(room.players.every((p) => p.coins === 20));
+});
+
+test('a human who loses every coin becomes a guest and is told so', () => {
+  const lobby = new Lobby({ rng: () => 0.5 });
+  const { humans } = seatedGame(lobby);
+  say(lobby, humans[0], { t: 'updateSettings', settings: { startingCoins: 10, bet: 10 } });
+  for (let i = 0; i < 40 && !humans.some((h) => h.last('broke')); i++) {
+    say(lobby, humans[0], { t: 'startGame' });
+    const view = humans[0].last('room').room;
+    for (const h of humans) {
+      const r = h.last('room').room.round;
+      if (r?.phase === 'tonk' && r.mustDeclareTonk) say(lobby, h, { t: 'declareTonk' });
+    }
+    const round = humans[0].last('room').room.round;
+    if (view.status === 'playing' && round.phase === 'draw') {
+      const mover = humans.find((h) => h.last('welcome').id === round.turn);
+      say(lobby, mover, { t: 'action', action: { type: 'goDown' } });
+    }
+  }
+  const brokeConn = humans.find((h) => h.last('broke'));
+  assert.ok(brokeConn, 'expected somebody to go broke');
+  const room = humans[0].last('room').room;
+  assert.ok(room.spectators.some((s) => s.id === brokeConn.last('welcome').id));
+  assert.ok(room.players.every((p) => p.coins > 0));
+});

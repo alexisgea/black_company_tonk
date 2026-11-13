@@ -68,6 +68,9 @@ function onMessage(msg) {
     case 'closed':
       toast(msg.message, 7000);
       return;
+    case 'broke':
+      toast(msg.message, 9000);
+      break;
     case 'notice':
       toast(msg.message, 9000);
       return;

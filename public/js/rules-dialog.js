@@ -47,16 +47,16 @@ function buildRules() {
     section('Winning by emptying your hand', [
       'If you have no cards left during your turn       (after putting down a spread, adding to a spread, or discarding your last card), you win. Every other player pays you 1.',
     ]),
-          section('Words you may hear', [
-            'Spread or meld: a group of cards put down on the table (a set or a run).',
-            'Add to a spread, lay off or hit: put one card from your hand on a run that is already on the table.',
-            'Go down, drop or knock: end the hand by showing your cards, hoping to have the lowest total.',
-            'Draw pile or stock: the face-down cards you draw from. Discard pile: the face-up cards you throw away.',
-            'Caught: you went down but another player had the same total or a lower one, so you pay double.',
-          ]),
+    section('Words you may hear', [
+      'Spread or meld: a group of cards put down on the table (a set or a run).',
+      'Add to a spread, lay off or hit: put one card from your hand on a run that is already on the table.',
+      'Go down, drop or knock: end the hand by showing your cards, hoping to have the lowest total.',
+      'Draw pile or stock: the face-down cards you draw from. Discard pile: the face-up cards you throw away.',
+      'Caught: you went down but another player had the same total or a lower one, so you pay double.',
+    ]),
     section('Other', [
       'If the draw pile is empty, the discard pile is shuffled to make a new draw pile. The top discard card stays in place.',
-      'The scores in the side panel are running totals for this game: money won (+) and money paid (\u2212).',
+      'The coins in the side panel are what each player has left. A plain win pays 1 bet, TONK or getting caught going down pays 2 bets; the host sets the starting coins and the bet before the game starts. Nobody can pay more than they have. A player who loses their last coin is out of the game: humans keep watching as guests, bots are thrown out.',
     ]),
     h('h3', null, 'Credits'),
     h(

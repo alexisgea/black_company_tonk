@@ -33,14 +33,14 @@ function playingRoom(names = namesFor(MIN_PLAYERS)) {
   return { room, users };
 }
 
-test('first player to join is the host and starts at zero', () => {
+test('first player to join is the host and starts with the starting coins', () => {
   const room = new Room('R', 'Test');
   const a = human('Ann');
   const b = human('Bob');
   room.join(a);
   room.join(b);
   assert.equal(room.hostId, a.id);
-  assert.deepEqual(room.scores, { [a.id]: 0, [b.id]: 0 });
+  assert.deepEqual(room.coins, { [a.id]: 50, [b.id]: 50 });
   assert.equal(a.room, room);
 });
 
@@ -105,14 +105,71 @@ test('bot names are reserved', () => {
   for (const n of ['Alice', 'Casey', 'Ravens', 'Bot']) assert.ok(!isReservedName(n), n);
 });
 
-test('a hand that ends settles zero-sum scores', () => {
+test('a hand that ends moves coins around without creating any', () => {
   const { room, users } = playingRoom();
   const mover = users.find((u) => u.id === room.round.order[room.round.turn]);
   room.act(mover, { type: 'goDown' });
   assert.equal(room.status, 'between');
-  const total = Object.values(room.scores).reduce((a, b) => a + b, 0);
-  assert.equal(total, 0);
-  assert.notDeepEqual(Object.values(room.scores), Array(MIN_PLAYERS).fill(0));
+  const total = Object.values(room.coins).reduce((a, b) => a + b, 0);
+  assert.equal(total, 50 * MIN_PLAYERS);
+  assert.notDeepEqual(Object.values(room.coins), Array(MIN_PLAYERS).fill(50));
+});
+
+test('the host can change the settings only before the game starts, with limits', () => {
+  const room = new Room('R', 'Test');
+  const users = namesFor(MIN_PLAYERS).map(human);
+  users.forEach((u) => room.join(u));
+  room.updateSettings(users[0], { startingCoins: 100, bet: 5 });
+  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5 });
+  assert.ok(Object.values(room.coins).every((c) => c === 100));
+  assert.throws(() => room.updateSettings(users[0], { startingCoins: 5, bet: 1 }), /Starting coins/);
+  assert.throws(() => room.updateSettings(users[0], { startingCoins: 100, bet: 1.5 }), /Bet/);
+  assert.throws(() => room.updateSettings(users[0], { startingCoins: 100, bet: 200 }), /more than/);
+  assert.throws(() => room.updateSettings(users[0], null), /Bad settings/);
+  room.startHand(users[0]);
+  assert.throws(() => room.updateSettings(users[0], { startingCoins: 20, bet: 1 }), /before the game starts/);
+});
+
+test('a player who cannot pay in full gives what they have, and ends up a guest (bots are removed)', () => {
+  const room = new Room('R', 'Test', seeded(3), { settings: { startingCoins: 10, bet: 10 } });
+  const [a, b, c] = namesFor(3).map(human);
+  [a, b, c].forEach((u) => room.join(u));
+  const bot = room.addBot();
+  room.coins[bot.id] = 3;
+  room.coins[a.id] = 12;
+  const deltas = room.payout({ [a.id]: 3, [b.id]: 0, [c.id]: -1, [bot.id]: -2 });
+  // c can pay 10 of 10, the bot only 3 of 20: the winner receives 13.
+  assert.deepEqual(deltas, { [a.id]: 13, [b.id]: 0, [c.id]: -10, [bot.id]: -3 });
+  assert.equal(
+    Object.values(deltas).reduce((x, y) => x + y, 0),
+    0,
+  );
+});
+
+test('losing the last coin turns a human into a guest and removes a bot', () => {
+  const room = new Room('R', 'Test', seeded(7), { settings: { startingCoins: 10, bet: 10 } });
+  const users = namesFor(MIN_PLAYERS).map(human);
+  users.forEach((u) => room.join(u));
+  room.addBot();
+  room.startHand(users[0]);
+  for (const p of [...room.pendingTonkers]) room.declareTonk(p);
+  if (room.status === 'playing') {
+    const mover = room.players.find((p) => p.id === room.round.order[room.round.turn]);
+    room.act(mover, { type: 'goDown' });
+  }
+  assert.equal(room.status, 'between');
+  const broke = room.takeBroke();
+  assert.ok(broke.length > 0);
+  assert.deepEqual(room.takeBroke(), []);
+  for (const user of broke) {
+    assert.ok(!room.players.includes(user));
+    assert.ok(!(user.id in room.coins));
+    if (user.isBot) assert.equal(user.room, null);
+    else assert.ok(room.spectators.includes(user));
+  }
+  assert.ok(room.players.every((p) => room.coins[p.id] > 0));
+  assert.ok(room.log.some((e) => e.type === 'broke'));
+  assert.ok(room.round.result.broke.length === broke.length);
 });
 
 test('acting without a hand in progress is an error', () => {
@@ -128,7 +185,7 @@ test('leaving a minimum-size hand aborts it with no payoff', () => {
   room.leave(users.at(-1));
   assert.equal(room.status, 'between');
   assert.equal(room.round.result.type, 'aborted');
-  assert.deepEqual(room.scores, Object.fromEntries(users.slice(0, -1).map((u) => [u.id, 0])));
+  assert.deepEqual(room.coins, Object.fromEntries(users.slice(0, -1).map((u) => [u.id, 50])));
 });
 
 test('chat is cleaned, capped and limited to members', () => {

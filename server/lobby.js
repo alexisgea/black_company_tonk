@@ -80,8 +80,28 @@ class Lobby {
 
   broadcastRoom(room) {
     if (this.dropAbsentPlayers(room)) return;
+    if (this.handleBroke(room)) return;
     for (const user of room.audience) this.send(user.conn, room.view(user));
     this.scheduleBot(room);
+  }
+
+  // Tells the humans who just lost their last coin that they are guests now. If no human is left
+  // playing, the table is closed. Returns true if it was closed.
+  handleBroke(room) {
+    const broke = room.takeBroke();
+    if (broke.length && room.humans.length === 0) {
+      this.closeRoom(room, 'Every player at this table is flat broke. The Company has taken the last coin and the table is closed.');
+      return true;
+    }
+    for (const user of broke) {
+      if (user.isBot) continue;
+      this.send(user.conn, {
+        t: 'broke',
+        message:
+          'You are out of coins! The Company has no more use for you at the table, so you are a guest now. Watch and chat from the shadows.',
+      });
+    }
+    return false;
   }
 
   // Disconnected players whose grace period ran out during a hand stay seated (a bot plays for
@@ -89,7 +109,7 @@ class Lobby {
   // case leaveRoom has already updated the table.
   dropAbsentPlayers(room) {
     if (room.status === 'playing') return false;
-    const absent = room.players.filter((p) => !p.isBot && !p.conn && p.dropAfterHand);
+    const absent = [...room.players, ...room.spectators].filter((p) => !p.isBot && !p.conn && p.dropAfterHand);
     for (const user of absent) {
       this.leaveRoom(user);
       this.users.delete(user.token);
@@ -361,6 +381,12 @@ class Lobby {
         requireRoom(room);
         room.reorder(user, msg.cards);
         this.send(user.conn, room.view(user)); // only the owner can see their hand order
+        break;
+      }
+      case 'updateSettings': {
+        requireHost(room, user, 'change the table settings');
+        room.updateSettings(user, msg.settings);
+        this.broadcastAll(room);
         break;
       }
       case 'addBot': {
