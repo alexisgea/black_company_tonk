@@ -8,6 +8,6 @@ export function h(tag, props, ...children) {
     else if (k in el) el[k] = v;
     else el.setAttribute(k, v);
   }
-  el.append(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+  el.append(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
   return el;
 }

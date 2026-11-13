@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.10.5',
+    date: '2026-11-13',
+    changes: ['Fixed the Changelog dialog showing "[object HTMLHeadingElement]" text instead of the version entries.'],
+  },
+  {
     version: '0.10.4',
     date: '2026-11-13',
     changes: [
