@@ -92,6 +92,17 @@ test('server abuse limits', async (t) => {
     assert.equal(await mod.text(), `export const LOADED_VERSION = ${JSON.stringify(expected)};\n`);
   });
 
+  await t.test('script URLs are stamped with the version so a new version cannot be served from a stale cache', async () => {
+    const base = `http://127.0.0.1:${server.port}`;
+    const v = encodeURIComponent(require('../package.json').version);
+    const html = await (await fetch(`${base}/`)).text();
+    assert.match(html, new RegExp(`src="js/main\\.js\\?v=${v.replace(/\./g, '\\.')}"`));
+    assert.match(html, new RegExp(`src="/shared/cards\\.js\\?v=${v.replace(/\./g, '\\.')}"`));
+    const main = await (await fetch(`${base}/js/main.js?v=${v}`)).text();
+    assert.match(main, /from '\.\/state\.js\?v=/);
+    assert.doesNotMatch(main, /from '\.\/[a-z-]+\.js'/);
+  });
+
   await t.test('too many connections from one address are refused', async () => {
     for (let i = 0; i < 3; i++) {
       const c = await connect(server.port);

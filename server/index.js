@@ -51,6 +51,16 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
+// Appends ?v=<version> to every script URL (HTML <script src>, module imports) so a new version means new URLs.
+// Browsers and proxies that hold on to old copies despite no-cache then have nothing stale to reuse.
+function stampVersion(file, body) {
+  const ext = path.extname(file);
+  const v = `?v=${encodeURIComponent(APP_VERSION)}`;
+  if (ext === '.html') return body.toString('utf8').replace(/(<script[^>]*\ssrc="[^"?]+\.js)"/g, `$1${v}"`);
+  if (ext === '.js') return body.toString('utf8').replace(/(\b(?:from|import)\s*)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g, `$1$2$3${v}$2`);
+  return body;
+}
+
 const server = http.createServer((req, res) => {
   let pathname;
   try {
@@ -88,11 +98,12 @@ const server = http.createServer((req, res) => {
     res.writeHead(403).end();
     return;
   }
-  fs.readFile(file, (err, data) => {
+  fs.readFile(file, (err, body) => {
     if (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found');
       return;
     }
+    const data = stampVersion(file, body);
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
