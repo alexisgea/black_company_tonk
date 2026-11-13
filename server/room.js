@@ -300,6 +300,7 @@ class Room {
   pushChat(user, text) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
     if (this.spectators.includes(user)) message.spectator = true;
+    if (user.isBot) message.bot = true;
     this.chat.push(message);
     if (this.chat.length > MAX_CHAT) this.chat.shift();
     return message;

@@ -3,6 +3,7 @@
 import { h, persistent } from './dom.js';
 import { state } from './state.js';
 import { send } from './net.js';
+import { nameTag } from './name-tag.js';
 
 const MAX_CHAT_KEPT = 50;
 export const chat = { messages: [], el: null, logEl: null, input: null };
@@ -35,7 +36,7 @@ export function fillChatLog() {
       h(
         'div',
         { class: 'chat-msg' + (m.pid === state.you ? ' mine' : '') },
-        h('strong', null, m.name + (m.spectator ? ' (guest): ' : ': ')),
+        h('strong', null, nameTag(m.name, { bot: !!m.bot, host: state.room?.hostId === m.pid }), m.spectator ? ' (guest): ' : ': '),
         m.text,
       ),
     ),

@@ -22,11 +22,6 @@ const BOT_NAMES = [
   'Case',
 ];
 
-// The quirk that marks a bot at the table while keeping the name immersive.
-const BOT_MARK = '★';
-
-const botDisplayName = (name) => `${name} ${BOT_MARK}`;
-
 // Ignores case, accents, full-width letters, spacing, punctuation and symbols, so "one eye", "GOBLIN",
 // "Goblín" and "Goblin ★" all match.
 const normalize = (s) =>
@@ -41,11 +36,11 @@ function isReservedName(name) {
   return RESERVED.has(n) || (n.endsWith('bot') && RESERVED.has(n.slice(0, -3)));
 }
 
-// Picks a random bot name that is not in `taken` (display names already at the table).
+// Picks a random bot name that is not in `taken` (names already at the table). The client marks bots with a helmet.
 function pickBotName(taken, rng = Math.random) {
-  const free = BOT_NAMES.filter((n) => !taken.has(botDisplayName(n)));
+  const free = BOT_NAMES.filter((n) => !taken.has(n));
   const pool = free.length ? free : BOT_NAMES;
-  return botDisplayName(pool[Math.floor(rng() * pool.length)]);
+  return pool[Math.floor(rng() * pool.length)];
 }
 
-module.exports = { BOT_NAMES, BOT_MARK, botDisplayName, isReservedName, pickBotName };
+module.exports = { BOT_NAMES, isReservedName, pickBotName };

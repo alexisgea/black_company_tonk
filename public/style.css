@@ -163,6 +163,9 @@ input[type=text]:focus, input[type=number]:focus { outline: none; border-color: 
 
 .score-row { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 .score-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mark { margin-left: 0.3em; }
+.helmet { display: inline-block; width: 1.15em; height: 0.78em; vertical-align: -0.05em; background: currentColor; -webkit-mask: url(img/helmet.png) center / contain no-repeat; mask: url(img/helmet.png) center / contain no-repeat; }
+.host-star { color: var(--accent); }
 .score-actions { display: inline-flex; gap: 4px; }
 .score-value { min-width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
 .setting-input { width: 90px; }

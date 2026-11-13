@@ -100,12 +100,11 @@ test('host role passes to the next human, never to a bot', () => {
   assert.equal(room.hostId, null);
 });
 
-test('bots get random distinct names from the reserved list, marked with a star, and can be removed', () => {
+test('bots get random distinct names from the reserved list and can be removed', () => {
   const room = new Room('R', 'Test');
   room.join(human('Ann'));
   const bot = room.addBot();
-  assert.match(bot.name, /★$/);
-  assert.ok(BOT_NAMES.includes(bot.name.replace(/ ★$/, '')));
+  assert.ok(BOT_NAMES.includes(bot.name));
   const more = [room.addBot(), room.addBot(), room.addBot()];
   assert.equal(new Set([bot, ...more].map((b) => b.name)).size, 4);
   more.forEach((b) => room.removeBot(b.id));

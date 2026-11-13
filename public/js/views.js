@@ -4,6 +4,7 @@ import { send, sendAction, sendHello, connect } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
+import { nameTag } from './name-tag.js';
 import { rulesButton } from './rules-dialog.js';
 import { changelogButton } from './changelog-dialog.js';
 import { drag, handCardEl } from './hand.js';
@@ -13,6 +14,12 @@ const app = document.getElementById('app');
 const chatSlot = () => h('div', { 'data-persist': 'chat' });
 const secondsLeft = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 const URGENT_SECONDS = 15;
+
+const marksOf = (id) => ({
+  bot: !!state.room.players.find((p) => p.id === id)?.isBot,
+  host: state.room.hostId === id,
+});
+const playerTag = (p) => nameTag(p.name, { bot: p.isBot, host: p.id === state.room.hostId });
 
 export function render() {
   if (drag.active) {
@@ -202,8 +209,7 @@ function renderRoom() {
             h(
               'span',
               null,
-              p.name,
-              p.id === room.hostId ? ' (host)' : '',
+              playerTag(p),
               p.id === state.you ? ' (you)' : '',
               p.connected ? '' : ' \u2013 disconnected',
               p.away ? ' \u2013 bot playing' : '',
@@ -278,7 +284,7 @@ function renderSide(leaveBtn) {
         h(
           'div',
           { class: 'score-row' },
-          h('span', { class: 'score-name' }, p.name + (p.connected ? '' : ' (offline)') + (p.away ? ' (bot playing)' : '')),
+          h('span', { class: 'score-name' }, playerTag(p), (p.connected ? '' : ' (offline)') + (p.away ? ' (bot playing)' : '')),
           h('span', { class: 'score-actions' }, kickControls(p)),
           h('span', { class: 'score-value' }, String(p.coins)),
         ),
@@ -323,7 +329,7 @@ function renderTable() {
           (info?.away ? ' away' : ''),
         'data-player': id,
       },
-      h('strong', null, nameOf(id) + (info?.away ? ' (bot playing)' : '')),
+      h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ' (bot playing)' : ''),
       h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, p.total !== null ? ` \u2022 total ${p.total}` : ''),
       cards,
       meldsOf(id),
@@ -563,7 +569,7 @@ function renderResult(round) {
     h(
       'div',
       { class: 'hand-row', 'data-player': id },
-      h('span', { class: 'who' }, `${nameFor(id)} (${r.totals[id]})`),
+      h('span', { class: 'who' }, nameTag(nameFor(id), marksOf(id)), ` (${r.totals[id]})`),
       r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
       h(
         'span',
