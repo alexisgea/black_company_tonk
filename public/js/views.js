@@ -255,7 +255,7 @@ function renderTable() {
     );
   });
 
-  // Sets and spreads a player has put down, shown in front of that player's hand.
+  // Spreads (sets and runs) a player has put down, shown in front of that player's hand.
   function meldsOf(owner) {
     const mine = round.melds.filter((m) => m.owner === owner);
     if (!mine.length) return null;
@@ -270,7 +270,7 @@ function renderTable() {
             class: 'meld' + (canLayoff ? ' target' : ''),
             onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null,
           },
-          h('div', { class: 'label' }, m.type === 'set' ? 'set' : 'spread'),
+          h('div', { class: 'label' }, m.type === 'set' ? 'set' : 'run'),
           h(
             'div',
             { class: 'cards' },
@@ -305,7 +305,7 @@ function renderTable() {
     else if (tonkPhase)
       status = round.mustDeclareTonk ? 'You have TONK! Press the button to put your cards down.' : 'Waiting for TONK! to be declared\u2026';
     else if (myTurn)
-      status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Spread, lay off, then discard one card.';
+      status = round.phase === 'draw' ? 'Your turn: draw, take the discard, or go down.' : 'Put down a spread or add cards to a spread, then discard one card.';
     else status = `Waiting for ${nameOf(round.turn)}\u2026`;
   }
 
@@ -564,7 +564,7 @@ function formatEvent(e) {
     case 'discard':
       return `${who} discarded ${cardLabel(e.card)}.`;
     case 'meld':
-      return `${who} put down ${e.kind === 'set' ? 'a set' : 'a spread'}: ${e.cards.map(cardLabel).join(' ')}.`;
+      return `${who} put down ${e.kind === 'set' ? 'a set' : 'a run'}: ${e.cards.map(cardLabel).join(' ')}.`;
     case 'layoff':
       return `${who} added ${cardLabel(e.card)} to a spread.`;
     case 'goDown':

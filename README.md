@@ -65,9 +65,9 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 - Card values: A = 1, 2-10 face value, J/Q/K = 10.
 - **Tonk** (checked only on the deal, automatic): total <= 15 or >= 49. A single Tonk wins; every other player pays double. If several players have Tonk the hand is a draw and is redealt.
 - On your turn, either **go down** (only at the start of the turn) or take the top of the draw pile or discard pile, then optionally put down spreads and add to existing ones, then discard.
-  - Spread: 3-4 of a kind, or a run of 3+ same-suit consecutive cards (Ace low only, no wrap-around).
-  - You may extend any spread on the table (yours or others') at either end; sets cannot be extended.
-  - Emptying your hand (by spreading, laying off, or discarding) wins; everyone else pays 1.
+  - Spread (also called a meld): a set (3-4 of a kind) or a run (3+ same-suit consecutive cards, Ace low only, no wrap-around).
+  - Adding to a spread (also called laying off or hitting): you may extend any run on the table (yours or others') at either end; sets cannot be extended.
+  - Emptying your hand (by putting down spreads, adding to a spread, or discarding) wins; everyone else pays 1.
 - **Going down:** the lowest total strictly wins and everyone pays 1. Otherwise the goer pays double to each player with an equal or lower total, and players with a higher total pay the lowest hand(s) 1 (BSFS wording). Ties therefore lose for the goer.
 - Scores are a running zero-sum tally per game (payoff unit = 1).
 - If the draw pile runs out, the discard pile (minus its top card) is reshuffled.
