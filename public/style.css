@@ -8,11 +8,16 @@
   --iron: #2b2c2d;
   --rust: #7a4a2e;
   --blood: #8a2e26;
+  --font-body: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+  --font-display: Cinzel, Georgia, "Palatino Linotype", serif;
   --font-scale: 1;
   --card-scale: 1;
   --card-w: calc(58px * var(--card-scale));
   --card-h: calc(82px * var(--card-scale));
 }
+
+@font-face { font-family: Cinzel; font-weight: 400; font-style: normal; font-display: swap; src: url(/fonts/cinzel-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: Cinzel; font-weight: 700; font-style: normal; font-display: swap; src: url(/fonts/cinzel-latin-700-normal.woff2) format("woff2"); }
 
 html { font-size: calc(16px * var(--font-scale)); }
 
@@ -23,7 +28,7 @@ body {
   min-height: 100vh;
   background: radial-gradient(ellipse at center, var(--felt), var(--felt-dark));
   color: var(--text);
-  font-family: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+  font-family: var(--font-display);
 }
 
 .card {
@@ -147,6 +152,7 @@ input[type=text] { font: inherit; padding: 8px 10px; border-radius: 6px; border:
 .broke-line { margin: 4px 0; color: #c4776b; font-style: italic; }
 .log { font-size: 0.8125rem; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
 
+.chat-log, .log, input[type=text] { font-family: var(--font-body); }
 .chat-log { height: 150px; overflow-y: auto; font-size: 0.875rem; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
 .chat-msg.mine strong { color: var(--accent); }
 .chat-form { display: flex; gap: 6px; }
