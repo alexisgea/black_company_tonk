@@ -28,7 +28,8 @@ Server code changes need a server restart (automatic with `npm run dev`); page c
 - The host can **Kick** any human player at any time, with a confirmation (waiting room or the scoreboard during play). Kicked players cannot rejoin that table (as player or guest): the ban covers their account for this table and their **browser**, identified by a random device id kept in `localStorage` and sent with every `hello`, so reconnecting with a new token or opening a new tab does not get around it. Clearing the browser data or switching browser does; there is deliberately no IP ban, because players share addresses (families, schools) and behind a proxy the server may not see the real one. Kicking mid-hand removes their cards from play; if only one player would remain, the hand is cancelled with no payoff.
 - **Names are unique at a table.** Someone arriving with a name that is already taken (by a player or a guest, ignoring case) is shown as "Alice the Second", "Alice the Third", ... for as long as they are at that table and gets their own name back when they leave.
 - **Coins for latecomers:** until the first hand is dealt everybody gets the starting coins. Someone who joins (or a bot that is added) afterwards gets the average of the coins the seated players have at that moment (never less than one bet), so they neither start with an unfair head start nor with a handicap.
-- **Turn timer:** a connected player who takes longer than 90 seconds (`TURN_TIMEOUT_SECONDS`, `0` turns it off) to finish their turn is "away": a bot plays their turns (and declares TONK for them) and the log says so. A countdown on their own turn shows how long they have. They get the seat back by making any move or pressing **Take back control**, and the countdown starts again. Disconnected players are handled by the grace period above instead.
+- **Turn timer:** a connected player who takes longer than 120 seconds (`TURN_TIMEOUT_SECONDS`, `0` turns it off) to finish their turn is "away": a bot plays their turns (and declares TONK for them) and the log says so. Nothing is shown for the first 60 seconds; then a countdown with a warning appears on their own turn (`TURN_WARNING_SECONDS` sets how long the countdown is). They get the seat back by making any move or pressing **Take back control**, and the countdown starts again. Disconnected players are handled by the grace period above instead. The turn timer is not used when only one human plays against bots; the idle timeout (`ROOM_IDLE_MINUTES`) closes such a table if nothing happens.
+- **Pause:** the host (table creator) can pause a hand with **Pause game** and resume it with **Resume game**. While paused nobody can move, bots wait, and the turn and TONK! timers stand still (they continue with the time they had left). The idle timeout still closes a table nobody touches.
 
 ### Guests (spectators)
 
@@ -79,6 +80,6 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 
 ## Known gaps / ideas
 
-- A player who is idle but connected is only replaced after the turn timer (90 s by default); the bot that takes over is the simple one in `server/bot.js`.
+- A player who is idle but connected is only replaced after the turn timer (120 s by default); the bot that takes over is the simple one in `server/bot.js`.
 - Players can join between hands, not mid-hand (guests can watch at any time). No persistent accounts yet.
 - Single-process in-memory state; restarting the server drops all tables.

@@ -703,6 +703,69 @@ test('turn timer: 0 turns the timer off', async () => {
   assert.ok(off.state().players.every((p) => !p.away));
 });
 
+test('turn timer: the view tells the client how much of the end of the turn to show, never more than the timeout', () => {
+  assert.equal(playingGame({ botDelayMs: 100000 }, 1).state().turnWarningMs, 60000);
+  const lobby = new Lobby({ turnTimeoutMs: 40, turnWarningMs: 5000 });
+  assert.equal(lobby.turnWarningMs, 40);
+});
+
+test('turn timer: a lone human playing against bots has no turn timer', async () => {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const lobby = new Lobby({ turnTimeoutMs: 30, botDelayMs: 100000 });
+    const host = connect(lobby, 'Solo');
+    say(lobby, host, { t: 'createGame' });
+    for (let i = 1; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
+    say(lobby, host, { t: 'startGame' });
+    const room = host.last('room').room;
+    if (room.round.phase === 'tonk' || room.round.turn !== host.last('room').you) continue;
+    assert.equal(room.turnMsLeft, null);
+    await wait(100);
+    assert.ok(host.last('room').room.players.every((p) => !p.away));
+    return;
+  }
+  throw new Error('no suitable deal found');
+});
+
+test('pause: only the host can pause, nobody can move meanwhile, and the turn timer carries on afterwards', async () => {
+  const { lobby, humans, state } = playingGame({ turnTimeoutMs: 400, botDelayMs: 100000 }, 1);
+  const [host, bob] = humans;
+  const bobSeat = () => state().players.find((p) => p.id === bob.last('room').you);
+
+  say(lobby, bob, { t: 'pause' });
+  assert.match(bob.last('error').message, /Only the host/);
+  assert.equal(state().paused, false);
+
+  await wait(150);
+  say(lobby, host, { t: 'pause' });
+  assert.equal(state().paused, true);
+  assert.equal(state().turnMsLeft, null, 'no countdown while paused');
+  assert.ok(state().log.some((e) => e.type === 'pause'));
+  say(lobby, bob, { t: 'action', action: { type: 'draw' } });
+  assert.match(bob.last('error').message, /paused/);
+
+  await wait(450);
+  assert.equal(bobSeat().away, false, 'the turn timer does not run while paused');
+
+  say(lobby, host, { t: 'unpause' });
+  assert.equal(state().paused, false);
+  assert.ok(state().log.some((e) => e.type === 'unpause'));
+  assert.ok(state().turnMsLeft > 0 && state().turnMsLeft < 350, 'the time used before the pause is not given back');
+  await wait(400);
+  assert.equal(bobSeat().away, true);
+});
+
+test('pause: bots stop playing until the game is resumed', async () => {
+  const { lobby, humans, state } = playingGame({ turnTimeoutMs: 0, botDelayMs: 20 }, 1);
+  const host = humans[0];
+  say(lobby, host, { t: 'pause' });
+  lobby.disconnect(humans[1]); // a seat the server plays by itself
+  await wait(100);
+  assert.ok(!state().log.some((e) => e.pid === humans[1].last('room').you && e.type === 'discard'));
+  say(lobby, host, { t: 'unpause' });
+  await wait(100);
+  assert.ok(state().log.some((e) => e.pid === humans[1].last('room').you && e.type === 'discard'));
+});
+
 test('kick also bans the browser: a new token from the same device cannot rejoin, another device can', () => {
   const lobby = new Lobby({ botDelayMs: 100000 });
   const helloAs = (name, device) => {

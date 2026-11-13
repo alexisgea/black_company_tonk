@@ -9,9 +9,9 @@ const { Lobby } = require('./lobby');
 const { RateLimiter, clientIp, originAllowed } = require('./limits');
 const { version: APP_VERSION } = require('../package.json');
 
-const intEnv = (name, fallback) => {
+const intEnv = (name, fallback, { allowZero = false } = {}) => {
   const n = Number(process.env[name]);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+  return Number.isFinite(n) && (n > 0 || (allowZero && n === 0)) ? n : fallback;
 };
 
 const PORT = intEnv('PORT', 3100);
@@ -29,7 +29,8 @@ const LIMITS = {
   messagesPer5Seconds: intEnv('MESSAGES_PER_5_SECONDS', 60),
   maxRooms: intEnv('MAX_ROOMS', 100),
   roomIdleMinutes: intEnv('ROOM_IDLE_MINUTES', 30),
-  turnTimeoutSeconds: intEnv('TURN_TIMEOUT_SECONDS', 90),
+  turnTimeoutSeconds: intEnv('TURN_TIMEOUT_SECONDS', 120, { allowZero: true }),
+  turnWarningSeconds: intEnv('TURN_WARNING_SECONDS', 60),
 };
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const SHARED_DIR = path.join(__dirname, '..', 'shared');
@@ -156,6 +157,7 @@ const lobby = new Lobby({
   maxRooms: LIMITS.maxRooms,
   roomIdleMs: LIMITS.roomIdleMinutes * 60000,
   turnTimeoutMs: LIMITS.turnTimeoutSeconds * 1000,
+  turnWarningMs: LIMITS.turnWarningSeconds * 1000,
 });
 const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
 const openByIp = new Map(); // ip -> open connection count

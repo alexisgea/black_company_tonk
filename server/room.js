@@ -19,6 +19,8 @@ const PUBLIC_LOG_FIELDS = {
   broke: ['pid', 'name', 'bot'],
   timeout: ['pid', 'name'], // took too long: a bot plays their turns until they come back
   back: ['pid', 'name'],
+  pause: ['pid', 'name'],
+  unpause: ['pid', 'name'],
   reshuffle: [],
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
@@ -57,13 +59,22 @@ function validateSettings(raw) {
 
 // One table of players: seating, coins and the current hand.
 class Room {
-  constructor(id, name, rng = Math.random, { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, settings = DEFAULT_SETTINGS } = {}) {
+  constructor(
+    id,
+    name,
+    rng = Math.random,
+    { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, turnWarningMs = null, settings = DEFAULT_SETTINGS } = {},
+  ) {
     this.id = id;
     this.name = name;
     this.rng = rng;
     this.settings = { ...settings };
     this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
+    this.turnWarningMs = turnWarningMs; // the turn countdown is only shown to the player for this long at the end of the turn
     this.tonkDeadline = null; // epoch ms, only while a hand waits for TONK!
+    this.paused = false; // the host stopped the game: no moves, no bots, no turn or TONK! timers
+    this.tonkLeftMs = null; // time left on the TONK! timer when the game was paused
+    this.turnResume = null; // { key, ms }: time left on the turn timer when the game was paused
     this.players = []; // users, in seating order
     this.spectators = []; // guests who only watch and chat; they never see hidden cards
     this.hostId = null;
@@ -277,14 +288,42 @@ class Room {
   declareTonk(user) {
     this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
+    this.requireNotPaused();
     tonk.declareTonk(this.round, user.id);
     this.pushChat(user, 'TONK!');
     if (this.round.result) this.settle();
   }
 
+  requireNotPaused() {
+    if (this.paused) throw new tonk.GameError('The game is paused');
+  }
+
+  // The host can stop the game during a hand. Everything that counts down is frozen, and the time left is kept
+  // so it carries on from there (the lobby restarts the turn timer from `turnResume`).
+  pause(user) {
+    this.requirePlayer(user);
+    if (this.status !== 'playing') throw new tonk.GameError('There is no hand to pause');
+    if (this.paused) return;
+    const now = Date.now();
+    this.tonkLeftMs = this.tonkDeadline ? Math.max(0, this.tonkDeadline - now) : null;
+    this.turnResume = this.turnDeadline ? { key: this.turnKey, ms: Math.max(0, this.turnDeadline - now) } : null;
+    this.paused = true;
+    this.addLog({ type: 'pause', pid: user.id, name: user.name });
+  }
+
+  unpause(user) {
+    this.requirePlayer(user);
+    if (!this.paused) return;
+    this.paused = false;
+    if (this.tonkLeftMs !== null) this.tonkDeadline = Date.now() + this.tonkLeftMs;
+    this.tonkLeftMs = null;
+    this.addLog({ type: 'unpause', pid: user.id, name: user.name });
+  }
+
   act(user, action) {
     this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
+    this.requireNotPaused();
     const events = tonk.applyAction(this.round, user.id, action);
     events.forEach((e) => this.addLog(e));
     if (this.round.result) this.settle();
@@ -343,6 +382,9 @@ class Room {
     const broke = this.players.filter((p) => this.coins[p.id] <= 0);
     result.broke = broke.map((p) => ({ id: p.id, bot: !!p.isBot }));
     this.status = 'between';
+    this.paused = false; // a hand that ends while paused (the last opponent left) is no longer paused
+    this.tonkLeftMs = null;
+    this.turnResume = null;
     for (const user of broke) this.sendBroke(user);
     this.newlyBroke.push(...broke);
   }
@@ -410,8 +452,10 @@ class Room {
         })),
         spectators: this.spectators.map((s) => ({ id: s.id, name: s.name, connected: !!s.conn })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
-        tonkMsLeft: this.pendingTonkers.length ? Math.max(0, this.tonkDeadline - Date.now()) : null,
+        paused: this.paused,
+        tonkMsLeft: this.pendingTonkers.length ? Math.max(0, this.paused ? (this.tonkLeftMs ?? 0) : this.tonkDeadline - Date.now()) : null,
         turnMsLeft: this.status === 'playing' && this.turnDeadline ? Math.max(0, this.turnDeadline - Date.now()) : null,
+        turnWarningMs: this.turnWarningMs,
         log: this.log,
         chat: this.chat,
       },

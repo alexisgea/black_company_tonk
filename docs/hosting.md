@@ -94,7 +94,8 @@ These protect a public server. All have safe defaults and can be changed with en
 | Total simultaneous connections | 300 | `MAX_CONNECTIONS` |
 | Total games at once | 100 | `MAX_ROOMS` |
 | A game nobody has touched for this long is closed (everyone gets a warning 2 minutes before) | 30 minutes | `ROOM_IDLE_MINUTES` |
-| A connected player who takes longer than this on their turn is replaced by a bot until they act again | 90 seconds | `TURN_TIMEOUT_SECONDS` |
+| A connected player who takes longer than this on their turn is replaced by a bot until they act again (`0` turns it off; not used when only one human plays against bots) | 120 seconds | `TURN_TIMEOUT_SECONDS` |
+| The player's countdown is hidden until this many seconds are left of the turn timeout | 60 seconds | `TURN_WARNING_SECONDS` |
 | Games one player can create per minute | 5 | (built in) |
 | Chat messages per player per 5 seconds | 5 | (built in) |
 | Chat message length / name length / message size | 200 / 20 / 4 KB | (built in) |

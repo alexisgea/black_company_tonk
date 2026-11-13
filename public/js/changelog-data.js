@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.13.0',
+    date: '2026-11-13',
+    changes: [
+      'The turn timer is now 2 minutes. Nothing is shown for the first minute; the countdown and warning only appear for the last minute. The host of the server can change both times.',
+      'A single human playing against bots no longer has a turn timer; the table just closes if nothing happens for a while.',
+      'The host can now pause and resume the game with a button in the side panel. While paused nobody can move and the timers wait.',
+    ],
+  },
+  {
     version: '0.12.3',
     date: '2026-11-13',
     changes: ['The credits now stay at the very bottom of the screen instead of sitting right under the open tables.'],

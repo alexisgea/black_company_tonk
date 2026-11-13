@@ -44,6 +44,8 @@ class Lobby {
   // botDelayMs: pause before a bot moves. maxRooms / createsPerMinute: abuse limits.
   // roomIdleMs: a game nobody has touched for this long is closed (warning idleWarningMs before).
   // turnTimeoutMs: a connected player who takes longer than this on their turn is replaced by a bot (0 = never).
+  // It only applies when at least two humans play; a lone human with bots is covered by roomIdleMs instead.
+  // turnWarningMs: only the last part of the turn timeout is shown to the player as a countdown.
   constructor({
     graceMs = 60000,
     rng = Math.random,
@@ -53,10 +55,12 @@ class Lobby {
     roomIdleMs = 30 * 60000,
     idleWarningMs = 2 * 60000,
     tonkTimeoutMs = 15000,
-    turnTimeoutMs = 90000,
+    turnTimeoutMs = 120000,
+    turnWarningMs = 60000,
   } = {}) {
     this.tonkTimeoutMs = tonkTimeoutMs;
     this.turnTimeoutMs = turnTimeoutMs;
+    this.turnWarningMs = Math.min(turnWarningMs, turnTimeoutMs);
     this.graceMs = graceMs;
     this.rng = rng;
     this.botDelayMs = botDelayMs;
@@ -153,6 +157,13 @@ class Lobby {
   // turn timer. Every state change flows through broadcastRoom, so this is the only hook needed.
   // At most one pending move per room.
   scheduleBot(room) {
+    if (room.paused) {
+      clearTimeout(room.botTimer);
+      room.botTimer = null;
+      this.clearTonkTimer(room);
+      this.clearTurnTimer(room);
+      return;
+    }
     if (room.status === 'playing' && room.round.phase === 'tonk') {
       this.clearTurnTimer(room);
       this.scheduleTonk(room);
@@ -179,7 +190,13 @@ class Lobby {
       this.guarded('Bot turn', () => {
         room.botTimer = null;
         const bot = room.players.find((p) => isAuto(p) && p.id === turnId);
-        if (!bot || room.status !== 'playing' || room.round.phase === 'tonk' || room.round.order[room.round.turn] !== turnId) {
+        if (
+          !bot ||
+          room.paused ||
+          room.status !== 'playing' ||
+          room.round.phase === 'tonk' ||
+          room.round.order[room.round.turn] !== turnId
+        ) {
           this.scheduleBot(room);
           return;
         }
@@ -211,26 +228,29 @@ class Lobby {
 
   // A connected human gets turnTimeoutMs for their turn; after that a bot takes over their seat (see isAuto).
   // The countdown restarts for each new turn, and when a returning player picks the seat back up mid-turn.
+  // After a pause the turn carries on with the time it had left.
   scheduleTurnTimer(room, seat) {
-    if (!this.turnTimeoutMs) {
+    if (!this.turnTimeoutMs || room.humans.length < 2) {
       this.clearTurnTimer(room);
       return;
     }
     const key = `${room.handNo}:${room.round.turnNo}:${seat.id}`;
     if (room.turnKey === key && room.turnTimer) return;
     clearTimeout(room.turnTimer);
+    const ms = room.turnResume?.key === key ? room.turnResume.ms : this.turnTimeoutMs;
+    room.turnResume = null;
     room.turnKey = key;
-    room.turnDeadline = Date.now() + this.turnTimeoutMs;
+    room.turnDeadline = Date.now() + ms;
     room.turnTimer = setTimeout(
       this.guarded('Turn timeout', () => this.onTurnTimeout(room, key)),
-      this.turnTimeoutMs,
+      ms,
     );
     room.turnTimer.unref?.();
   }
 
   onTurnTimeout(room, key) {
     room.turnTimer = null;
-    if (!this.rooms.has(room.id) || room.turnKey !== key || room.status !== 'playing') return;
+    if (!this.rooms.has(room.id) || room.turnKey !== key || room.status !== 'playing' || room.paused) return;
     const seat = room.players.find((p) => p.id === room.round.order[room.round.turn]);
     if (!seat || isAuto(seat)) return;
     seat.away = true;
@@ -298,7 +318,7 @@ class Lobby {
   }
 
   autoDeclare(room, which) {
-    if (!this.rooms.has(room.id)) return;
+    if (!this.rooms.has(room.id) || room.paused) return;
     for (const player of room.pendingTonkers.filter(which)) room.declareTonk(player);
     this.broadcastRoom(room);
     if (room.status !== 'playing') this.broadcastLobby();
@@ -453,7 +473,10 @@ class Lobby {
         if (room) throw new GameError('Already at a table');
         if (this.rooms.size >= this.maxRooms) throw new GameError('The server is full right now. Please try again later.');
         if (!user.createLimiter.hit()) throw new GameError('You are creating tables too quickly.');
-        const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng, { tonkTimeoutMs: this.tonkTimeoutMs });
+        const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng, {
+          tonkTimeoutMs: this.tonkTimeoutMs,
+          turnWarningMs: this.turnWarningMs,
+        });
         this.rooms.set(r.id, r);
         r.join(user);
         this.broadcastAll(r);
@@ -517,6 +540,14 @@ class Lobby {
         this.actAndShowResume(room, resumed, () => room.declareTonk(user));
         this.broadcastRoom(room);
         if (room.status !== 'playing') this.broadcastLobby();
+        break;
+      }
+      case 'pause':
+      case 'unpause': {
+        requireHost(room, user, msg.t === 'pause' ? 'pause the game' : 'resume the game');
+        if (msg.t === 'pause') room.pause(user);
+        else room.unpause(user);
+        this.broadcastRoom(room);
         break;
       }
       case 'resume': {

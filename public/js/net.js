@@ -100,6 +100,7 @@ function onMessage(msg) {
       state.room = msg.room;
       state.tonkDeadline = Date.now() + (msg.room.tonkMsLeft ?? 0);
       state.turnDeadline = msg.room.turnMsLeft == null ? null : Date.now() + msg.room.turnMsLeft;
+      state.turnWarningMs = msg.room.turnWarningMs ?? Infinity;
       state.view = 'room';
       chat.messages = msg.room.chat;
       pruneSelection();

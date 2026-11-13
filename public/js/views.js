@@ -253,6 +253,17 @@ function awayNotice() {
   );
 }
 
+// Only the host (table creator) can pause, and only while a hand is being played.
+function pauseButton() {
+  const room = state.room;
+  if (room.hostId !== state.you || room.status !== 'playing') return null;
+  return h(
+    'button',
+    { class: 'secondary pause-btn', onClick: () => send({ t: room.paused ? 'unpause' : 'pause' }) },
+    room.paused ? 'Resume game' : 'Pause game',
+  );
+}
+
 function renderSide(leaveBtn) {
   const room = state.room;
   const lines = room.log.map(formatEvent).filter(Boolean);
@@ -268,7 +279,8 @@ function renderSide(leaveBtn) {
       'div',
       { class: 'panel' },
       h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
-      h('div', { class: 'muted' }, `Hand #${room.handNo}`),
+      h('div', { class: 'muted' }, `Hand #${room.handNo}`, room.paused ? ' \u2013 paused' : ''),
+      pauseButton(),
     ),
     h(
       'div',
@@ -304,10 +316,11 @@ function renderTable() {
   const over = !!round.result;
   const tonkPhase = !over && round.phase === 'tonk';
   const myTurn = round.turn === state.you && !tonkPhase;
+  const paused = !!room.paused && !over;
   const selected = [...state.selected];
 
-  const canDrawPhase = myTurn && round.phase === 'draw';
-  const canPlayPhase = myTurn && round.phase === 'play';
+  const canDrawPhase = myTurn && !paused && round.phase === 'draw';
+  const canPlayPhase = myTurn && !paused && round.phase === 'play';
 
   // Opponents in seating order, starting from the seat after mine.
   const seats = round.order;
@@ -381,7 +394,8 @@ function renderTable() {
   );
 
   let status = '';
-  if (!over) {
+  if (paused) status = 'The game is paused by the host.';
+  else if (!over) {
     if (!inHand) status = isSpectator() ? 'Watching this hand\u2026' : 'Spectating this hand\u2026';
     else if (tonkPhase)
       status = round.mustDeclareTonk ? 'You have TONK! Press the button to put your cards down.' : 'Waiting for TONK! to be declared\u2026';
@@ -401,7 +415,7 @@ function renderTable() {
     { class: 'row' },
     round.mustDeclareTonk
       ? [
-          h('button', { class: 'tonk-btn', onClick: () => send({ t: 'declareTonk' }) }, 'TONK!'),
+          h('button', { class: 'tonk-btn', disabled: paused, onClick: () => send({ t: 'declareTonk' }) }, 'TONK!'),
           h('span', { class: 'muted tonk-timer' }, tonkCountdownText()),
         ]
       : null,
@@ -517,17 +531,20 @@ function spectatorsPanel() {
 }
 
 function tonkCountdownText() {
-  return `Automatic in ${secondsLeft(state.tonkDeadline)}s`;
+  return state.room?.paused ? 'Paused' : `Automatic in ${secondsLeft(state.tonkDeadline)}s`;
 }
 
 const turnTimerText = () => `Bot takes over in ${secondsLeft(state.turnDeadline)}s`;
 const retryText = () => `Retrying in ${secondsLeft(state.retryAt)}s\u2026`;
 
+// The countdown stays hidden until the last part of the turn; the 250 ms ticker below reveals it.
+const turnTimerShown = () => state.turnDeadline - Date.now() <= state.turnWarningMs;
+
 // Only on my own turn: after this long without a move a bot plays for me.
 function turnTimerLine(myTurn) {
-  if (!myTurn || state.turnDeadline === null) return null;
+  if (!myTurn || state.turnDeadline === null || state.room.paused) return null;
   const urgent = secondsLeft(state.turnDeadline) <= URGENT_SECONDS;
-  return h('div', { class: 'muted turn-timer' + (urgent ? ' urgent' : '') }, turnTimerText());
+  return h('div', { class: 'muted turn-timer' + (urgent ? ' urgent' : ''), hidden: !turnTimerShown() }, turnTimerText());
 }
 
 setInterval(() => {
@@ -536,6 +553,7 @@ setInterval(() => {
   const turn = document.querySelector('.turn-timer');
   if (turn && state.turnDeadline !== null) {
     turn.textContent = turnTimerText();
+    turn.hidden = !turnTimerShown();
     turn.classList.toggle('urgent', secondsLeft(state.turnDeadline) <= URGENT_SECONDS);
   }
   const retry = document.querySelector('.retry-timer');
@@ -724,6 +742,10 @@ function formatEvent(e) {
       return `${who} took too long, a bot plays their turns now.`;
     case 'back':
       return `${who} is back at the table.`;
+    case 'pause':
+      return `${who} paused the game.`;
+    case 'unpause':
+      return `${who} resumed the game.`;
     default:
       return null;
   }

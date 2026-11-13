@@ -17,6 +17,7 @@ export const state = {
   confirmKick: null, // player id whose "Kick" button was clicked, waiting for confirmation
   tonkDeadline: 0, // local time when TONK! is pressed automatically
   turnDeadline: null, // local time when a bot takes over the current human turn (null: no timer running)
+  turnWarningMs: Infinity, // the turn countdown is only shown once this little time is left
   retryAt: 0, // local time of the next reconnect attempt (0: none scheduled)
   device: loadDeviceId(), // stable per browser, so the server can enforce bans
 };
