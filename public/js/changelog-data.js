@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.7.1',
+    date: '2026-11-13',
+    changes: ['Added credits and a feedback address at the bottom of the main page.'],
+  },
+  {
     version: '0.7.0',
     date: '2026-11-13',
     changes: ['Added a Settings popup with sliders for the font size and the card size.'],
