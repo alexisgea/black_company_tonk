@@ -99,7 +99,7 @@ function credits() {
     'p',
     { class: 'credits muted' },
     'Thanks to Glen Cook for his Black Company series. Based on the rules from John P. Speno and the Baltimore Science Fiction Society. ' +
-      'Programming by Claude Sonnet 5.5 with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: ',
+      'Programming by Claude Sonnet 5.5 and Gemini with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: ',
     h('a', { href: 'mailto:alexis@geaxle.com' }, 'alexis@geaxle.com'),
     '.',
   );
