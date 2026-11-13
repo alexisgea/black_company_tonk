@@ -117,6 +117,17 @@ test('a second connection with the same token takes the seat and tells the old o
   assert.equal(lobby.users.size, 1);
 });
 
+test('the lobby reports how many players are connected', () => {
+  const lobby = new Lobby();
+  const alice = connect(lobby, 'Alice');
+  assert.equal(alice.last('lobby').online, 1);
+  const bob = connect(lobby, 'Bob');
+  assert.equal(alice.last('lobby').online, 2);
+  assert.equal(bob.last('lobby').online, 2);
+  lobby.disconnect(bob);
+  assert.equal(alice.last('lobby').online, 1);
+});
+
 test('leaving hands over host; mid-hand leave below the minimum aborts the hand', () => {
   const lobby = new Lobby();
   const { humans } = seatedGame(lobby);

@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.11.0',
+    date: '2026-11-13',
+    changes: ['The lobby now shows how many players are connected next to the list of open tables.'],
+  },
+  {
     version: '0.10.5',
     date: '2026-11-13',
     changes: ['Fixed the Changelog dialog showing "[object HTMLHeadingElement]" text instead of the version entries.'],

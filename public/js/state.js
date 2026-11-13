@@ -9,6 +9,7 @@ export const state = {
   replaced: false, // this seat was taken over by another tab: stop reconnecting
   view: 'name', // 'name' | 'lobby' | 'room'
   games: [],
+  online: 0, // players connected to the server
   you: null,
   room: null,
   selected: new Set(),

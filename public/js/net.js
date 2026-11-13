@@ -43,6 +43,7 @@ function onMessage(msg) {
       return;
     case 'lobby':
       state.games = msg.games;
+      state.online = msg.online ?? 0;
       state.room = null;
       state.view = 'lobby';
       chat.messages = [];

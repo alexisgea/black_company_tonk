@@ -73,8 +73,15 @@ class Lobby {
     return [...this.rooms.values()].map((r) => r.summary());
   }
 
+  // Humans with a live connection (seats held for disconnected players do not count).
+  onlineCount() {
+    let n = 0;
+    for (const user of this.users.values()) if (user.conn) n++;
+    return n;
+  }
+
   broadcastLobby() {
-    const msg = { t: 'lobby', games: this.gameList() };
+    const msg = { t: 'lobby', games: this.gameList(), online: this.onlineCount() };
     for (const user of this.users.values()) if (!user.room) this.send(user.conn, msg);
   }
 
@@ -306,7 +313,7 @@ class Lobby {
     conn.user = user;
     this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name });
     if (user.room) this.broadcastRoom(user.room);
-    else this.send(conn, { t: 'lobby', games: this.gameList() });
+    this.broadcastLobby(); // also tells everyone else in the lobby about the new head count
   }
 
   onMessage(user, msg) {
@@ -353,7 +360,7 @@ class Lobby {
       case 'leaveGame': {
         requireRoom(room);
         this.leaveRoom(user);
-        this.send(user.conn, { t: 'lobby', games: this.gameList() });
+        this.send(user.conn, { t: 'lobby', games: this.gameList(), online: this.onlineCount() });
         break;
       }
       case 'startGame': {
@@ -420,9 +427,11 @@ class Lobby {
     conn.user = null;
     if (!user.room) {
       this.users.delete(user.token);
+      this.broadcastLobby();
       return;
     }
     this.broadcastRoom(user.room);
+    this.broadcastLobby();
     user.timer = setTimeout(() => {
       const room = user.room;
       if (room && room.status === 'playing' && room.players.includes(user)) {

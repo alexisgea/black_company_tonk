@@ -142,7 +142,13 @@ function renderLobby() {
       changelogButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
     ),
-    h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open tables'), list),
+    h(
+      'div',
+      { class: 'panel' },
+      h('h3', { style: 'margin-top:0' }, 'Open tables'),
+      h('p', { class: 'muted' }, `${state.online} ${state.online === 1 ? 'player' : 'players'} online`),
+      list,
+    ),
     credits(),
   );
 }
