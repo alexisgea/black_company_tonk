@@ -1,5 +1,5 @@
 // Hand cards: click toggles selection, dragging reorders (mouse and touch).
-import { h } from './dom.js';
+import { h, on } from './dom.js';
 import { state } from './state.js';
 import { send } from './net.js';
 import { render } from './views.js';
@@ -11,7 +11,8 @@ export const drag = { active: false, pendingRender: false };
 export function handCardEl(id, canDrag) {
   const el = cardEl(id, { selected: state.selected.has(id), zone: 'hand' });
   el.classList.add('clickable', 'in-hand');
-  el.addEventListener('pointerdown', (e) => startHandPointer(e, id, el, canDrag));
+  // currentTarget, not `el`: the patcher may reuse an older element for this card.
+  on(el, 'pointerdown', (e) => startHandPointer(e, id, e.currentTarget, canDrag));
   return el;
 }
 

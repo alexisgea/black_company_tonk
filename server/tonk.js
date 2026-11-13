@@ -78,6 +78,7 @@ function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false
     melds: [],
     nextMeldId: 1,
     turn: (dealerIdx + 1) % playerIds.length,
+    turnNo: 0, // counts turn changes, so a timer can tell "the same turn" from "the same player's next turn"
     // 'tonk': waiting for the tonkers to declare; 'draw': go down or take a card; 'play': spread / lay off / discard
     phase: 'draw',
     tonkers: [], // who must declare (only in the 'tonk' phase)
@@ -147,6 +148,7 @@ function refillDeck(round) {
 
 function advanceTurn(round) {
   round.turn = (round.turn + 1) % round.order.length;
+  round.turnNo++;
   round.phase = 'draw';
 }
 
@@ -275,6 +277,7 @@ function removePlayer(round, pid) {
     round.turn--;
   } else if (idx === round.turn) {
     round.turn %= round.order.length;
+    round.turnNo++;
     round.phase = 'draw';
   }
   if (wasTonk) syncTonk(round);

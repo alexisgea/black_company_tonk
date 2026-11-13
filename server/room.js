@@ -17,6 +17,8 @@ const PUBLIC_LOG_FIELDS = {
   layoff: ['pid', 'card', 'meldId'],
   goDown: ['pid', 'total'],
   broke: ['pid', 'name', 'bot'],
+  timeout: ['pid', 'name'], // took too long: a bot plays their turns until they come back
+  back: ['pid', 'name'],
   reshuffle: [],
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
@@ -33,6 +35,8 @@ const MAX_CHAT = 50;
 const MAX_CHAT_LENGTH = 200;
 const MAX_SPECTATORS = 20;
 const DEFAULT_TONK_TIMEOUT_MS = 15000;
+const ORDINALS = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+const nameKey = (name) => name.normalize('NFKC').toLowerCase();
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
@@ -74,6 +78,9 @@ class Room {
     this.chat = [];
     this.chatSeq = 1;
     this.bannedIds = new Set(); // players the host removed; they cannot rejoin this game
+    this.bannedDevices = new Set(); // the browsers they used, so a new tab or a cleared session does not undo the ban
+    this.turnKey = null; // which turn the turn timer (kept by the lobby) is counting for
+    this.turnDeadline = null; // epoch ms when a bot takes over the current human turn, if a timer is running
     this.lastActivity = Date.now(); // last time a human did anything here (drives the idle timeout)
     this.idleWarned = false;
   }
@@ -149,19 +156,60 @@ class Room {
     if (this.log.length > MAX_LOG) this.log.splice(0, this.log.length - MAX_LOG);
   }
 
+  isBanned(user) {
+    return this.bannedIds.has(user.id) || (!!user.device && this.bannedDevices.has(user.device));
+  }
+
+  ban(user) {
+    this.bannedIds.add(user.id);
+    if (user.device) this.bannedDevices.add(user.device);
+  }
+
+  // Names are unique at a table: a later arrival with a taken name becomes "Alice the Second", "... the Third", ...
+  // The original name comes back when they leave (see restoreName).
+  claimName(user) {
+    const taken = new Set([...this.players, ...this.spectators].filter((p) => p !== user).map((p) => nameKey(p.name)));
+    if (!taken.has(nameKey(user.name))) return;
+    for (let i = 0; ; i++) {
+      const candidate = `${user.name} ${i < ORDINALS.length ? `the ${ORDINALS[i]}` : `#${i + 2}`}`;
+      if (!taken.has(nameKey(candidate))) {
+        user.nameBase = user.name;
+        user.name = candidate;
+        return;
+      }
+    }
+  }
+
+  restoreName(user) {
+    if (user.nameBase === undefined) return;
+    user.name = user.nameBase;
+    delete user.nameBase;
+  }
+
+  // Someone arriving after hands were played gets the average of what the players here have now, not a fresh
+  // pile: a full stack would be an unfair head start over players who have been losing (or a handicap against winners).
+  coinsForNewcomer() {
+    const stacks = this.players.map((p) => this.coins[p.id]);
+    if (this.handNo === 0 || stacks.length === 0) return this.settings.startingCoins;
+    const average = Math.round(stacks.reduce((sum, c) => sum + c, 0) / stacks.length);
+    return Math.max(this.settings.bet, average);
+  }
+
   join(user) {
-    if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this table by the host');
+    if (this.isBanned(user)) throw new tonk.GameError('You were removed from this table by the host');
     if (!this.joinable) throw new tonk.GameError('That table cannot be joined right now');
+    this.claimName(user);
+    this.coins[user.id] = this.coinsForNewcomer();
     this.players.push(user);
-    this.coins[user.id] = this.settings.startingCoins;
     if (!this.hostId) this.hostId = user.id;
     user.room = this;
     this.addLog({ type: 'join', pid: user.id, name: user.name });
   }
 
   watch(user) {
-    if (this.bannedIds.has(user.id)) throw new tonk.GameError('You were removed from this table by the host');
+    if (this.isBanned(user)) throw new tonk.GameError('You were removed from this table by the host');
     if (!this.watchable) throw new tonk.GameError('This table has too many spectators');
+    this.claimName(user);
     this.spectators.push(user);
     user.room = this;
   }
@@ -172,6 +220,7 @@ class Room {
     if (spectatorIdx !== -1) {
       this.spectators.splice(spectatorIdx, 1);
       user.room = null;
+      this.restoreName(user);
       return;
     }
     const idx = this.players.indexOf(user);
@@ -180,6 +229,7 @@ class Room {
     this.players.splice(idx, 1);
     delete this.coins[user.id];
     user.room = null;
+    this.restoreName(user);
     if (this.hostId === user.id) this.hostId = this.humans[0]?.id ?? null;
     if (this.status === 'playing') {
       tonk.removePlayer(this.round, user.id);
@@ -310,6 +360,7 @@ class Room {
     this.addLog({ type: 'broke', pid: user.id, name: user.name, bot: !!user.isBot });
     this.players.splice(this.players.indexOf(user), 1);
     delete this.coins[user.id];
+    user.away = false;
     if (user.isBot) {
       user.room = null;
     } else {
@@ -354,10 +405,12 @@ class Room {
           coins: this.coins[p.id],
           connected: p.isBot || !!p.conn,
           isBot: !!p.isBot,
+          away: !!p.away,
         })),
         spectators: this.spectators.map((s) => ({ id: s.id, name: s.name, connected: !!s.conn })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
         tonkMsLeft: this.pendingTonkers.length ? Math.max(0, this.tonkDeadline - Date.now()) : null,
+        turnMsLeft: this.status === 'playing' && this.turnDeadline ? Math.max(0, this.turnDeadline - Date.now()) : null,
         log: this.log,
         chat: this.chat,
       },

@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../server/tonk');
-const { chooseAction, findMeld } = require('../server/bot');
+const { chooseAction, fallbackAction, findMeld } = require('../server/bot');
 
 const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 
@@ -45,6 +45,16 @@ test('bots only ever make legal moves and always finish the hand', () => {
   assert.ok(melds > 0, 'bots put cards down at least once');
   assert.ok(layoffs > 0, 'bots added to spreads at least once');
   assert.ok(wins.down + wins.empty > 0);
+});
+
+test('the fallback move is always legal, so a failing bot cannot freeze a table', () => {
+  for (let seed = 1; seed <= 50; seed++) {
+    const round = T.startRound(['a', 'b', 'c'], 0, seededRng(seed));
+    for (let step = 0; step < 400 && !round.result; step++) {
+      const id = round.order[round.turn];
+      T.applyAction(round, id, fallbackAction(round, id)); // throws on any illegal move
+    }
+  }
 });
 
 test('bot takes a discard that completes a meld, draws otherwise', () => {

@@ -1,6 +1,20 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.12.0',
+    date: '2026-11-13',
+    changes: [
+      'A player who takes longer than 90 seconds on their turn is now replaced by a bot until they make a move or press "Take back control"; the log tells everyone.',
+      'Names are unique at a table: a second "Alice" shows up as "Alice the Second".',
+      'Someone joining after hands were played starts with the average number of coins at the table instead of a full stack.',
+      'Kicking a player now also blocks their browser from that table, not just their current tab.',
+      'The page no longer redraws everything on each update, so scrolling, typing and animations are smoother.',
+      'The game reconnects with growing pauses after a lost connection and shows a countdown.',
+      'Fixed a way to crash the server with a bad web address, and a way to inflate the online player count.',
+      'Fonts and pages are now cached much better, so the page loads faster on repeat visits.',
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-11-13',
     changes: ['The lobby now shows how many players are connected next to the list of open tables.'],

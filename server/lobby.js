@@ -2,7 +2,7 @@
 const crypto = require('crypto');
 const { Room } = require('./room');
 const { GameError } = require('./tonk');
-const { chooseAction } = require('./bot');
+const { chooseAction, fallbackAction } = require('./bot');
 const { isReservedName } = require('./botnames');
 
 const { RateLimiter } = require('./limits');
@@ -30,15 +30,20 @@ function requireHost(room, user, what) {
   if (room.hostId !== user.id) throw new GameError(`Only the host can ${what}`);
 }
 
-// A seat the server plays itself: a bot, or a human who is disconnected (they get the seat back
-// when they reconnect, and are removed once the hand is over and the grace period has passed).
-const isAuto = (p) => p.isBot || !p.conn;
+// A seat the server plays itself: a bot, a human who is disconnected (they get the seat back when they
+// reconnect, and are removed once the hand is over and the grace period has passed), or a human who took too long
+// on their turn (`away`, they get the seat back by acting or pressing "take back control").
+const isAuto = (p) => p.isBot || !p.conn || !!p.away;
+
+const DEVICE_ID = /^[\w-]{8,64}$/;
+const cleanDevice = (raw) => (typeof raw === 'string' && DEVICE_ID.test(raw) ? raw : undefined);
 
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
   // botDelayMs: pause before a bot moves. maxRooms / createsPerMinute: abuse limits.
   // roomIdleMs: a game nobody has touched for this long is closed (warning idleWarningMs before).
+  // turnTimeoutMs: a connected player who takes longer than this on their turn is replaced by a bot (0 = never).
   constructor({
     graceMs = 60000,
     rng = Math.random,
@@ -48,8 +53,10 @@ class Lobby {
     roomIdleMs = 30 * 60000,
     idleWarningMs = 2 * 60000,
     tonkTimeoutMs = 15000,
+    turnTimeoutMs = 90000,
   } = {}) {
     this.tonkTimeoutMs = tonkTimeoutMs;
+    this.turnTimeoutMs = turnTimeoutMs;
     this.graceMs = graceMs;
     this.rng = rng;
     this.botDelayMs = botDelayMs;
@@ -88,8 +95,8 @@ class Lobby {
   broadcastRoom(room) {
     if (this.dropAbsentPlayers(room)) return;
     if (this.handleBroke(room)) return;
+    this.scheduleBot(room); // first, so the views below already carry the new turn deadline
     for (const user of room.audience) this.send(user.conn, room.view(user));
-    this.scheduleBot(room);
   }
 
   // Tells the humans who just lost their last coin that they are guests now. If no human is left
@@ -130,35 +137,132 @@ class Lobby {
     this.broadcastLobby();
   }
 
-  // If it is a bot's turn, play it after a short pause. Every state change flows through
-  // broadcastRoom, so this is the only hook needed. At most one pending move per room.
+  // Timer callbacks run outside the message handler's try/catch, so a bug in one must not take the process
+  // (and every other table) down.
+  guarded(label, fn) {
+    return () => {
+      try {
+        fn();
+      } catch (err) {
+        console.error(`${label} failed:`, err);
+      }
+    };
+  }
+
+  // If it is a bot's turn, play it after a short pause; if it is a connected human's turn, start (or keep) the
+  // turn timer. Every state change flows through broadcastRoom, so this is the only hook needed.
+  // At most one pending move per room.
   scheduleBot(room) {
     if (room.status === 'playing' && room.round.phase === 'tonk') {
+      this.clearTurnTimer(room);
       this.scheduleTonk(room);
       return;
     }
     this.clearTonkTimer(room);
-    if (room.botTimer || room.status !== 'playing') return;
+    if (room.status !== 'playing') {
+      this.clearTurnTimer(room);
+      return;
+    }
     const turnId = room.round.order[room.round.turn];
-    if (!room.players.some((p) => isAuto(p) && p.id === turnId)) return;
-    room.botTimer = setTimeout(() => {
-      room.botTimer = null;
-      const bot = room.players.find((p) => isAuto(p) && p.id === turnId);
-      if (!bot || room.status !== 'playing' || room.round.phase === 'tonk' || room.round.order[room.round.turn] !== turnId) {
-        this.scheduleBot(room);
-        return;
-      }
-      const wasPlaying = room.status === 'playing';
-      try {
-        room.act(bot, chooseAction(room.round, bot.id));
-      } catch (err) {
-        console.error('Bot move failed:', err);
-        return;
-      }
-      this.broadcastRoom(room);
-      if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
-    }, this.botDelayMs);
+    const seat = room.players.find((p) => p.id === turnId);
+    if (!seat) {
+      this.clearTurnTimer(room);
+      return;
+    }
+    if (!isAuto(seat)) {
+      this.scheduleTurnTimer(room, seat);
+      return;
+    }
+    this.clearTurnTimer(room);
+    if (room.botTimer) return;
+    room.botTimer = setTimeout(
+      this.guarded('Bot turn', () => {
+        room.botTimer = null;
+        const bot = room.players.find((p) => isAuto(p) && p.id === turnId);
+        if (!bot || room.status !== 'playing' || room.round.phase === 'tonk' || room.round.order[room.round.turn] !== turnId) {
+          this.scheduleBot(room);
+          return;
+        }
+        if (!this.botMove(room, bot)) {
+          this.closeRoom(room, 'This table was closed because of a server error. Sorry!');
+          return;
+        }
+        this.broadcastRoom(room);
+        if (room.status !== 'playing') this.broadcastLobby();
+      }),
+      this.botDelayMs,
+    );
     room.botTimer.unref?.();
+  }
+
+  // Plays one move for an auto-played seat. If the bot logic fails, a plain legal move is used instead so the
+  // table never freezes. Returns false only if even that fails.
+  botMove(room, bot) {
+    for (const choose of [chooseAction, fallbackAction]) {
+      try {
+        room.act(bot, choose(room.round, bot.id));
+        return true;
+      } catch (err) {
+        console.error(`Bot move failed (${choose.name}):`, err);
+      }
+    }
+    return false;
+  }
+
+  // A connected human gets turnTimeoutMs for their turn; after that a bot takes over their seat (see isAuto).
+  // The countdown restarts for each new turn, and when a returning player picks the seat back up mid-turn.
+  scheduleTurnTimer(room, seat) {
+    if (!this.turnTimeoutMs) {
+      this.clearTurnTimer(room);
+      return;
+    }
+    const key = `${room.handNo}:${room.round.turnNo}:${seat.id}`;
+    if (room.turnKey === key && room.turnTimer) return;
+    clearTimeout(room.turnTimer);
+    room.turnKey = key;
+    room.turnDeadline = Date.now() + this.turnTimeoutMs;
+    room.turnTimer = setTimeout(
+      this.guarded('Turn timeout', () => this.onTurnTimeout(room, key)),
+      this.turnTimeoutMs,
+    );
+    room.turnTimer.unref?.();
+  }
+
+  onTurnTimeout(room, key) {
+    room.turnTimer = null;
+    if (!this.rooms.has(room.id) || room.turnKey !== key || room.status !== 'playing') return;
+    const seat = room.players.find((p) => p.id === room.round.order[room.round.turn]);
+    if (!seat || isAuto(seat)) return;
+    seat.away = true;
+    room.addLog({ type: 'timeout', pid: seat.id, name: seat.name });
+    this.broadcastRoom(room);
+  }
+
+  clearTurnTimer(room) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+    room.turnKey = null;
+    room.turnDeadline = null;
+  }
+
+  // The player takes their seat back from the bot (by acting, or with the "take back control" button).
+  // Returns true if they were away.
+  resumeSeat(user) {
+    if (!user.away) return false;
+    user.away = false;
+    user.room?.addLog({ type: 'back', pid: user.id, name: user.name });
+    return true;
+  }
+
+  // Runs a player's own move. If they just came back but the move is refused (say it is not their turn),
+  // the table still needs to hear that they are back before the error goes to them.
+  actAndShowResume(room, resumed, move) {
+    try {
+      move();
+    } catch (err) {
+      if (resumed) this.broadcastRoom(room);
+      throw err;
+    }
   }
 
   // While a hand waits for TONK!, bots declare after a short pause and humans are given
@@ -169,10 +273,13 @@ class Lobby {
       clearTimeout(room.tonkBotTimer);
       room.tonkBotTimer = null;
     } else if (!room.tonkBotTimer) {
-      room.tonkBotTimer = setTimeout(() => {
-        room.tonkBotTimer = null;
-        this.autoDeclare(room, isAuto);
-      }, this.botDelayMs);
+      room.tonkBotTimer = setTimeout(
+        this.guarded('Bot TONK', () => {
+          room.tonkBotTimer = null;
+          this.autoDeclare(room, isAuto);
+        }),
+        this.botDelayMs,
+      );
       room.tonkBotTimer.unref?.();
     }
     if (!pending.some((p) => !isAuto(p))) {
@@ -180,10 +287,10 @@ class Lobby {
       room.tonkTimer = null;
     } else if (!room.tonkTimer) {
       room.tonkTimer = setTimeout(
-        () => {
+        this.guarded('TONK timeout', () => {
           room.tonkTimer = null;
           this.autoDeclare(room, (p) => !p.isBot);
-        },
+        }),
         Math.max(0, room.tonkDeadline - Date.now()),
       );
       room.tonkTimer.unref?.();
@@ -207,22 +314,38 @@ class Lobby {
   deleteRoom(room) {
     clearTimeout(room.botTimer);
     this.clearTonkTimer(room);
+    this.clearTurnTimer(room);
     this.rooms.delete(room.id);
   }
 
-  // Closes a game and sends everyone in it back to the lobby with an explanation.
+  // Closes a game and sends everyone in it back to the lobby with an explanation. Members who are
+  // disconnected have nowhere to come back to, so they are forgotten instead of lingering in this.users.
   closeRoom(room, message) {
     const members = room.audience;
     this.deleteRoom(room);
     for (const user of members) {
+      room.restoreName(user);
       user.room = null;
-      this.send(user.conn, { t: 'closed', message });
+      user.away = false;
+      if (user.conn) {
+        this.send(user.conn, { t: 'closed', message });
+      } else {
+        clearTimeout(user.timer);
+        this.users.delete(user.token);
+      }
     }
     this.broadcastLobby();
   }
 
   // Called periodically. Games nobody has touched for roomIdleMs are closed, after one warning.
   sweepIdleRooms(now = Date.now()) {
+    // Safety net: a user with no connection and no table has nothing left to resume.
+    for (const [token, user] of this.users) {
+      if (!user.conn && !user.room) {
+        clearTimeout(user.timer);
+        this.users.delete(token);
+      }
+    }
     for (const room of [...this.rooms.values()]) {
       const idle = now - room.lastActivity;
       if (idle >= this.roomIdleMs) {
@@ -250,6 +373,7 @@ class Lobby {
     const room = user.room;
     if (!room) return;
     room.leave(user, reason);
+    user.away = false;
     if (room.humans.length === 0 && room.spectators.length > 0) {
       this.closeRoom(room, 'This table was closed because all the players left.');
       return;
@@ -287,6 +411,10 @@ class Lobby {
     if (!name) throw new GameError('Please enter a name');
     if (isReservedName(name)) throw new GameError('That name is reserved for the bots, please pick another');
     let user = typeof msg.token === 'string' ? this.users.get(msg.token) : undefined;
+    // A connection is one player. Another hello on it can only rename that player; it must not conjure up
+    // extra users that stay behind (and count as "online") after the connection closes.
+    if (conn.user && user && user !== conn.user) throw new GameError('This connection already belongs to another player');
+    user ??= conn.user ?? undefined;
     if (user) {
       clearTimeout(user.timer);
       user.dropAfterHand = false;
@@ -308,6 +436,7 @@ class Lobby {
       };
       this.users.set(user.token, user);
     }
+    user.device = cleanDevice(msg.device) ?? user.device;
     if (!user.room) user.name = name;
     user.conn = conn;
     conn.user = user;
@@ -352,9 +481,13 @@ class Lobby {
         const target = room.players.find((p) => p.id === msg.id && !p.isBot) ?? room.spectators.find((s) => s.id === msg.id);
         if (!target) throw new GameError('No such player');
         if (target === user) throw new GameError('You cannot remove yourself');
-        room.bannedIds.add(target.id);
+        room.ban(target);
         this.send(target.conn, { t: 'kicked' });
         this.leaveRoom(target, 'kick'); // also updates the table and sends the lobby list to the kicked player
+        if (!target.conn) {
+          clearTimeout(target.timer);
+          this.users.delete(target.token);
+        }
         break;
       }
       case 'leaveGame': {
@@ -371,17 +504,25 @@ class Lobby {
       }
       case 'action': {
         requireRoom(room);
+        const resumed = this.resumeSeat(user);
         const wasPlaying = room.status === 'playing';
-        room.act(user, msg.action);
+        this.actAndShowResume(room, resumed, () => room.act(user, msg.action));
         this.broadcastRoom(room);
         if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
         break;
       }
       case 'declareTonk': {
         requireRoom(room);
-        room.declareTonk(user);
+        const resumed = this.resumeSeat(user);
+        this.actAndShowResume(room, resumed, () => room.declareTonk(user));
         this.broadcastRoom(room);
         if (room.status !== 'playing') this.broadcastLobby();
+        break;
+      }
+      case 'resume': {
+        requireRoom(room);
+        this.resumeSeat(user);
+        this.broadcastRoom(room);
         break;
       }
       case 'reorder': {

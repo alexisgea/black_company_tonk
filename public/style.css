@@ -133,7 +133,7 @@ input[type=text]:focus, input[type=number]:focus { outline: none; border-color: 
 .opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 150px; }
 .opp.turn, .me-panel.turn { outline: 3px solid var(--accent); }
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
-.opp.offline { opacity: 0.5; }
+.opp.offline, .opp.away { opacity: 0.5; }
 
 /* Piles sit in the middle of the table. */
 .center { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; }
@@ -149,6 +149,11 @@ input[type=text]:focus, input[type=number]:focus { outline: none; border-color: 
 .me-panel .row { justify-content: center; }
 .hand { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 16px 0 6px; min-height: calc(110px * var(--card-scale)); }
 .status { margin-bottom: 4px; font-weight: 600; }
+.turn-timer { margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.turn-timer.urgent { color: #c4776b; opacity: 1; font-weight: 600; animation: urgent-pulse 0.8s ease-in-out infinite alternate; }
+@keyframes urgent-pulse { to { opacity: 0.55; } }
+.away-notice { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; padding: 8px 12px; border: 1px solid var(--rust); border-radius: 8px; background: #7a4a2e33; font-style: italic; }
+.no-transition, .no-transition * { transition: none !important; }
 
 .result .hands { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
 .result .hand-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }

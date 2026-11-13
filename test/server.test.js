@@ -65,7 +65,44 @@ test('server abuse limits', async (t) => {
     const res = await fetch(`http://127.0.0.1:${server.port}/`);
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(res.headers.get('referrer-policy'), 'no-referrer');
-    assert.match(res.headers.get('content-security-policy'), /default-src 'self'/);
+    const csp = res.headers.get('content-security-policy');
+    assert.match(csp, /default-src 'self'/);
+    // WebSocket origin spelled out (not the blanket ws:/wss: schemes), so it is not left to 'self' alone.
+    assert.match(csp, new RegExp(`connect-src 'self' ws://127\\.0\\.0\\.1:${server.port} wss://127\\.0\\.0\\.1:${server.port};`));
+    assert.doesNotMatch(csp, /\swss?:[\s;]/);
+    assert.match(csp, /object-src 'none'/);
+  });
+
+  await t.test('a null byte in the path is a plain 400 and the server keeps running', async () => {
+    const base = `http://127.0.0.1:${server.port}`;
+    assert.equal((await fetch(`${base}/%00`)).status, 400);
+    assert.equal((await fetch(`${base}/js/%00main.js`)).status, 400);
+    assert.equal((await fetch(`${base}/`)).status, 200);
+  });
+
+  await t.test('only GET and HEAD are served', async () => {
+    const base = `http://127.0.0.1:${server.port}`;
+    assert.equal((await fetch(`${base}/`, { method: 'POST' })).status, 405);
+    const head = await fetch(`${base}/`, { method: 'HEAD' });
+    assert.equal(head.status, 200);
+    assert.equal(await head.text(), '');
+  });
+
+  await t.test('caching: ETag revalidation for pages, long-lived immutable fonts', async () => {
+    const base = `http://127.0.0.1:${server.port}`;
+    const first = await fetch(`${base}/js/main.js`);
+    assert.equal(first.headers.get('cache-control'), 'no-cache');
+    const etag = first.headers.get('etag');
+    assert.ok(etag);
+    const again = await fetch(`${base}/js/main.js`, { headers: { 'If-None-Match': etag } });
+    assert.equal(again.status, 304);
+    assert.equal(await again.text(), '');
+    const changed = await fetch(`${base}/js/main.js`, { headers: { 'If-None-Match': '"something-else"' } });
+    assert.equal(changed.status, 200);
+
+    const font = await fetch(`${base}/fonts/cinzel-latin-400-normal.woff2`);
+    assert.equal(font.status, 200);
+    assert.match(font.headers.get('cache-control'), /max-age=31536000.*immutable/);
   });
 
   await t.test('serves the client modules and the shared rules, and nothing outside those folders', async () => {
@@ -98,6 +135,7 @@ test('server abuse limits', async (t) => {
     const html = await (await fetch(`${base}/`)).text();
     assert.match(html, new RegExp(`src="js/main\\.js\\?v=${v.replace(/\./g, '\\.')}"`));
     assert.match(html, new RegExp(`src="/shared/cards\\.js\\?v=${v.replace(/\./g, '\\.')}"`));
+    assert.match(html, new RegExp(`href="style\\.css\\?v=${v.replace(/\./g, '\\.')}"`));
     const main = await (await fetch(`${base}/js/main.js?v=${v}`)).text();
     assert.match(main, /from '\.\/state\.js\?v=/);
     assert.doesNotMatch(main, /from '\.\/[a-z-]+\.js'/);

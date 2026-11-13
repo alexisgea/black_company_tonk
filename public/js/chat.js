@@ -1,6 +1,6 @@
-// Chat: one persistent DOM node that is re-attached on every render, so incoming
+// Chat: one persistent DOM node that the patcher keeps in place (or re-attaches), so incoming
 // game updates never clear the text being typed or the scroll position.
-import { h } from './dom.js';
+import { h, persistent } from './dom.js';
 import { state } from './state.js';
 import { send } from './net.js';
 
@@ -26,6 +26,7 @@ function buildChat() {
     h('button', { type: 'submit' }, 'Send'),
   );
   chat.el = h('div', { class: 'panel chat' }, h('strong', null, 'Chat'), chat.logEl, form);
+  persistent.set('chat', chat.el);
 }
 
 export function fillChatLog() {

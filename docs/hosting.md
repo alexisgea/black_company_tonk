@@ -21,7 +21,7 @@ This guide covers a Raspberry Pi 4 exposed to the internet with a Cloudflare Tun
 
 ### Keep it running (systemd)
 
-Create `/etc/systemd/system/tonk.service` (adjust `User` and the paths):
+Create `/etc/systemd/system/bctonk.service` (adjust `User` and the paths):
 
 ```ini
 [Unit]
@@ -43,8 +43,8 @@ WantedBy=multi-user.target
 
 ```
 sudo systemctl daemon-reload
-sudo systemctl enable --now tonk
-sudo systemctl status tonk      # logs: journalctl -u tonk -f
+sudo systemctl enable --now bctonk
+sudo systemctl status bctonk      # logs: journalctl -u bctonk -f
 ```
 
 `HOST=127.0.0.1` makes the server reachable only from the Pi itself (so only the tunnel can reach it) and `TRUST_PROXY=1` tells it to read the real visitor address from Cloudflare's headers for the per-visitor limits. **Only set `TRUST_PROXY=1` when the server is reachable solely through the tunnel**, otherwise visitors can fake their address. For direct LAN access instead, remove both lines.
@@ -78,12 +78,12 @@ Prerequisites: a free Cloudflare account and a **domain added to Cloudflare** (i
 ### Checking it works
 
 - Open the address on your phone using mobile data, enter a name, create a game, and add a bot.
-- Pi side: `sudo systemctl status tonk` and `sudo systemctl status cloudflared`.
+- Pi side: `sudo systemctl status bctonk` and `sudo systemctl status cloudflared`.
 - If the page loads but games never connect, check that **WebSockets** is on for your domain in the Cloudflare dashboard (it is on by default).
 
 ## 3. Abuse limits
 
-These protect a public server. All have safe defaults and can be changed with environment variables (add `Environment=NAME=value` lines to the systemd unit, then `sudo systemctl restart tonk`).
+These protect a public server. All have safe defaults and can be changed with environment variables (add `Environment=NAME=value` lines to the systemd unit, then `sudo systemctl restart bctonk`).
 
 | What | Default | Variable |
 | --- | --- | --- |
@@ -94,13 +94,14 @@ These protect a public server. All have safe defaults and can be changed with en
 | Total simultaneous connections | 300 | `MAX_CONNECTIONS` |
 | Total games at once | 100 | `MAX_ROOMS` |
 | A game nobody has touched for this long is closed (everyone gets a warning 2 minutes before) | 30 minutes | `ROOM_IDLE_MINUTES` |
+| A connected player who takes longer than this on their turn is replaced by a bot until they act again | 90 seconds | `TURN_TIMEOUT_SECONDS` |
 | Games one player can create per minute | 5 | (built in) |
 | Chat messages per player per 5 seconds | 5 | (built in) |
 | Chat message length / name length / message size | 200 / 20 / 4 KB | (built in) |
 
 Other variables: `PORT` (default 3100), `HOST` (default: all interfaces), `TRUST_PROXY` (see above).
 
-Not covered: there is no login, banning across games, or moderation of names and chat. Cloudflare itself absorbs ordinary traffic floods. Games that are connected but untouched are handled by the idle timeout above; the host can also remove players (**Kick**).
+Not covered: there is no login or moderation of names and chat. A kick bans the player's browser (a random id kept in its local storage) from that table until the table closes; someone who clears their browser data or switches browser can get around it. Cloudflare itself absorbs ordinary traffic floods. Games that are connected but untouched are handled by the idle timeout above; the host can also remove players (**Kick**).
 
 ## 4. Updating
 
@@ -108,7 +109,7 @@ Not covered: there is no login, banning across games, or moderation of names and
 cd ~/bc-tonk
 git pull               # or copy the new files over
 npm ci --omit=dev
-sudo systemctl restart tonk
+sudo systemctl restart bctonk
 ```
 
 Restarting drops all games in progress, so pick a quiet moment.

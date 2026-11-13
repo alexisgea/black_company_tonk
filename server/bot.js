@@ -61,4 +61,14 @@ function chooseAction(round, id) {
   return { type: 'discard', card: worst };
 }
 
-module.exports = { chooseAction, findMeld };
+// Plain legal move used when chooseAction fails, so a bug in the smart logic can never freeze a table:
+// take a card, then throw away the highest one.
+function fallbackAction(round, id) {
+  if (round.phase === 'draw') {
+    return round.deck.length > 0 || round.discard.length > 1 ? { type: 'draw' } : { type: 'takeDiscard' };
+  }
+  const worst = [...round.hands[id]].sort((a, b) => cardValue(b) - cardValue(a))[0];
+  return { type: 'discard', card: worst };
+}
+
+module.exports = { chooseAction, fallbackAction, findMeld };

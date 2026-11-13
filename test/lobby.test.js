@@ -634,3 +634,119 @@ test('a human who loses every coin becomes a guest and is told so', () => {
   assert.ok(room.spectators.some((s) => s.id === brokeConn.last('welcome').id));
   assert.ok(room.players.every((p) => p.coins > 0));
 });
+
+test('a connection is one player: repeated hellos rename them instead of leaking users', () => {
+  const lobby = new Lobby();
+  const conn = fakeConn();
+  for (let i = 0; i < 5; i++) say(lobby, conn, { t: 'hello', name: `Spam${i}` });
+  assert.equal(lobby.users.size, 1);
+  assert.equal(lobby.onlineCount(), 1);
+  assert.equal(conn.last('welcome').name, 'Spam4');
+  const other = connect(lobby, 'Other');
+  say(lobby, conn, { t: 'hello', name: 'Thief', token: other.last('welcome').token });
+  assert.match(conn.last('error').message, /already belongs/i);
+  lobby.disconnect(conn);
+  assert.equal(lobby.users.size, 1);
+  assert.equal(lobby.onlineCount(), 1);
+});
+
+test('closing a table forgets members who are disconnected instead of leaking them', () => {
+  const lobby = new Lobby({ graceMs: 100000, botDelayMs: 100000 });
+  const { humans, gameId } = seatedGame(lobby);
+  lobby.disconnect(humans[2]);
+  assert.equal(lobby.users.size, humans.length);
+  lobby.closeRoom(lobby.rooms.get(gameId), 'closed');
+  assert.equal(lobby.users.size, humans.length - 1);
+  assert.ok(humans[0].last('closed'));
+});
+
+test('turn timer: a human who takes too long is replaced by a bot until they come back', async () => {
+  const { lobby, humans, state } = playingGame({ turnTimeoutMs: 40, botDelayMs: 100000 }, 1);
+  const bob = humans[1];
+  const bobId = bob.last('room').you;
+  const bobSeat = () => state().players.find((p) => p.id === bobId);
+  assert.ok(state().turnMsLeft > 0 && state().turnMsLeft <= 40, 'the countdown is part of the view');
+
+  await wait(120);
+  assert.equal(bobSeat().away, true);
+  assert.ok(state().log.some((e) => e.type === 'timeout' && e.pid === bobId));
+  assert.equal(state().turnMsLeft, null, 'no countdown while a bot has the seat');
+
+  say(lobby, bob, { t: 'resume' });
+  assert.equal(bobSeat().away, false);
+  assert.ok(state().log.some((e) => e.type === 'back' && e.pid === bobId));
+  assert.ok(state().turnMsLeft > 0, 'a returning player gets a fresh countdown');
+
+  await wait(120);
+  assert.equal(bobSeat().away, true);
+  say(lobby, bob, { t: 'action', action: { type: 'draw' } }); // acting is also a way back
+  assert.equal(bob.last('error'), undefined);
+  assert.equal(bobSeat().away, false);
+  assert.equal(state().round.phase, 'play');
+});
+
+test('turn timer: a bot takes over for an away player and plays their turn', async () => {
+  const { humans, state } = playingGame({ turnTimeoutMs: 30, botDelayMs: 5 }, 1);
+  const bobId = humans[1].last('room').you;
+  await wait(150);
+  assert.ok(state().log.some((e) => e.type === 'timeout' && e.pid === bobId));
+  assert.ok(
+    state().log.some((e) => e.type === 'discard' && e.pid === bobId),
+    'the bot discarded for Bob',
+  );
+});
+
+test('turn timer: 0 turns the timer off', async () => {
+  const off = playingGame({ turnTimeoutMs: 0, botDelayMs: 100000 }, 1);
+  assert.equal(off.state().turnMsLeft, null);
+  await wait(60);
+  assert.ok(off.state().players.every((p) => !p.away));
+});
+
+test('kick also bans the browser: a new token from the same device cannot rejoin, another device can', () => {
+  const lobby = new Lobby({ botDelayMs: 100000 });
+  const helloAs = (name, device) => {
+    const conn = fakeConn();
+    say(lobby, conn, { t: 'hello', name, device });
+    return conn;
+  };
+  const host = helloAs('Host', 'device-host-0001');
+  const bob = helloAs('Bob', 'device-bob-0001');
+  say(lobby, host, { t: 'createGame' });
+  const gameId = host.last('room').room.id;
+  say(lobby, bob, { t: 'joinGame', gameId });
+  say(lobby, host, { t: 'kick', id: bob.last('room').you });
+
+  const bobAgain = helloAs('Bob', 'device-bob-0001'); // fresh tab, fresh token, same browser
+  say(lobby, bobAgain, { t: 'joinGame', gameId });
+  assert.match(bobAgain.last('error').message, /removed/i);
+  say(lobby, bobAgain, { t: 'watchGame', gameId });
+  assert.match(bobAgain.last('error').message, /removed/i);
+
+  const stranger = helloAs('Bob', 'device-other-0002');
+  say(lobby, stranger, { t: 'joinGame', gameId });
+  assert.equal(stranger.last('error'), undefined);
+});
+
+test('names are unique at a table: later arrivals get "the Second", and get their own name back when they leave', () => {
+  const lobby = new Lobby({ botDelayMs: 100000 });
+  const [a1, a2, a3] = ['Alice', 'ALICE', 'Alice'].map((n) => connect(lobby, n));
+  say(lobby, a1, { t: 'createGame' });
+  const gameId = a1.last('room').room.id;
+  say(lobby, a2, { t: 'joinGame', gameId });
+  say(lobby, a3, { t: 'watchGame', gameId });
+  const view = a1.last('room').room;
+  assert.deepEqual(
+    view.players.map((p) => p.name),
+    ['Alice', 'ALICE the Second'],
+  );
+  assert.deepEqual(
+    view.spectators.map((s) => s.name),
+    ['Alice the Third'],
+  );
+  assert.ok(view.log.some((e) => e.type === 'join' && e.name === 'ALICE the Second'));
+
+  say(lobby, a2, { t: 'leaveGame' });
+  say(lobby, a2, { t: 'createGame' });
+  assert.ok(lobby.gameList().some((g) => g.name === "ALICE's table"));
+});

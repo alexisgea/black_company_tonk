@@ -55,6 +55,24 @@ test('only the host can start a new game, and it needs the minimum number of pla
   assert.notEqual(room.status, 'waiting');
 });
 
+test('someone joining after hands were played gets the average of the seated players, not a fresh stack', () => {
+  const room = new Room('R', 'Test');
+  const [a, b, c] = ['Ann', 'Bob', 'Cy'].map(human);
+  [a, b, c].forEach((u) => room.join(u));
+  assert.equal(room.coins[c.id], 50);
+  room.handNo = 1;
+  Object.assign(room.coins, { [a.id]: 80, [b.id]: 40, [c.id]: 30 }); // average 50
+  const late = human('Late');
+  room.join(late);
+  assert.equal(room.coins[late.id], 50);
+  Object.assign(room.coins, { [a.id]: 1, [b.id]: 1, [c.id]: 1, [late.id]: 1 });
+  room.settings.bet = 5;
+  const later = human('Later');
+  room.leave(late);
+  room.join(later);
+  assert.equal(room.coins[later.id], 5, 'never less than one bet');
+});
+
 test('cannot join mid-hand, when full, or after being removed', () => {
   const { room, users } = playingRoom();
   assert.throws(() => room.join(human('Late')), GameError);

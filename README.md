@@ -11,11 +11,11 @@ npm run lint           # ESLint
 npm run format:check   # Prettier check (npm run format fixes); CI runs lint, format:check and tests
 ```
 
-Open the page, enter a name, create a table or join one from the list (2-6 players). The host starts the game.
+Open the page, enter a name, create a table or join one from the list (3-5 players). The host starts the game.
 
 ### Bots
 
-The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot in the waiting room or on the scoreboard between hands (with a confirmation). Bots cannot be added or removed during a hand. Bots count toward the 2-6 players, so you can play alone against bots. Each bot gets a random name from a fixed list (Croaker, Goblin, One-Eye, ...) followed by a ★ so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A table is removed when its last human leaves.
+The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot in the waiting room or on the scoreboard between hands (with a confirmation). Bots cannot be added or removed during a hand. Bots count toward the 3-5 players, so one human with two bots is enough to play alone. Each bot gets a random name from a fixed list (Croaker, Goblin, One-Eye, ...) followed by a ★ so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A table is removed when its last human leaves.
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
@@ -25,7 +25,10 @@ Server code changes need a server restart (automatic with `npm run dev`); page c
 - The log shows what a player could have missed by looking away: the current hand only, limited to the last full round (one turn per player) plus the turn in progress. It only contains public information (draws from the pile do not say which card), see `PUBLIC_LOG_FIELDS` in `server/room.js`.
 - If the creator leaves, the table continues and the host role passes to the next human, who gets the host controls (Start game, bots, Kick).
 - A table nobody has touched for 30 minutes (any message from a player in it counts: moves, chat, button clicks, even reordering cards) is closed: everyone gets a warning 2 minutes before, then returns to the lobby. Change it with `ROOM_IDLE_MINUTES`.
-- The host can **Kick** any human player at any time, with a confirmation (waiting room or the scoreboard during play). Kicked players cannot rejoin that table. Kicking mid-hand removes their cards from play; if only one player would remain, the hand is cancelled with no payoff.
+- The host can **Kick** any human player at any time, with a confirmation (waiting room or the scoreboard during play). Kicked players cannot rejoin that table (as player or guest): the ban covers their account for this table and their **browser**, identified by a random device id kept in `localStorage` and sent with every `hello`, so reconnecting with a new token or opening a new tab does not get around it. Clearing the browser data or switching browser does; there is deliberately no IP ban, because players share addresses (families, schools) and behind a proxy the server may not see the real one. Kicking mid-hand removes their cards from play; if only one player would remain, the hand is cancelled with no payoff.
+- **Names are unique at a table.** Someone arriving with a name that is already taken (by a player or a guest, ignoring case) is shown as "Alice the Second", "Alice the Third", ... for as long as they are at that table and gets their own name back when they leave.
+- **Coins for latecomers:** until the first hand is dealt everybody gets the starting coins. Someone who joins (or a bot that is added) afterwards gets the average of the coins the seated players have at that moment (never less than one bet), so they neither start with an unfair head start nor with a handicap.
+- **Turn timer:** a connected player who takes longer than 90 seconds (`TURN_TIMEOUT_SECONDS`, `0` turns it off) to finish their turn is "away": a bot plays their turns (and declares TONK for them) and the log says so. A countdown on their own turn shows how long they have. They get the seat back by making any move or pressing **Take back control**, and the countdown starts again. Disconnected players are handled by the grace period above instead.
 
 ### Guests (spectators)
 
@@ -55,7 +58,9 @@ Identity is a random token kept in `sessionStorage` (per browser tab): refreshin
 
 Chat is per table (waiting room and in game): messages are trimmed, capped at 200 characters, limited to 5 per 5 seconds per player, rendered as plain text, and the last 50 are replayed on rejoin.
 
-Animations live in `public/js/animation.js`. The UI re-renders from scratch on every update, so tracked cards (`data-card`) have their positions captured before each render and compared afterwards (FLIP, via the Web Animations API). Server log events carry a `seq`, which tells the client which opponent just moved a card it has never seen, so it can fly in from their panel. Animations always play: they deliberately ignore the OS "reduce motion" flag.
+Animations live in `public/js/animation.js`. The UI is rebuilt on every update but patched into the live DOM instead of replacing it (`patchChildren` in `public/js/dom.js`): matching elements are reused, so focus, scroll positions, the chat box and running animations survive, and event handlers are swapped through a per-element table (so handlers must use `e.currentTarget`). Tracked cards (`data-card`) have their positions captured before each render and compared afterwards (FLIP, via the Web Animations API). Server log events carry a `seq`, which tells the client which opponent just moved a card it has never seen, so it can fly in from their panel. Animations always play: they deliberately ignore the OS "reduce motion" flag.
+
+The client reconnects with exponential backoff (1 s doubling to 30 s, ±25% jitter, reset after 5 s of a stable connection or when the browser comes back online) so a down server is not hammered by every open tab.
 
 ## Rules as implemented
 
@@ -63,7 +68,7 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 
 - 52-card deck, 5 cards each, one card flipped to start the discard pile. Play starts left of the dealer; the dealer rotates each hand.
 - Card values: A = 1, 2-10 face value, J/Q/K = 10.
-- **Tonk** (checked only on the deal, automatic): total <= 15 or >= 49. A single Tonk wins; every other player pays double. If several players have Tonk the hand is a draw and is redealt.
+- **Tonk** (checked only on the deal, automatic): total <= 15 or >= 49. A single Tonk wins; every other player pays double. If several players have Tonk the hand is a draw: no coins change hands and the next hand is dealt as usual.
 - On your turn, either **go down** (only at the start of the turn) or take the top of the draw pile or discard pile, then optionally put down spreads and add to existing ones, then discard.
   - Spread (also called a meld): a set (3-4 of a kind) or a run (3+ same-suit consecutive cards, Ace low only, no wrap-around).
   - Adding to a spread (also called laying off or hitting): you may extend any run on the table (yours or others') at either end; sets cannot be extended.
@@ -74,6 +79,6 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 
 ## Known gaps / ideas
 
-- No turn timer: a connected but idle player stalls the table.
+- A player who is idle but connected is only replaced after the turn timer (90 s by default); the bot that takes over is the simple one in `server/bot.js`.
 - Players can join between hands, not mid-hand (guests can watch at any time). No persistent accounts yet.
 - Single-process in-memory state; restarting the server drops all tables.

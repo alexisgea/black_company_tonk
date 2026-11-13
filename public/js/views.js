@@ -1,6 +1,6 @@
-import { h } from './dom.js';
+import { h, patchChildren } from './dom.js';
 import { state, toast, nameOf, isSpectator } from './state.js';
-import { send, sendAction, connect } from './net.js';
+import { send, sendAction, sendHello, connect } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
@@ -10,6 +10,9 @@ import { drag, handCardEl } from './hand.js';
 import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
 
 const app = document.getElementById('app');
+const chatSlot = () => h('div', { 'data-persist': 'chat' });
+const secondsLeft = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+const URGENT_SECONDS = 15;
 
 export function render() {
   if (drag.active) {
@@ -20,52 +23,68 @@ export function render() {
   const caret = [chat.input.selectionStart, chat.input.selectionEnd];
   const wasAtBottom = isChatAtBottom();
   const scrollTop = chat.logEl.scrollTop;
+  const oldLog = app.querySelector('.log');
+  const logWasAtBottom = !oldLog || oldLog.scrollTop + oldLog.clientHeight >= oldLog.scrollHeight - 24;
   const prevMeta = anim.meta;
   const prevCards = captureCards();
   anim.meta = null;
-  app.replaceChildren();
+  const inRoom = !state.replaced && state.connected && state.view === 'room';
+  // Reused elements must not start CSS transitions from the stale inline styles the patcher clears (drag, FLIP).
+  app.classList.add('no-transition');
+  try {
+    patchChildren(app, [screen()]);
+    const log = app.querySelector('.log');
+    if (log && logWasAtBottom) log.scrollTop = log.scrollHeight;
+    if (inRoom) {
+      fillChatLog();
+      chat.logEl.scrollTop = wasAtBottom ? chat.logEl.scrollHeight : scrollTop;
+      anim.meta = currentMeta();
+      playAnimations(prevMeta, prevCards);
+      if (hadFocus && document.activeElement !== chat.input) {
+        chat.input.focus();
+        chat.input.setSelectionRange(caret[0], caret[1]);
+      }
+    }
+    void app.offsetHeight; // commit styles while transitions are still off
+  } finally {
+    app.classList.remove('no-transition');
+  }
+}
+
+function screen() {
   if (state.replaced) {
-    app.append(
+    return h(
+      'div',
+      { class: 'screen' },
+      h('h1', null, 'Black Company Tonk'),
       h(
         'div',
-        { class: 'screen' },
-        h('h1', null, 'Black Company Tonk'),
+        { class: 'panel' },
+        h('p', null, 'This game was opened in another tab or window, so this one was disconnected.'),
         h(
-          'div',
-          { class: 'panel' },
-          h('p', null, 'This game was opened in another tab or window, so this one was disconnected.'),
-          h(
-            'button',
-            {
-              onClick: () => {
-                state.replaced = false;
-                connect();
-              },
+          'button',
+          {
+            onClick: () => {
+              state.replaced = false;
+              connect();
             },
-            'Use this tab',
-          ),
+          },
+          'Use this tab',
         ),
       ),
     );
-    return;
   }
   if (!state.connected) {
-    app.append(h('div', { class: 'screen' }, h('p', null, 'Connecting to server\u2026')));
-    return;
+    return h(
+      'div',
+      { class: 'screen' },
+      h('p', null, 'Connecting to server\u2026'),
+      state.retryAt ? h('p', { class: 'muted retry-timer' }, retryText()) : null,
+    );
   }
-  if (state.view === 'name') app.append(renderName());
-  else if (state.view === 'lobby') app.append(renderLobby());
-  else if (state.view === 'room') {
-    app.append(renderRoom());
-    fillChatLog();
-    chat.logEl.scrollTop = wasAtBottom ? chat.logEl.scrollHeight : scrollTop;
-    anim.meta = currentMeta();
-    playAnimations(prevMeta, prevCards);
-    if (hadFocus) {
-      chat.input.focus();
-      chat.input.setSelectionRange(caret[0], caret[1]);
-    }
-  }
+  if (state.view === 'name') return renderName();
+  if (state.view === 'lobby') return renderLobby();
+  return renderRoom();
 }
 
 function credits() {
@@ -80,19 +99,27 @@ function credits() {
 }
 
 function renderName() {
-  const input = h('input', { type: 'text', maxLength: 20, placeholder: 'Your name', value: state.name, autofocus: true });
-  const go = () => {
-    const name = input.value.trim();
+  const input = h('input', {
+    id: 'name-input',
+    type: 'text',
+    maxLength: 20,
+    placeholder: 'Your name',
+    value: state.name,
+    autofocus: true,
+    onKeydown: (e) => e.key === 'Enter' && go(e.currentTarget),
+  });
+  // `field` is the live input: the patcher may keep an older element instead of the one built here.
+  const go = (field) => {
+    const name = field.value.trim();
     if (!name) return toast('Please enter a name');
     state.name = name;
-    send({ t: 'hello', name, token: state.token });
+    sendHello(name);
   };
-  input.addEventListener('keydown', (e) => e.key === 'Enter' && go());
   return h(
     'div',
     { class: 'screen' },
     h('h1', null, 'Black Company Tonk'),
-    h('div', { class: 'panel row' }, input, h('button', { onClick: go }, 'Play')),
+    h('div', { class: 'panel row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, 'Play')),
     credits(),
   );
 }
@@ -179,6 +206,7 @@ function renderRoom() {
               p.id === room.hostId ? ' (host)' : '',
               p.id === state.you ? ' (you)' : '',
               p.connected ? '' : ' \u2013 disconnected',
+              p.away ? ' \u2013 bot playing' : '',
             ),
             isHost && p.isBot
               ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
@@ -188,6 +216,7 @@ function renderRoom() {
       ),
       spectatorsPanel(),
       settingsPanel(isHost),
+      awayNotice(),
       h(
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
@@ -201,10 +230,21 @@ function renderRoom() {
           isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026',
         ),
       ),
-      chat.el,
+      chatSlot(),
     );
   }
   return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave));
+}
+
+// Shown to a player whose seat is being played by a bot because they took too long.
+function awayNotice() {
+  if (!state.room.players.some((p) => p.id === state.you && p.away)) return null;
+  return h(
+    'div',
+    { class: 'away-notice' },
+    h('span', null, 'You took too long, so a bot is playing your turns.'),
+    h('button', { onClick: () => send({ t: 'resume' }) }, 'Take back control'),
+  );
 }
 
 function renderSide(leaveBtn) {
@@ -215,7 +255,6 @@ function renderSide(leaveBtn) {
     { class: 'log' },
     lines.map((l) => h('div', null, l)),
   );
-  requestAnimationFrame(() => (logEl.scrollTop = logEl.scrollHeight));
   return h(
     'div',
     { class: 'side' },
@@ -239,14 +278,14 @@ function renderSide(leaveBtn) {
         h(
           'div',
           { class: 'score-row' },
-          h('span', { class: 'score-name' }, p.name + (p.connected ? '' : ' (offline)')),
+          h('span', { class: 'score-name' }, p.name + (p.connected ? '' : ' (offline)') + (p.away ? ' (bot playing)' : '')),
           h('span', { class: 'score-actions' }, kickControls(p)),
           h('span', { class: 'score-value' }, String(p.coins)),
         ),
       ),
     ),
     spectatorsPanel(),
-    chat.el,
+    chatSlot(),
     h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
   );
 }
@@ -276,8 +315,15 @@ function renderTable() {
     else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
     return h(
       'div',
-      { class: 'opp' + (round.turn === id && !tonkPhase ? ' turn' : '') + (info && !info.connected ? ' offline' : ''), 'data-player': id },
-      h('strong', null, nameOf(id)),
+      {
+        class:
+          'opp' +
+          (round.turn === id && !tonkPhase ? ' turn' : '') +
+          (info && !info.connected ? ' offline' : '') +
+          (info?.away ? ' away' : ''),
+        'data-player': id,
+      },
+      h('strong', null, nameOf(id) + (info?.away ? ' (bot playing)' : '')),
       h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, p.total !== null ? ` \u2022 total ${p.total}` : ''),
       cards,
       meldsOf(id),
@@ -426,6 +472,8 @@ function renderTable() {
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
           h('div', { class: 'status' }, status),
+          turnTimerLine(myTurn),
+          awayNotice(),
           meldsOf(state.you),
           h('div', { class: 'hand-value' }, `Hand value: ${me.total}`),
           h('div', { class: 'hand' }, handEls),
@@ -463,13 +511,29 @@ function spectatorsPanel() {
 }
 
 function tonkCountdownText() {
-  const secs = Math.max(0, Math.ceil((state.tonkDeadline - Date.now()) / 1000));
-  return `Automatic in ${secs}s`;
+  return `Automatic in ${secondsLeft(state.tonkDeadline)}s`;
+}
+
+const turnTimerText = () => `Bot takes over in ${secondsLeft(state.turnDeadline)}s`;
+const retryText = () => `Retrying in ${secondsLeft(state.retryAt)}s\u2026`;
+
+// Only on my own turn: after this long without a move a bot plays for me.
+function turnTimerLine(myTurn) {
+  if (!myTurn || state.turnDeadline === null) return null;
+  const urgent = secondsLeft(state.turnDeadline) <= URGENT_SECONDS;
+  return h('div', { class: 'muted turn-timer' + (urgent ? ' urgent' : '') }, turnTimerText());
 }
 
 setInterval(() => {
-  const el = document.querySelector('.tonk-timer');
-  if (el) el.textContent = tonkCountdownText();
+  const tonk = document.querySelector('.tonk-timer');
+  if (tonk) tonk.textContent = tonkCountdownText();
+  const turn = document.querySelector('.turn-timer');
+  if (turn && state.turnDeadline !== null) {
+    turn.textContent = turnTimerText();
+    turn.classList.toggle('urgent', secondsLeft(state.turnDeadline) <= URGENT_SECONDS);
+  }
+  const retry = document.querySelector('.retry-timer');
+  if (retry) retry.textContent = retryText();
 }, 250);
 
 function renderResult(round) {
@@ -601,8 +665,16 @@ function settingsPanel(isHost) {
   const field = (key, hint) => {
     const { min, max, label } = settingLimits[key];
     if (!isHost) return h('div', null, `${label}: `, h('strong', null, String(settings[key])), h('span', { class: 'muted' }, ` ${hint}`));
-    const input = h('input', { type: 'number', min, max, step: 1, value: settings[key], class: 'setting-input' });
-    input.addEventListener('change', () => send({ t: 'updateSettings', settings: { ...settings, [key]: Number(input.value) } }));
+    const input = h('input', {
+      type: 'number',
+      min,
+      max,
+      step: 1,
+      value: settings[key],
+      class: 'setting-input',
+      'data-sync': true,
+      onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, [key]: Number(e.currentTarget.value) } }),
+    });
     return h('label', { class: 'row' }, h('span', null, `${label} `), input, h('span', { class: 'muted' }, hint));
   };
   return h(
@@ -642,6 +714,10 @@ function formatEvent(e) {
       return `${who} went down with ${e.total}.`;
     case 'reshuffle':
       return 'Discard pile reshuffled into the draw pile.';
+    case 'timeout':
+      return `${who} took too long, a bot plays their turns now.`;
+    case 'back':
+      return `${who} is back at the table.`;
     default:
       return null;
   }
