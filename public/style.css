@@ -96,8 +96,14 @@ button {
 }
 button:disabled { opacity: 0.45; cursor: default; }
 button.go-down:disabled { opacity: 1; background: #55575a; color: #a09a8c; border-color: #0003; }
-.go-down-wrap { display: inline-flex; }
+.go-down-wrap { display: inline-flex; position: relative; }
 .go-down-wrap > button:disabled { pointer-events: none; }
+.go-down-wrap[data-tip]:hover::after, .go-down-wrap[data-tip]:focus::after {
+  content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: min(260px, 80vw); padding: 6px 10px; border-radius: 6px; z-index: 10;
+  background: #1c1a18; color: var(--text); border: 1px solid #d8d0bf44; font-size: 0.875rem; font-weight: 400; pointer-events: none;
+}
+.go-down-wrap[data-tip]:focus { outline: none; }
 .hand-value { font-weight: 600; margin-bottom: 4px; }
 button.secondary { background: #d8d0bf1a; color: var(--text); border-color: #d8d0bf44; }
 button.tonk-btn { font-size: 1.6rem; padding: 10px 34px; background: var(--blood); color: #e8dfcb; letter-spacing: 0.05em; animation: tonk-pulse 0.9s ease-in-out infinite alternate; }

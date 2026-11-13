@@ -351,10 +351,14 @@ function renderTable() {
   const controls = h(
     'div',
     { class: 'row' },
-    // The tooltip sits on a wrapper: disabled buttons do not reliably show their own title.
+    // Custom CSS tooltip (data-tip) on a wrapper: native title tooltips are slow, flaky on disabled buttons and absent on touch.
     h(
       'span',
-      { class: 'go-down-wrap', title: canDrawPhase ? '' : 'You can only go down at the start of your turn, before drawing.' },
+      {
+        class: 'go-down-wrap',
+        'data-tip': canDrawPhase ? null : 'You can only go down at the start of your turn, before drawing.',
+        tabindex: canDrawPhase ? null : 0,
+      },
       h(
         'button',
         {

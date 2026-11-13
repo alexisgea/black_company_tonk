@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.10.3',
+    date: '2026-11-13',
+    changes: [
+      'The "You can only go down at the start of your turn" hint now appears instantly when you hover the greyed-out Go down button.',
+    ],
+  },
+  {
     version: '0.10.1',
     date: '2026-11-13',
     changes: ['The "new version available" note at the bottom is now clickable and reloads the page onto the new version.'],
