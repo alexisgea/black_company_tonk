@@ -5,6 +5,7 @@ import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { rulesButton } from './rules-dialog.js';
+import { changelogButton } from './changelog-dialog.js';
 import { drag, handCardEl } from './hand.js';
 import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
 
@@ -126,6 +127,7 @@ function renderLobby() {
         'Change name',
       ),
       rulesButton(),
+      changelogButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
     ),
     h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Open tables'), list),
