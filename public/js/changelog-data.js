@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.13.1',
+    date: '2026-11-13',
+    changes: [
+      '"Put down selected" and "Discard selected" are greyed out like "Go down" until you have drawn, and all three now explain why with a tooltip.',
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-11-13',
     changes: [

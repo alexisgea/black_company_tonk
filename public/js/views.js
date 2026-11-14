@@ -420,21 +420,18 @@ function renderTable() {
         ]
       : null,
   );
+  // Custom CSS tooltip (data-tip) on a wrapper: native title tooltips are slow, flaky on disabled buttons and absent on touch.
+  const tipped = (tip, button) => h('span', { class: 'tip-wrap', 'data-tip': tip, tabindex: tip ? 0 : null }, button);
+  const waitingTip = myTurn ? 'Draw a card or go down first.' : 'You can only do this during your turn, after drawing.';
   const controls = h(
     'div',
     { class: 'row' },
-    // Custom CSS tooltip (data-tip) on a wrapper: native title tooltips are slow, flaky on disabled buttons and absent on touch.
-    h(
-      'span',
-      {
-        class: 'go-down-wrap',
-        'data-tip': canDrawPhase ? null : 'You can only go down at the start of your turn, before drawing.',
-        tabindex: canDrawPhase ? null : 0,
-      },
+    tipped(
+      canDrawPhase ? null : 'You can only go down at the start of your turn, before drawing.',
       h(
         'button',
         {
-          class: 'go-down',
+          class: 'greyed',
           disabled: !canDrawPhase || state.confirmDown,
           onClick: () => {
             state.confirmDown = true;
@@ -469,15 +466,25 @@ function renderTable() {
           ),
         ]
       : null,
-    h(
-      'button',
-      { disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) },
-      'Put down selected',
+    tipped(
+      canPlayPhase ? null : waitingTip,
+      h(
+        'button',
+        { class: 'greyed', disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) },
+        'Put down selected',
+      ),
     ),
-    h(
-      'button',
-      { disabled: !(canPlayPhase && selected.length === 1), onClick: () => sendAction({ type: 'discard', card: selected[0] }) },
-      'Discard selected',
+    tipped(
+      canPlayPhase ? null : waitingTip,
+      h(
+        'button',
+        {
+          class: 'greyed',
+          disabled: !(canPlayPhase && selected.length === 1),
+          onClick: () => sendAction({ type: 'discard', card: selected[0] }),
+        },
+        'Discard selected',
+      ),
     ),
   );
 
