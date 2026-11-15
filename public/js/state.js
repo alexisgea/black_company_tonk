@@ -20,7 +20,20 @@ export const state = {
   turnWarningMs: Infinity, // the turn countdown is only shown once this little time is left
   retryAt: 0, // local time of the next reconnect attempt (0: none scheduled)
   device: loadDeviceId(), // stable per browser, so the server can enforce bans
+  invite: readInvite(), // { gameId, password? } from an invite link, followed once the player is in the lobby
+  pendingJoin: null, // the table we just asked to enter, so a "password needed" answer knows what it was for
+  passwordPrompt: null, // { gameId, mode, name, error } while asking for a table password
 };
+
+// Invite links look like /#table=ABCD or /#table=ABCD&pw=secret. The hash never reaches the server (or its logs),
+// and it is removed from the address bar right away so the password does not linger there.
+function readInvite() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const table = params.get('table');
+  if (!table) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  return { gameId: table.toUpperCase(), password: params.get('pw') || undefined };
+}
 
 function loadDeviceId() {
   let id = localStorage.getItem('tonk.device');

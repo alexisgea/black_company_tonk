@@ -1,6 +1,16 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.14.0',
+    date: '2026-11-15',
+    changes: [
+      'A player who disconnects is no longer removed after the hand: a bot keeps playing their seat and they can come back at any time. The host can still kick them.',
+      'The host can lock a table with a password. Locked tables show a lock in the lobby and ask for the password.',
+      'Every table has an invite link you can copy and send to friends; it takes them straight to the table (with the password already filled in if the host has set one).',
+      'Guests can now join the game: "Take over" a bot (even in the middle of a hand, keeping its cards and coins) or "Join the game" when a seat is free.',
+    ],
+  },
+  {
     version: '0.13.1',
     date: '2026-11-13',
     changes: [

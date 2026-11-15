@@ -1,6 +1,6 @@
 import { h, patchChildren } from './dom.js';
 import { state, toast, nameOf, isSpectator } from './state.js';
-import { send, sendAction, sendHello, connect } from './net.js';
+import { send, sendAction, sendHello, connect, enterTable } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
@@ -140,14 +140,14 @@ function renderLobby() {
           h(
             'li',
             null,
-            h('strong', null, g.name),
+            h('strong', null, g.locked ? `\u{1F512} ${g.name}` : g.name),
             h('span', { class: 'muted' }, `${g.players.join(', ')} (${g.players.length}/${g.max})`),
             g.spectators ? h('span', { class: 'muted' }, `\u2022 ${g.spectators} watching`) : null,
             h('span', { class: 'muted' }, `\u2022 ${g.startingCoins} coins, bet ${g.bet}`),
             h('span', { class: 'spacer' }),
             h('span', { class: 'muted' }, g.status === 'playing' ? 'in progress' : 'open'),
-            h('button', { disabled: !g.joinable, onClick: () => send({ t: 'joinGame', gameId: g.id }) }, 'Join'),
-            h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => send({ t: 'watchGame', gameId: g.id }) }, 'Watch'),
+            h('button', { disabled: !g.joinable, onClick: () => enterTable(g, 'join') }, 'Join'),
+            h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => enterTable(g, 'watch') }, 'Watch'),
           ),
         ),
       )
@@ -176,6 +176,7 @@ function renderLobby() {
       changelogButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
     ),
+    passwordPrompt(),
     h(
       'div',
       { class: 'panel' },
@@ -217,16 +218,18 @@ function renderRoom() {
             isHost && p.isBot
               ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
               : kickControls(p),
+            takeOverButton(p),
           ),
         ),
       ),
       spectatorsPanel(),
       settingsPanel(isHost),
+      h('div', { class: 'panel' }, invitePanel(isHost)),
       awayNotice(),
       h(
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
-        spectating ? null : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
+        spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
         addBotButton(),
         leave,
         rulesButton(),
@@ -282,6 +285,7 @@ function renderSide(leaveBtn) {
       h('div', { class: 'muted' }, `Hand #${room.handNo}`, room.paused ? ' \u2013 paused' : ''),
       pauseButton(),
     ),
+    h('div', { class: 'panel' }, invitePanel(room.hostId === state.you)),
     h(
       'div',
       { class: 'panel scores' },
@@ -297,7 +301,7 @@ function renderSide(leaveBtn) {
           'div',
           { class: 'score-row' },
           h('span', { class: 'score-name' }, playerTag(p), (p.connected ? '' : ' (offline)') + (p.away ? ' (bot playing)' : '')),
-          h('span', { class: 'score-actions' }, kickControls(p)),
+          h('span', { class: 'score-actions' }, kickControls(p), takeOverButton(p)),
           h('span', { class: 'score-value' }, String(p.coins)),
         ),
       ),
@@ -514,6 +518,7 @@ function renderTable() {
             { class: 'status' },
             isSpectator() ? status || 'You are watching this table.' : status || 'Join the next hand when this one ends.',
           ),
+          isSpectator() && !over ? h('div', { class: 'row' }, freeSeatButton()) : null,
         ),
   );
 }
@@ -612,7 +617,7 @@ function renderResult(round) {
     h('div', { class: 'hands' }, rows),
     brokeLines,
     isSpectator()
-      ? null
+      ? h('div', { class: 'row' }, freeSeatButton())
       : h(
           'div',
           { class: 'row' },
@@ -672,6 +677,136 @@ function kickControls(p) {
   ];
 }
 
+// Guests can sit in a bot's seat (it keeps the bot's cards and coins) or, between hands, in a free one.
+function takeOverButton(p) {
+  if (!p.isBot || !isSpectator()) return null;
+  return h('button', { class: 'small-btn', title: `Play ${p.name}'s seat`, onClick: () => send({ t: 'takeSeat', id: p.id }) }, 'Take over');
+}
+
+function freeSeatButton() {
+  const room = state.room;
+  if (!isSpectator() || room.status === 'playing' || room.players.length >= room.maxPlayers) return null;
+  return h('button', { onClick: () => send({ t: 'takeSeat' }) }, 'Join the game');
+}
+
+// Asks for the password of the locked table the player just tried to enter.
+function passwordPrompt() {
+  const prompt = state.passwordPrompt;
+  if (!prompt) return null;
+  const submit = (field) => {
+    const password = field.value;
+    if (!password) return toast('Please enter the password');
+    enterTable({ id: prompt.gameId, name: prompt.name }, prompt.mode, password);
+  };
+  const input = h('input', {
+    id: 'table-password',
+    type: 'password',
+    maxLength: 32,
+    placeholder: 'Table password',
+    autofocus: true,
+    onKeydown: (e) => e.key === 'Enter' && submit(e.currentTarget),
+  });
+  return h(
+    'div',
+    { class: 'panel' },
+    h(
+      'p',
+      { style: 'margin-top:0' },
+      `\u{1F512} ${prompt.name} is locked.`,
+      prompt.error ? h('span', { class: 'muted' }, ` ${prompt.error}`) : null,
+    ),
+    h(
+      'div',
+      { class: 'row' },
+      input,
+      h('button', { onClick: () => submit(document.getElementById('table-password')) }, prompt.mode === 'join' ? 'Join' : 'Watch'),
+      h(
+        'button',
+        {
+          class: 'secondary',
+          onClick: () => {
+            state.passwordPrompt = null;
+            render();
+          },
+        },
+        'Cancel',
+      ),
+    ),
+  );
+}
+
+// Invite friends with a link; the host can also lock the table with a password. The password rides in the link's
+// hash (never sent to the server) so invited friends get straight in.
+function invitePanel(isHost) {
+  const room = state.room;
+  const link = `${location.origin}/#table=${room.id}${room.password ? `&pw=${encodeURIComponent(room.password)}` : ''}`;
+  const copy = async (field) => {
+    field.select();
+    try {
+      await navigator.clipboard.writeText(field.value);
+      toast('Invite link copied');
+    } catch {
+      toast('Press Ctrl+C to copy the selected link');
+    }
+  };
+  const linkInput = h('input', {
+    id: 'invite-link',
+    type: 'text',
+    readOnly: true,
+    value: link,
+    class: 'invite-link',
+    'data-sync': true,
+    onFocus: (e) => e.currentTarget.select(),
+  });
+  const lock = () => {
+    const field = document.getElementById('table-lock');
+    send({ t: 'setPassword', password: field.value });
+  };
+  return h(
+    'div',
+    null,
+    h('h3', { style: 'margin-top:0' }, 'Invite friends'),
+    h(
+      'div',
+      { class: 'row' },
+      linkInput,
+      h('button', { class: 'secondary', onClick: () => copy(document.getElementById('invite-link')) }, 'Copy link'),
+    ),
+    isHost
+      ? h(
+          'div',
+          { class: 'row', style: 'margin-top:10px' },
+          h('input', {
+            id: 'table-lock',
+            type: 'text',
+            maxLength: 32,
+            placeholder: 'Password',
+            value: room.password ?? '',
+            'data-sync': true,
+            class: 'invite-link',
+            onKeydown: (e) => e.key === 'Enter' && lock(),
+          }),
+          h('button', { class: 'secondary', onClick: lock }, room.locked ? 'Change password' : 'Lock table'),
+          room.locked
+            ? h(
+                'button',
+                {
+                  class: 'secondary',
+                  onClick: () => {
+                    document.getElementById('table-lock').value = '';
+                    lock();
+                  },
+                },
+                'Unlock',
+              )
+            : null,
+        )
+      : room.locked
+        ? h('div', { class: 'muted', style: 'margin-top:6px' }, 'This table is locked with a password.')
+        : null,
+  );
+}
+
 // Host only: bots fill empty seats (up to the table limit).
 function addBotButton() {
   const room = state.room;
@@ -729,6 +864,8 @@ function formatEvent(e) {
       return `${who} left.`;
     case 'kick':
       return `${who} was removed by the host.`;
+    case 'takeover':
+      return `${who} took over ${e.botName}'s seat.`;
     case 'deal':
       return `Hand #${e.hand} dealt by ${who}.`;
     case 'draw':

@@ -283,6 +283,18 @@ function removePlayer(round, pid) {
   if (wasTonk) syncTonk(round);
 }
 
+// Hands a seat to someone else mid-hand: same cards, same place in the turn order, new id.
+function renamePlayer(round, oldId, newId) {
+  if (!round.hands[oldId]) return;
+  const swap = (ids) => ids.map((id) => (id === oldId ? newId : id));
+  round.order = swap(round.order);
+  round.tonkers = swap(round.tonkers);
+  round.declared = swap(round.declared);
+  round.hands[newId] = round.hands[oldId];
+  delete round.hands[oldId];
+  for (const meld of round.melds) if (meld.owner === oldId) meld.owner = newId;
+}
+
 // Snapshot for one viewer: own hand in full, opponents' hands only as counts until the hand ends
 // (or until they declare TONK and put their cards down).
 function viewRound(round, viewerId) {
@@ -326,5 +338,6 @@ module.exports = {
   applyAction,
   reorderHand,
   removePlayer,
+  renamePlayer,
   viewRound,
 };

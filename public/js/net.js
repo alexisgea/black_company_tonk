@@ -8,6 +8,28 @@ export function send(msg) {
 export const sendAction = (action) => send({ t: 'action', action });
 export const sendHello = (name) => send({ t: 'hello', name, token: state.token, device: state.device });
 
+// Asks to sit down (mode 'join') or watch at a table. A locked table first asks for its password.
+export function enterTable(game, mode, password) {
+  if (game.locked && password === undefined) {
+    state.passwordPrompt = { gameId: game.id, mode, name: game.name, error: null };
+    render();
+    return;
+  }
+  state.pendingJoin = { gameId: game.id, mode, name: game.name };
+  send({ t: mode === 'join' ? 'joinGame' : 'watchGame', gameId: game.id, password });
+}
+
+// Comes in through an invite link: sit down if there is a seat, otherwise watch (and take a bot's seat from there).
+function followInvite() {
+  const { gameId, password } = state.invite;
+  state.invite = null;
+  const game = state.games.find((g) => g.id === gameId);
+  if (!game) toast('That table no longer exists.');
+  else if (game.joinable) enterTable(game, 'join', password);
+  else if (game.watchable) enterTable(game, 'watch', password);
+  else toast('That table is full and has too many guests.');
+}
+
 const RETRY_BASE_MS = 1000;
 const RETRY_MAX_MS = 30000;
 const RETRY_JITTER = 0.25;
@@ -94,8 +116,12 @@ function onMessage(msg) {
       state.room = null;
       state.view = 'lobby';
       chat.messages = [];
+      if (state.invite) followInvite();
       break;
     case 'room':
+      state.pendingJoin = null;
+      state.passwordPrompt = null;
+      state.invite = null;
       state.you = msg.you;
       state.room = msg.room;
       state.tonkDeadline = Date.now() + (msg.room.tonkMsLeft ?? 0);
@@ -125,6 +151,10 @@ function onMessage(msg) {
       toast(msg.message, 9000);
       return;
     case 'error':
+      if (msg.code === 'password' && state.pendingJoin) {
+        state.passwordPrompt = { ...state.pendingJoin, error: msg.message };
+        break;
+      }
       toast(msg.message);
       return;
   }

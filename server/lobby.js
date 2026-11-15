@@ -1,6 +1,6 @@
 'use strict';
 const crypto = require('crypto');
-const { Room } = require('./room');
+const { Room, validatePassword } = require('./room');
 const { GameError } = require('./tonk');
 const { chooseAction, fallbackAction } = require('./bot');
 const { isReservedName } = require('./botnames');
@@ -12,6 +12,8 @@ const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME = 20;
 const CHAT_BURST = 5; // messages allowed per window
 const CHAT_WINDOW_MS = 5000;
+const PASSWORD_GUESSES = 5; // wrong table passwords allowed per window
+const PASSWORD_WINDOW_MS = 60000;
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
@@ -30,9 +32,9 @@ function requireHost(room, user, what) {
   if (room.hostId !== user.id) throw new GameError(`Only the host can ${what}`);
 }
 
-// A seat the server plays itself: a bot, a human who is disconnected (they get the seat back when they
-// reconnect, and are removed once the hand is over and the grace period has passed), or a human who took too long
-// on their turn (`away`, they get the seat back by acting or pressing "take back control").
+// A seat the server plays itself: a bot, a human who is disconnected (they keep the seat and get it back when they
+// reconnect; only the host can remove them), or a human who took too long on their turn (`away`, they get the seat
+// back by acting or pressing "take back control").
 const isAuto = (p) => p.isBot || !p.conn || !!p.away;
 
 const DEVICE_ID = /^[\w-]{8,64}$/;
@@ -97,7 +99,6 @@ class Lobby {
   }
 
   broadcastRoom(room) {
-    if (this.dropAbsentPlayers(room)) return;
     if (this.handleBroke(room)) return;
     this.scheduleBot(room); // first, so the views below already carry the new turn deadline
     for (const user of room.audience) this.send(user.conn, room.view(user));
@@ -113,6 +114,12 @@ class Lobby {
     }
     for (const user of broke) {
       if (user.isBot) continue;
+      if (!user.conn) {
+        // A disconnected player who lost their last coin has no grace timer running and nothing to come back to.
+        this.leaveRoom(user);
+        this.users.delete(user.token);
+        continue;
+      }
       this.send(user.conn, {
         t: 'broke',
         message:
@@ -120,19 +127,6 @@ class Lobby {
       });
     }
     return false;
-  }
-
-  // Disconnected players whose grace period ran out during a hand stay seated (a bot plays for
-  // them) and are removed once the hand is over. Returns true if anyone was removed, in which
-  // case leaveRoom has already updated the table.
-  dropAbsentPlayers(room) {
-    if (room.status === 'playing') return false;
-    const absent = [...room.players, ...room.spectators].filter((p) => !p.isBot && !p.conn && p.dropAfterHand);
-    for (const user of absent) {
-      this.leaveRoom(user);
-      this.users.delete(user.token);
-    }
-    return absent.length > 0;
   }
 
   // For changes that also alter the game list (players or status): update the table and the lobby.
@@ -418,7 +412,7 @@ class Lobby {
       if (!conn.user) return this.sendError(conn, 'Say hello first');
       this.onMessage(conn.user, msg);
     } catch (err) {
-      if (err instanceof GameError) this.sendError(conn, err.message);
+      if (err instanceof GameError) this.send(conn, { t: 'error', message: err.message, code: err.code });
       else {
         console.error(err);
         this.sendError(conn, 'Server error');
@@ -437,7 +431,6 @@ class Lobby {
     user ??= conn.user ?? undefined;
     if (user) {
       clearTimeout(user.timer);
-      user.dropAfterHand = false;
       if (user.conn && user.conn !== conn) {
         this.send(user.conn, { t: 'replaced' });
         user.conn.user = null;
@@ -453,6 +446,7 @@ class Lobby {
         timer: null,
         chatLimiter: new RateLimiter(CHAT_BURST, CHAT_WINDOW_MS),
         createLimiter: new RateLimiter(this.createsPerMinute, 60000),
+        passwordLimiter: new RateLimiter(PASSWORD_GUESSES, PASSWORD_WINDOW_MS),
       };
       this.users.set(user.token, user);
     }
@@ -463,6 +457,21 @@ class Lobby {
     this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name });
     if (user.room) this.broadcastRoom(user.room);
     this.broadcastLobby(); // also tells everyone else in the lobby about the new head count
+  }
+
+  findRoom(gameId) {
+    const r = typeof gameId === 'string' ? this.rooms.get(gameId.toUpperCase()) : null;
+    if (!r) throw new GameError('That table no longer exists');
+    return r;
+  }
+
+  // Wrong guesses are rate limited per player so a locked table cannot be brute-forced (the limit applies to
+  // right guesses too, otherwise "it still answers" would reveal the password).
+  checkPassword(user, room, given) {
+    if (room.locked && typeof given === 'string' && given !== '' && !user.passwordLimiter.hit()) {
+      throw new GameError('Too many password attempts. Wait a minute and try again.');
+    }
+    room.checkPassword(given);
   }
 
   onMessage(user, msg) {
@@ -477,6 +486,7 @@ class Lobby {
           tonkTimeoutMs: this.tonkTimeoutMs,
           turnWarningMs: this.turnWarningMs,
         });
+        r.password = validatePassword(msg.password);
         this.rooms.set(r.id, r);
         r.join(user);
         this.broadcastAll(r);
@@ -484,8 +494,8 @@ class Lobby {
       }
       case 'joinGame': {
         if (room) throw new GameError('Already at a table');
-        const r = typeof msg.gameId === 'string' ? this.rooms.get(msg.gameId.toUpperCase()) : null;
-        if (!r) throw new GameError('That table no longer exists');
+        const r = this.findRoom(msg.gameId);
+        this.checkPassword(user, r, msg.password);
         r.join(user);
         r.touch();
         this.broadcastAll(r);
@@ -493,10 +503,23 @@ class Lobby {
       }
       case 'watchGame': {
         if (room) throw new GameError('Already at a table');
-        const r = typeof msg.gameId === 'string' ? this.rooms.get(msg.gameId.toUpperCase()) : null;
-        if (!r) throw new GameError('That table no longer exists');
+        const r = this.findRoom(msg.gameId);
+        this.checkPassword(user, r, msg.password);
         r.watch(user);
         this.broadcastAll(r);
+        break;
+      }
+      case 'takeSeat': {
+        requireRoom(room);
+        room.takeSeat(user, msg.id);
+        room.touch();
+        this.broadcastAll(room);
+        break;
+      }
+      case 'setPassword': {
+        requireHost(room, user, 'lock the table');
+        room.setPassword(user, msg.password);
+        this.broadcastAll(room);
         break;
       }
       case 'kick': {
@@ -606,10 +629,9 @@ class Lobby {
     this.broadcastLobby();
     user.timer = setTimeout(() => {
       const room = user.room;
-      if (room && room.status === 'playing' && room.players.includes(user)) {
-        user.dropAfterHand = true; // a bot keeps their seat until the hand is over
-        return;
-      }
+      // Once the game has started a disconnected player keeps their seat (a bot plays for them), so they have
+      // every chance to come back. Only the host removing them, or the table closing, ends it.
+      if (room && room.status !== 'waiting' && room.players.includes(user)) return;
       this.leaveRoom(user);
       this.users.delete(user.token);
     }, this.graceMs);

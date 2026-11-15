@@ -9,7 +9,8 @@ const PUBLIC_LOG_FIELDS = {
   join: ['pid', 'name'],
   leave: ['pid', 'name'],
   kick: ['pid', 'name'],
-  deal: ['pid', 'hand'],
+  takeover: ['pid', 'name', 'botName'],
+  deal: ['pid', 'name', 'hand'],
   draw: ['pid'],
   takeDiscard: ['pid', 'card'],
   discard: ['pid', 'card'],
@@ -38,7 +39,16 @@ const MAX_CHAT_LENGTH = 200;
 const MAX_SPECTATORS = 20;
 const DEFAULT_TONK_TIMEOUT_MS = 15000;
 const ORDINALS = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+const MAX_PASSWORD = 32;
 const nameKey = (name) => name.normalize('NFKC').toLowerCase();
+const digest = (text) => crypto.createHash('sha256').update(text).digest();
+
+// A GameError the client answers by asking for the table password.
+function passwordError(message) {
+  const err = new tonk.GameError(message);
+  err.code = 'password';
+  return err;
+}
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
@@ -55,6 +65,13 @@ function validateSettings(raw) {
   }
   if (settings.bet > settings.startingCoins) throw new tonk.GameError('The bet cannot be more than the starting coins');
   return settings;
+}
+
+// An empty (or missing) password means the table is open.
+function validatePassword(raw) {
+  const password = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, '').trim() : '';
+  if (password.length > MAX_PASSWORD) throw new tonk.GameError(`The password can be at most ${MAX_PASSWORD} characters`);
+  return password || null;
 }
 
 // One table of players: seating, coins and the current hand.
@@ -78,6 +95,7 @@ class Room {
     this.players = []; // users, in seating order
     this.spectators = []; // guests who only watch and chat; they never see hidden cards
     this.hostId = null;
+    this.password = null; // when set, newcomers (players and guests) must give it to sit down or watch
     this.status = 'waiting'; // 'waiting' (never dealt) | 'playing' | 'between' (hand finished)
     this.round = null;
     this.handNo = 0;
@@ -116,6 +134,23 @@ class Room {
 
   get watchable() {
     return this.spectators.length < MAX_SPECTATORS;
+  }
+
+  get locked() {
+    return this.password !== null;
+  }
+
+  // Throws unless the table is open or `given` is its password.
+  checkPassword(given) {
+    if (!this.locked) return;
+    if (typeof given !== 'string' || given === '') throw passwordError('This table is locked. Enter its password to get in.');
+    if (!crypto.timingSafeEqual(digest(given), digest(this.password))) throw passwordError('Wrong password');
+  }
+
+  // The host locks the table with a password, or opens it again with an empty one. People already seated are not affected.
+  setPassword(user, raw) {
+    this.requirePlayer(user);
+    this.password = validatePassword(raw);
   }
 
   requirePlayer(user) {
@@ -248,6 +283,28 @@ class Room {
     }
   }
 
+  // A guest sits down: at a bot's seat (taking over its cards and coins, even mid-hand) or, between hands, at a free one.
+  takeSeat(user, botId) {
+    const spectatorIdx = this.spectators.indexOf(user);
+    if (spectatorIdx === -1) throw new tonk.GameError('Only guests can take a seat');
+    if (botId === undefined || botId === null) {
+      if (!this.joinable) throw new tonk.GameError('There is no free seat right now');
+      this.spectators.splice(spectatorIdx, 1);
+      this.join(user);
+      return;
+    }
+    const idx = this.players.findIndex((p) => p.id === botId && p.isBot);
+    if (idx === -1) throw new tonk.GameError('That bot is no longer at the table');
+    const bot = this.players[idx];
+    this.spectators.splice(spectatorIdx, 1);
+    this.players[idx] = user;
+    this.coins[user.id] = this.coins[bot.id];
+    delete this.coins[bot.id];
+    if (this.status === 'playing') tonk.renamePlayer(this.round, bot.id, user.id);
+    bot.room = null;
+    this.addLog({ type: 'takeover', pid: user.id, name: user.name, botName: bot.name });
+  }
+
   // The host can change the settings until the first hand is dealt. Everyone's coins are reset to the new pool.
   updateSettings(user, raw) {
     this.requirePlayer(user);
@@ -273,7 +330,7 @@ class Room {
       { deferTonk: true },
     );
     this.status = 'playing';
-    this.addLog({ type: 'deal', pid: this.players[this.dealerIdx].id, hand: this.handNo });
+    this.addLog({ type: 'deal', pid: this.players[this.dealerIdx].id, name: this.players[this.dealerIdx].name, hand: this.handNo });
     this.tonkDeadline = this.round.phase === 'tonk' ? Date.now() + this.tonkTimeoutMs : null;
   }
 
@@ -420,6 +477,7 @@ class Room {
       max: tonk.MAX_PLAYERS,
       status: this.status,
       joinable: this.joinable,
+      locked: this.locked,
       watchable: this.watchable,
       spectators: this.spectators.length,
       startingCoins: this.settings.startingCoins,
@@ -435,6 +493,8 @@ class Room {
         id: this.id,
         name: this.name,
         hostId: this.hostId,
+        locked: this.locked,
+        password: user.id === this.hostId ? this.password : null, // only the host can read it back (to put it in invite links)
         status: this.status,
         handNo: this.handNo,
         dealerId: this.players[this.dealerIdx % this.players.length]?.id ?? null,
@@ -463,4 +523,4 @@ class Room {
   }
 }
 
-module.exports = { Room, DEFAULT_SETTINGS, SETTING_LIMITS, validateSettings };
+module.exports = { Room, DEFAULT_SETTINGS, SETTING_LIMITS, validateSettings, validatePassword };

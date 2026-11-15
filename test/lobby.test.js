@@ -285,7 +285,7 @@ function playingGame(opts, moverIndex) {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-test('a disconnected player is replaced by a bot for the hand and removed once it is over', async () => {
+test('a disconnected player is replaced by a bot and keeps the seat after the hand is over', async () => {
   const { lobby, humans, state } = playingGame({ graceMs: 10, botDelayMs: 5 }, 1);
   const bob = humans[1];
   const bobId = bob.last('room').you;
@@ -307,10 +307,17 @@ test('a disconnected player is replaced by a bot for the hand and removed once i
   assert.ok(next && next !== bob);
   say(lobby, next, { t: 'action', action: { type: 'goDown' } });
   assert.equal(state().status, 'between');
+  await wait(40);
+  assert.ok(
+    state().players.some((p) => p.id === bobId && !p.connected),
+    'still seated once the hand is over',
+  );
+
+  // Only the host can remove him.
+  say(lobby, humans[0], { t: 'kick', id: bobId });
   assert.equal(
     state().players.some((p) => p.id === bobId),
     false,
-    'removed once the hand is over',
   );
 });
 
@@ -582,6 +589,108 @@ test('guests are kickable, do not keep a table alive, and are sent home when the
   assert.ok(other.last('closed'));
   assert.equal(other.inbox.at(-1).t, 'lobby');
   assert.equal(lobby.rooms.size, 0);
+});
+
+test('a locked table needs its password to join or watch; the host can lock, change and unlock it', () => {
+  const lobby = new Lobby();
+  const host = connect(lobby, 'Host');
+  const friend = connect(lobby, 'Friend');
+  const guest = connect(lobby, 'Guest');
+  say(lobby, host, { t: 'createGame' });
+  const gameId = [...lobby.rooms.keys()][0];
+
+  say(lobby, friend, { t: 'setPassword', password: 'x' });
+  assert.match(friend.last('error').message, /table/i);
+  say(lobby, host, { t: 'setPassword', password: '  swordfish ' });
+  assert.equal(host.last('room').room.password, 'swordfish');
+  assert.equal(lobby.gameList()[0].locked, true);
+
+  say(lobby, friend, { t: 'joinGame', gameId });
+  assert.equal(friend.last('error').code, 'password');
+  say(lobby, friend, { t: 'joinGame', gameId, password: 'nope' });
+  assert.match(friend.last('error').message, /wrong password/i);
+  say(lobby, guest, { t: 'watchGame', gameId });
+  assert.equal(guest.last('error').code, 'password');
+  say(lobby, guest, { t: 'watchGame', gameId, password: 'swordfish' });
+  assert.equal(guest.last('room').room.spectators.length, 1);
+  assert.equal(guest.last('room').room.password, null, 'only the host sees the password');
+  say(lobby, friend, { t: 'joinGame', gameId, password: 'swordfish' });
+  assert.equal(host.last('room').room.players.length, 2);
+
+  say(lobby, host, { t: 'setPassword', password: '' });
+  assert.equal(host.last('room').room.locked, false);
+  const late = connect(lobby, 'Late');
+  say(lobby, late, { t: 'joinGame', gameId });
+  assert.equal(late.last('error'), undefined);
+});
+
+test('password guesses are rate limited, even for the right password', () => {
+  const lobby = new Lobby();
+  const host = connect(lobby, 'Host');
+  const mallory = connect(lobby, 'Mallory');
+  say(lobby, host, { t: 'createGame', password: 'secret' });
+  const gameId = [...lobby.rooms.keys()][0];
+  for (let i = 0; i < 5; i++) say(lobby, mallory, { t: 'joinGame', gameId, password: `guess${i}` });
+  say(lobby, mallory, { t: 'joinGame', gameId, password: 'secret' });
+  assert.match(mallory.last('error').message, /too many/i);
+  assert.equal(lobby.rooms.get(gameId).players.length, 1);
+});
+
+test('a guest can take a bot seat mid-hand, keeping its cards and coins', () => {
+  let state;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const lobby = new Lobby({ botDelayMs: 100000 });
+    const host = connect(lobby, 'Host');
+    const guest = connect(lobby, 'Guest');
+    say(lobby, host, { t: 'createGame' });
+    const room = [...lobby.rooms.values()][0];
+    say(lobby, guest, { t: 'watchGame', gameId: room.id });
+    for (let i = 0; i < MIN_PLAYERS - 1; i++) say(lobby, host, { t: 'addBot' });
+    say(lobby, host, { t: 'startGame' });
+    const view = host.last('room').room;
+    if (view.status !== 'playing' || view.round.phase === 'tonk') continue;
+    state = { lobby, host, guest, room, view };
+    break;
+  }
+  const { lobby, host, guest, room, view } = state;
+  const bot = view.players.find((p) => p.isBot);
+  const guestId = guest.last('welcome').id;
+  const botHand = room.round.hands[bot.id].slice();
+  const turnWasBots = view.round.turn === bot.id;
+
+  say(lobby, host, { t: 'takeSeat', id: bot.id });
+  assert.match(host.last('error').message, /guests/i);
+  say(lobby, guest, { t: 'takeSeat' });
+  assert.match(guest.last('error').message, /free seat/i); // mid-hand there is no free seat
+  say(lobby, guest, { t: 'takeSeat', id: bot.id });
+  const after = guest.last('room').room;
+  assert.equal(after.spectators.length, 0);
+  assert.equal(after.players.length, view.players.length);
+  assert.equal(after.players.find((p) => p.id === guestId).coins, bot.coins);
+  assert.equal(
+    after.players.some((p) => p.id === bot.id),
+    false,
+  );
+  assert.deepEqual(after.round.players[guestId].hand, botHand);
+  assert.equal(after.round.order.includes(bot.id), false);
+  assert.equal(after.round.turn === guestId, turnWasBots);
+  assert.ok(after.log.some((e) => e.type === 'takeover' && e.pid === guestId && e.botName === bot.name));
+
+  // Once seated, the guest is a player like any other and cannot take another seat.
+  say(lobby, guest, { t: 'takeSeat', id: bot.id });
+  assert.match(guest.last('error').message, /only guests/i);
+});
+
+test('a guest can take a free seat in the waiting room', () => {
+  const lobby = new Lobby({ botDelayMs: 100000 });
+  const host = connect(lobby, 'Host');
+  const guest = connect(lobby, 'Guest');
+  say(lobby, host, { t: 'createGame' });
+  const room = [...lobby.rooms.values()][0];
+  say(lobby, guest, { t: 'watchGame', gameId: room.id });
+  say(lobby, guest, { t: 'takeSeat' });
+  assert.equal(guest.last('room').room.players.length, 2);
+  assert.equal(guest.last('room').room.spectators.length, 0);
 });
 
 test('input validation', () => {
