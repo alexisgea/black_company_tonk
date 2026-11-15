@@ -84,9 +84,11 @@ export function connect() {
   });
 }
 
-// The network is back or the tab was just shown again: no point waiting out the backoff.
+// The network is back or the tab was just shown again: no point waiting out the backoff. Mobile browsers often
+// kill the socket of a backgrounded tab without telling the page, so check the socket itself, not just our flag.
 function retryNow() {
-  if (state.connected || state.replaced) return;
+  if (state.replaced) return;
+  if (state.connected && state.ws?.readyState === WebSocket.OPEN) return;
   attempt = 0;
   connect();
 }

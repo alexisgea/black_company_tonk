@@ -32,11 +32,6 @@ function requireHost(room, user, what) {
   if (room.hostId !== user.id) throw new GameError(`Only the host can ${what}`);
 }
 
-// A seat the server plays itself: a bot, a human who is disconnected (they keep the seat and get it back when they
-// reconnect; only the host can remove them), or a human who took too long on their turn (`away`, they get the seat
-// back by acting or pressing "take back control").
-const isAuto = (p) => p.isBot || !p.conn || !!p.away;
-
 const DEVICE_ID = /^[\w-]{8,64}$/;
 const cleanDevice = (raw) => (typeof raw === 'string' && DEVICE_ID.test(raw) ? raw : undefined);
 
@@ -72,6 +67,20 @@ class Lobby {
     this.idleWarningMs = idleWarningMs;
     this.users = new Map(); // private token -> user
     this.rooms = new Map(); // room id -> Room
+  }
+
+  // Whether the turn timer runs at this table (see the constructor).
+  turnTimerApplies(room) {
+    return !!this.turnTimeoutMs && room.humans.length >= 2;
+  }
+
+  // A seat the server plays itself: a bot, a human who took too long on their turn (`away`, they get the seat back
+  // by acting or pressing "take back control"), or a disconnected human (they keep the seat and get it back when
+  // they reconnect; only the host can remove them). A disconnected human gets the full turn timer first, like a
+  // connected one, so a dropped connection (say, a phone switching apps) does not cost them their turn at once.
+  // Without a turn timer the server cannot wait, so a disconnected seat is played right away.
+  isAuto(room, p) {
+    return p.isBot || !!p.away || (!p.conn && !this.turnTimerApplies(room));
   }
 
   send(conn, obj) {
@@ -123,7 +132,7 @@ class Lobby {
       this.send(user.conn, {
         t: 'broke',
         message:
-          'You are out of coins! The Company has no more use for you at the table, so you are a guest now. Watch and chat from the shadows.',
+          'You are out of coins! Watch and chat from the shadows.',
       });
     }
     return false;
@@ -174,7 +183,7 @@ class Lobby {
       this.clearTurnTimer(room);
       return;
     }
-    if (!isAuto(seat)) {
+    if (!this.isAuto(room, seat)) {
       this.scheduleTurnTimer(room, seat);
       return;
     }
@@ -183,7 +192,7 @@ class Lobby {
     room.botTimer = setTimeout(
       this.guarded('Bot turn', () => {
         room.botTimer = null;
-        const bot = room.players.find((p) => isAuto(p) && p.id === turnId);
+        const bot = room.players.find((p) => this.isAuto(room, p) && p.id === turnId);
         if (
           !bot ||
           room.paused ||
@@ -220,11 +229,11 @@ class Lobby {
     return false;
   }
 
-  // A connected human gets turnTimeoutMs for their turn; after that a bot takes over their seat (see isAuto).
+  // A human (connected or not) gets turnTimeoutMs for their turn; after that a bot takes over their seat (see isAuto).
   // The countdown restarts for each new turn, and when a returning player picks the seat back up mid-turn.
   // After a pause the turn carries on with the time it had left.
   scheduleTurnTimer(room, seat) {
-    if (!this.turnTimeoutMs || room.humans.length < 2) {
+    if (!this.turnTimerApplies(room)) {
       this.clearTurnTimer(room);
       return;
     }
@@ -246,7 +255,7 @@ class Lobby {
     room.turnTimer = null;
     if (!this.rooms.has(room.id) || room.turnKey !== key || room.status !== 'playing' || room.paused) return;
     const seat = room.players.find((p) => p.id === room.round.order[room.round.turn]);
-    if (!seat || isAuto(seat)) return;
+    if (!seat || this.isAuto(room, seat)) return;
     seat.away = true;
     room.addLog({ type: 'timeout', pid: seat.id, name: seat.name });
     this.broadcastRoom(room);
@@ -283,20 +292,21 @@ class Lobby {
   // room.tonkTimeoutMs to press the button before it is pressed for them.
   scheduleTonk(room) {
     const pending = room.pendingTonkers;
-    if (!pending.some(isAuto)) {
+    const auto = (p) => this.isAuto(room, p);
+    if (!pending.some(auto)) {
       clearTimeout(room.tonkBotTimer);
       room.tonkBotTimer = null;
     } else if (!room.tonkBotTimer) {
       room.tonkBotTimer = setTimeout(
         this.guarded('Bot TONK', () => {
           room.tonkBotTimer = null;
-          this.autoDeclare(room, isAuto);
+          this.autoDeclare(room, auto);
         }),
         this.botDelayMs,
       );
       room.tonkBotTimer.unref?.();
     }
-    if (!pending.some((p) => !isAuto(p))) {
+    if (!pending.some((p) => !auto(p))) {
       clearTimeout(room.tonkTimer);
       room.tonkTimer = null;
     } else if (!room.tonkTimer) {

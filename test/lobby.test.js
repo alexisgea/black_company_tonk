@@ -285,14 +285,19 @@ function playingGame(opts, moverIndex) {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-test('a disconnected player is replaced by a bot and keeps the seat after the hand is over', async () => {
-  const { lobby, humans, state } = playingGame({ graceMs: 10, botDelayMs: 5 }, 1);
+test('a disconnected player gets the full turn timer, then a bot plays and the seat is kept after the hand is over', async () => {
+  const { lobby, humans, state } = playingGame({ graceMs: 10, botDelayMs: 5, turnTimeoutMs: 150 }, 1);
   const bob = humans[1];
   const bobId = bob.last('room').you;
   lobby.disconnect(bob);
 
-  // Bob was to move: the server plays his turn for him, and he keeps his seat after the grace period.
+  // Bob was to move: nothing happens until his turn timer runs out.
   await wait(80);
+  assert.ok(!state().log.some((e) => e.pid === bobId && e.type === 'discard'), 'no bot move before the timer ends');
+  assert.equal(state().round.turn, bobId);
+
+  // Then the server plays his turn for him, and he keeps his seat after the grace period.
+  await wait(150);
   const seat = state().players.find((p) => p.id === bobId);
   assert.ok(seat && !seat.connected, 'seat is kept during the hand');
   assert.equal(state().status, 'playing');

@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.14.1',
+    date: '2026-11-15',
+    changes: [
+      'A player who disconnects now gets the full turn timer before a bot plays for them, just like an idle player.',
+      'On phones, switching to another app no longer leaves you disconnected: the game reconnects as soon as you come back.',
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-11-15',
     changes: [
