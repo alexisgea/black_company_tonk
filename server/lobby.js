@@ -131,8 +131,7 @@ class Lobby {
       }
       this.send(user.conn, {
         t: 'broke',
-        message:
-          'You are out of coins! Watch and chat from the shadows.',
+        message: 'You are out of coins! Watch and chat from the shadows.',
       });
     }
     return false;
