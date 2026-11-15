@@ -45,7 +45,7 @@ function buildRules() {
       'Adding to a spread (also called laying off): you can add one card to either end of any run on the table, including runs of other players. Select the card, then click the run. You cannot add cards to sets.',
     ]),
     section('Winning by emptying your hand', [
-      'If you have no cards left during your turn       (after putting down a spread, adding to a spread, or discarding your last card), you win. Every other player pays you 1.',
+      'If you have no cards left during your turn       (after putting down a spread, adding to a spread, or discarding your last card), you win. Every other player pays you double (2).',
     ]),
     section('Words you may hear', [
       'Spread or meld: a group of cards put down on the table (a set or a run).',
@@ -56,7 +56,7 @@ function buildRules() {
     ]),
     section('Other', [
       'If the draw pile is empty, the discard pile is shuffled to make a new draw pile. The top discard card stays in place.',
-      'The coins in the side panel are what each player has left. A plain win pays 1 bet, TONK or getting caught going down pays 2 bets; the host sets the starting coins and the bet before the game starts. Nobody can pay more than they have. A player who loses their last coin is out of the game: humans keep watching as guests, bots are thrown out.',
+      'The coins in the side panel are what each player has left. A plain win pays 1 bet; TONK, emptying your hand or getting caught going down pays 2 bets; the host sets the starting coins and the bet before the game starts. Nobody can pay more than they have. A player who loses their last coin is out of the game: humans keep watching as guests, bots are thrown out.',
     ]),
     h('h3', null, 'Credits'),
     h(

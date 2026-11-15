@@ -25,8 +25,8 @@ const PUBLIC_LOG_FIELDS = {
   reshuffle: [],
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
-// (a plain win is 1 bet, a Tonk or a failed go-down is 2).
-const DEFAULT_SETTINGS = { startingCoins: 50, bet: 1 };
+// (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2).
+const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5 };
 const SETTING_LIMITS = {
   startingCoins: { min: 10, max: 10000, label: 'Starting coins' },
   bet: { min: 1, max: 1000, label: 'Bet' },
@@ -404,7 +404,7 @@ class Room {
 
   reorder(user, cards) {
     this.requirePlayer(user);
-    if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
+    if (this.status === 'waiting') throw new tonk.GameError('No hand in progress');
     tonk.reorderHand(this.round, user.id, cards);
   }
 

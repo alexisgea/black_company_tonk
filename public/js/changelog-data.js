@@ -1,6 +1,16 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.15.0',
+    date: '2026-11-15',
+    changes: [
+      'Emptying your hand now pays double: every other player pays you 2 bets.',
+      'The default bet is now 5 coins (starting coins stay at 50).',
+      'You can rearrange your cards again once a hand has finished.',
+      'The message for a player who ran out of coins is shorter.',
+    ],
+  },
+  {
     version: '0.14.1',
     date: '2026-11-15',
     changes: [

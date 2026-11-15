@@ -411,7 +411,7 @@ function renderTable() {
     else status = `Waiting for ${nameOf(round.turn)}\u2026`;
   }
 
-  const handEls = (inHand ? me.hand : []).map((c) => handCardEl(c, !over));
+  const handEls = (inHand ? me.hand : []).map((c) => handCardEl(c, true));
 
   const validMeld = selected.length >= 3 && classifyMeld(selected);
   const tonkControls = h(
@@ -590,7 +590,7 @@ function renderResult(round) {
         : `${nameFor(r.actor)} went down with ${r.totals[r.actor]} but was caught and pays double.`;
       break;
     case 'empty':
-      headline = `${nameFor(r.actor)} emptied their hand and sweeps the pot!`;
+      headline = `${nameFor(r.actor)} emptied their hand and everyone pays double!`;
       break;
     default:
       headline = 'Hand aborted: not enough players. Every coin stays where it was.';
@@ -848,7 +848,7 @@ function settingsPanel(isHost) {
     { class: 'panel' },
     h('h3', { style: 'margin-top:0' }, 'Table rules'),
     field('startingCoins', 'coins for each player at the start'),
-    field('bet', 'coins per payoff unit (a plain win pays 1 bet, TONK or getting caught 2)'),
+    field('bet', 'coins per payoff unit (a plain win pays 1 bet, TONK, emptying your hand or getting caught 2)'),
     h('div', { class: 'muted' }, 'Run out of coins and you are out of the game.'),
   );
 }

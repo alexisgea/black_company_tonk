@@ -78,6 +78,12 @@ test('reorderHand: accepts permutations only, any time during the hand, without 
   assert.throws(() => T.reorderHand(r, 'a', 'nope'), T.GameError);
   assert.deepEqual(r.hands.a, before);
   assert.throws(() => T.reorderHand(r, 'zzz', []), T.GameError);
+
+  const over = makeRound({ hands: { a: [c(8, 'C')], b: [c(5, 'C'), c(6, 'C')] }, phase: 'play' });
+  T.applyAction(over, 'a', { type: 'discard', card: c(8, 'C') });
+  assert.ok(over.result);
+  T.reorderHand(over, 'b', [c(6, 'C'), c(5, 'C')]); // still allowed once the hand is over
+  assert.deepEqual(over.hands.b, [c(6, 'C'), c(5, 'C')]);
 });
 
 test('tonk at deal: single tonker wins double, multiple tonkers is a draw', () => {
@@ -235,16 +241,16 @@ test("layoff extends spreads at either end, even other players' ones; sets canno
   assert.equal(round.melds[0].cards.length, 6);
 });
 
-test('emptying the hand by melding or discarding wins; everyone pays 1', () => {
+test('emptying the hand by melding or discarding wins; everyone pays double', () => {
   const melded = makeRound({ hands: { a: [c(8, 'C'), c(8, 'D'), c(8, 'H')], b: [c(5, 'C')], c: [c(6, 'D')] }, phase: 'play' });
   T.applyAction(melded, 'a', { type: 'meld', cards: [c(8, 'C'), c(8, 'D'), c(8, 'H')] });
   assert.equal(melded.result.type, 'empty');
-  assert.deepEqual(melded.result.deltas, { a: 2, b: -1, c: -1 });
+  assert.deepEqual(melded.result.deltas, { a: 4, b: -2, c: -2 });
 
   const discarded = makeRound({ hands: { a: [c(8, 'C')], b: [c(5, 'C')] }, phase: 'play' });
   T.applyAction(discarded, 'a', { type: 'discard', card: c(8, 'C') });
   assert.equal(discarded.result.type, 'empty');
-  assert.deepEqual(discarded.result.deltas, { a: 1, b: -1 });
+  assert.deepEqual(discarded.result.deltas, { a: 2, b: -2 });
   assert.throws(() => T.applyAction(discarded, 'b', { type: 'draw' }), T.GameError);
 });
 

@@ -154,7 +154,7 @@ function advanceTurn(round) {
 
 function winByEmptyHand(round, pid) {
   const deltas = zeroDeltas(round.order);
-  for (const id of round.order) if (id !== pid) pay(deltas, id, pid, 1);
+  for (const id of round.order) if (id !== pid) pay(deltas, id, pid, 2);
   finish(round, { type: 'empty', actor: pid, winners: [pid], deltas });
 }
 
@@ -246,7 +246,7 @@ function applyAction(round, pid, action) {
 
 // Players may reorder their own hand at any time; it never affects the game state.
 function reorderHand(round, pid, cards) {
-  if (round.result || !round.hands[pid]) throw new GameError('No hand to reorder');
+  if (!round.hands[pid]) throw new GameError('No hand to reorder');
   const hand = round.hands[pid];
   if (
     !Array.isArray(cards) ||
