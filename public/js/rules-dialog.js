@@ -23,7 +23,7 @@ function buildRules() {
       h('button', { onClick: closeRules }, 'Close'),
     ),
     section('Goal', [
-      'This game is played by 3 to 5 players.',
+      'This game is played by 2 to 5 players.',
       'Win the hand in one of two ways: have the lowest total when a player goes down, or get rid of all your cards. The losers pay the winner.',
     ]),
     section('Card values', ['Ace = 1. Cards 2\u201310 = the number on the card. Jack, Queen and King = 10 each.']),

@@ -773,7 +773,7 @@ test('a connection is one player: repeated hellos rename them instead of leaking
 test('closing a table forgets members who are disconnected instead of leaking them', () => {
   const lobby = new Lobby({ graceMs: 100000, botDelayMs: 100000 });
   const { humans, gameId } = seatedGame(lobby);
-  lobby.disconnect(humans[2]);
+  lobby.disconnect(humans[1]);
   assert.equal(lobby.users.size, humans.length);
   lobby.closeRoom(lobby.rooms.get(gameId), 'closed');
   assert.equal(lobby.users.size, humans.length - 1);

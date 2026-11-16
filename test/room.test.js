@@ -289,13 +289,13 @@ test('bots cannot be removed mid-hand', () => {
   const room = new Room('R', 'Test', seeded(7));
   const host = human('Ann');
   room.join(host);
-  const bots = [room.addBot(), room.addBot()];
+  const bots = [room.addBot()];
   room.startHand(host);
   assert.equal(room.status, 'playing');
   assert.throws(() => room.removeBot(bots[0].id), /between hands/);
   room.leave(host); // the hand ends (below the minimum), so removing is allowed again
   room.removeBot(bots[0].id);
-  assert.equal(room.players.length, 1);
+  assert.equal(room.players.length, 0);
 });
 
 test('views show only the viewer their own hand', () => {
