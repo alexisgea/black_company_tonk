@@ -802,7 +802,8 @@ test('turn timer: a human who takes too long is replaced by a bot until they com
 test('turn timer: a bot takes over for an away player and plays their turn', async () => {
   const { humans, state } = playingGame({ turnTimeoutMs: 30, botDelayMs: 5 }, 1);
   const bobId = humans[1].last('room').you;
-  await wait(150);
+  // The log only keeps the last round, so look as soon as the bot has moved instead of after a fixed delay.
+  for (let i = 0; i < 1000 && !state().log.some((e) => e.type === 'discard' && e.pid === bobId); i++) await wait(2);
   assert.ok(state().log.some((e) => e.type === 'timeout' && e.pid === bobId));
   assert.ok(
     state().log.some((e) => e.type === 'discard' && e.pid === bobId),
