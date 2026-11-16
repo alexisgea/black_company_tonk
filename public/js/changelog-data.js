@@ -1,6 +1,19 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.19.1',
+    date: '2026-11-16',
+    changes: [
+      'Computer players now have a fixed internal id besides their name, so characters keep their skills if a name changes.',
+      'A computer player now notices a discard that completes a spread even when its hand holds a bigger spread, and a fault in a bot memory can no longer undo a move that was played.',
+    ],
+  },
+  {
+    version: '0.19.0',
+    date: '2026-11-16',
+    changes: ['A table can now be played by just two players (for example one human and one bot).'],
+  },
+  {
     version: '0.18.0',
     date: '2026-11-16',
     changes: [

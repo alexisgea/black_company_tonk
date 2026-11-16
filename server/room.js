@@ -1,7 +1,7 @@
 'use strict';
 const crypto = require('crypto');
 const tonk = require('./tonk');
-const { pickBotName } = require('./botnames');
+const { pickBot } = require('./botnames');
 const { Mind } = require('./botmind');
 const { profileFor } = require('./botprofiles');
 
@@ -162,9 +162,11 @@ class Room {
 
   // Adds a computer player. It has no connection; the lobby plays its turns.
   addBot() {
+    const { id: botId, name } = pickBot(new Set(this.players.map((p) => p.botId)), this.rng);
     const bot = {
-      id: crypto.randomBytes(4).toString('hex'),
-      name: pickBotName(new Set(this.players.map((p) => p.name)), this.rng),
+      id: crypto.randomBytes(4).toString('hex'), // the seat's id at this table; botId says which character it is
+      botId,
+      name,
       isBot: true,
       conn: null,
       room: null,
@@ -189,7 +191,14 @@ class Room {
       pub[field] = Array.isArray(event[field]) ? [...event[field]] : event[field];
     }
     this.log.push(pub);
-    for (const mind of this.minds.values()) mind.observe(pub);
+    // A fault in one bot's memory must not undo the move that was just played (the caller would think it failed).
+    for (const mind of this.minds.values()) {
+      try {
+        mind.observe(pub);
+      } catch (err) {
+        console.error('Bot memory failed:', err);
+      }
+    }
     this.trimLog();
   }
 

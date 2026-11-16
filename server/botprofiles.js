@@ -15,7 +15,8 @@
 //   danger        notices an opponent who is close to emptying their hand
 //
 // `speed` scales the thinking time (below 1 is quick, above 1 is slow). `tag` is how hard the character is meant to be.
-const { BOT_NAMES } = require('./botnames');
+// Profiles are keyed by the bot's id from botnames.js, not by its display name, so a bot can be renamed or translated.
+const { BOT_IDS } = require('./botnames');
 
 const BASE_SKILL = 0.8;
 const SKILL_KEYS = ['memory', 'spotDiscard', 'layoffOthers', 'planAhead', 'denyHelp', 'goDownRisk', 'finishHand', 'danger'];
@@ -25,7 +26,7 @@ const TAGS = ['easy', 'normal', 'hard'];
 // Croaker is written out in full: copy his entry as a template. The others use the base skills (all 0.8) until they
 // are written out the same way. Override single skills like this: skills: { ...BASE, memory: 0.95 }
 const PROFILES = {
-  Croaker: {
+  croaker: {
     tag: 'normal',
     speed: 1,
     skills: {
@@ -39,23 +40,23 @@ const PROFILES = {
       danger: 0.8, //       notices opponents about to empty their hand
     },
   },
-  Goblin: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  'One-Eye': { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Elmo: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Silent: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  'The Lieutenant': { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Otto: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Hagop: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  'Willow Swan': { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Slink: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Gupta: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Puddle: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Corey: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Buzz: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Murgen: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Sleepy: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Raven: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Case: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  goblin: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  'one-eye': { tag: 'normal', speed: 1, skills: { ...BASE } },
+  elmo: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  silent: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  lieutenant: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  otto: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  hagop: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  'willow-swan': { tag: 'normal', speed: 1, skills: { ...BASE } },
+  slink: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  gupta: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  puddle: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  corey: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  buzz: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  murgen: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  sleepy: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  raven: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  case: { tag: 'normal', speed: 1, skills: { ...BASE } },
 };
 
 // Plays for a human who is away or disconnected (they have no character of their own).
@@ -66,7 +67,7 @@ const clamp01 = (x) => Math.min(1, Math.max(0, x));
 // The profile for a seat. `difficulty` scales every skill of every bot by the same factor, so the gaps between
 // characters stay (1 = as written; the table does not expose it yet).
 function profileFor(player, difficulty = 1) {
-  const profile = player.isBot ? (PROFILES[player.name] ?? SUBSTITUTE) : SUBSTITUTE;
+  const profile = player.isBot ? (PROFILES[player.botId] ?? SUBSTITUTE) : SUBSTITUTE;
   const skills = {};
   for (const key of SKILL_KEYS) skills[key] = clamp01((profile.skills[key] ?? BASE_SKILL) * difficulty);
   return { tag: profile.tag, speed: profile.speed, skills };
@@ -75,15 +76,15 @@ function profileFor(player, difficulty = 1) {
 // Problems in the table above (empty when it is fine); a test keeps it honest after manual edits.
 function profileProblems() {
   const problems = [];
-  for (const name of BOT_NAMES) if (!PROFILES[name]) problems.push(`${name} has no profile`);
-  for (const [name, profile] of Object.entries({ ...PROFILES, SUBSTITUTE })) {
-    if (name !== 'SUBSTITUTE' && !BOT_NAMES.includes(name)) problems.push(`${name} is not a bot name`);
-    if (!TAGS.includes(profile.tag)) problems.push(`${name}: unknown tag ${profile.tag}`);
-    if (!(profile.speed > 0)) problems.push(`${name}: speed must be above 0`);
-    for (const key of Object.keys(profile.skills)) if (!SKILL_KEYS.includes(key)) problems.push(`${name}: unknown skill ${key}`);
+  for (const id of BOT_IDS) if (!PROFILES[id]) problems.push(`${id} has no profile`);
+  for (const [id, profile] of Object.entries({ ...PROFILES, SUBSTITUTE })) {
+    if (id !== 'SUBSTITUTE' && !BOT_IDS.includes(id)) problems.push(`${id} is not a bot id`);
+    if (!TAGS.includes(profile.tag)) problems.push(`${id}: unknown tag ${profile.tag}`);
+    if (!(profile.speed > 0)) problems.push(`${id}: speed must be above 0`);
+    for (const key of Object.keys(profile.skills)) if (!SKILL_KEYS.includes(key)) problems.push(`${id}: unknown skill ${key}`);
     for (const key of SKILL_KEYS) {
       const value = profile.skills[key];
-      if (!(value >= 0 && value <= 1)) problems.push(`${name}: ${key} must be from 0 to 1`);
+      if (!(value >= 0 && value <= 1)) problems.push(`${id}: ${key} must be from 0 to 1`);
     }
   }
   return problems;

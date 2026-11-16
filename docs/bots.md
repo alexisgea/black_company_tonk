@@ -7,7 +7,7 @@ This page explains, in plain language, how a computer player decides what to do.
 | `botsmart.js` | The decisions themselves (draw, go down, spread, add to a spread, discard). |
 | `botmind.js` | What a bot remembers about the current hand. |
 | `botrisk.js` | The "is going down a good idea?" estimate. |
-| `botprofiles.js` | The character of each bot: its skills and its speed. **Edit this to make a bot better or worse.** |
+| `botprofiles.js` | The character of each bot (keyed by its id from `botnames.js`): its skills and its speed. **Edit this to make a bot better or worse.** |
 | `bottuning.js` | Every fixed number behind the decisions, with a comment on what it means. **Edit this to change how the logic behaves for every bot.** |
 | `bot.js` | The original, simple bot. It is only used as a safety net (see the end of this page). |
 

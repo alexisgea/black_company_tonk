@@ -15,13 +15,13 @@ Open the page, enter a name, create a table or join one from the list (2-5 playe
 
 ### Bots
 
-The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot in the waiting room or on the scoreboard between hands (with a confirmation). Bots cannot be added or removed during a hand. Bots count toward the 2-5 players, so one human with one bot is enough to play alone. Each bot gets a random name from a fixed list (Croaker, Goblin, One-Eye, ...) followed by a small helmet icon so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). The host (the table's creator, or the next human if they leave) is marked with a ★ next to their name. They run inside the server (see "How the bots play" below). A table is removed when its last human leaves.
+The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot in the waiting room or on the scoreboard between hands (with a confirmation). Bots cannot be added or removed during a hand. Bots count toward the 2-5 players, so one human with one bot is enough to play alone. Each bot gets a random character from a fixed list (Croaker, Goblin, One-Eye, ...), each with a fixed internal id (`croaker`, `goblin`, ...) and a display name, followed by a small helmet icon so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). The host (the table's creator, or the next human if they leave) is marked with a ★ next to their name. They run inside the server (see "How the bots play" below). A table is removed when its last human leaves.
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
 ### How the bots play
 
-Every bot has a character in `server/botprofiles.js` (edit the table to tune one): a **speed** (how long it thinks) and a set of **skills**, each a probability from 0 to 1 that it gets that part of the game right (all start at 0.8). A skill is rolled once per turn for each situation, so a bot that misses something stays blind to it for that turn and gets another chance on the next one. A table-wide difficulty can later scale every skill with the same factor (`profileFor(player, difficulty)`), keeping the gaps between characters.
+Every bot has a character in `server/botprofiles.js`, keyed by the bot's id from `server/botnames.js` (not its name, which can change or be translated); edit the table to tune one: a **speed** (how long it thinks) and a set of **skills**, each a probability from 0 to 1 that it gets that part of the game right (all start at 0.8). A skill is rolled once per turn for each situation, so a bot that misses something stays blind to it for that turn and gets another chance on the next one. A table-wide difficulty can later scale every skill with the same factor (`profileFor(player, difficulty)`), keeping the gaps between characters.
 
 | Skill | What it does |
 | --- | --- |

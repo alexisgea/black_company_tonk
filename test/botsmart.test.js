@@ -7,6 +7,7 @@ const { Mind } = require('../server/botmind');
 const { smartAction, linkOuts, findFinish } = require('../server/botsmart');
 const { estimateGoDown, goDownPayoff } = require('../server/botrisk');
 const { SKILL_KEYS, profileFor, profileProblems } = require('../server/botprofiles');
+const { BOTS } = require('../server/botnames');
 
 const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 const skills = (overrides = {}) => ({ ...Object.fromEntries(SKILL_KEYS.map((k) => [k, 0])), ...overrides });
@@ -306,12 +307,86 @@ test('smart bots play whole games legally and their memory matches the real tabl
   assert.ok(goDowns > 0, 'bots go down');
 });
 
-test('every bot name has a valid profile, and difficulty scales all skills together', () => {
+test('every bot has a valid profile by id, and difficulty scales all skills together', () => {
   assert.deepEqual(profileProblems(), []);
-  const bot = { isBot: true, name: 'Croaker' };
+  const bot = { isBot: true, botId: 'croaker', name: 'Croaker' };
   const normal = profileFor(bot);
   const easier = profileFor(bot, 0.5);
   for (const key of SKILL_KEYS) assert.equal(easier.skills[key], normal.skills[key] / 2);
   assert.ok(Object.values(profileFor(bot, 3).skills).every((v) => v <= 1));
-  assert.equal(profileFor({ isBot: false, name: 'Croaker' }).tag, 'normal', 'a human seat gets the stand-in');
+  assert.equal(profileFor({ isBot: false, botId: 'croaker', name: 'Croaker' }).tag, 'normal', 'a human seat gets the stand-in');
+  assert.equal(profileFor({ ...bot, name: 'Renamed' }).speed, normal.speed, 'the profile follows the id, not the name');
+});
+
+test('a bot added to a room has a unique id for its character, and the room uses it for its profile', () => {
+  const room = new Room('R', 'Test', seeded(4));
+  room.join({ id: 'h', name: 'Ann', conn: {}, room: null });
+  const bots = [room.addBot(), room.addBot(), room.addBot()];
+  assert.equal(new Set(bots.map((b) => b.botId)).size, 3);
+  for (const bot of bots) assert.ok(BOTS.some((b) => b.id === bot.botId && b.name === bot.name));
+});
+
+test('taking a discard that completes a spread is noticed even when the hand has a bigger spread', () => {
+  const hand = [c(7, 'C'), c(7, 'D'), c(7, 'H'), c(5, 'S'), c(6, 'S')];
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') }, { spotDiscard: 1 })).type, 'takeDiscard');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') })).type, 'draw', 'it does not notice');
+});
+
+test('memory follows a seat change, and forgets a player who leaves', () => {
+  const mind = new Mind('a', skills({ memory: 1 }), seeded(1));
+  mind.start({ order: ['a', 'b', 'c'], discardTop: c(7, 'H') });
+  mind.observe({ type: 'takeDiscard', pid: 'b', card: c(7, 'H') });
+  mind.observe({ type: 'discard', pid: 'b', card: c(9, 'C') });
+  mind.observe({ type: 'draw', pid: 'c' });
+  mind.rename('b', 'b2');
+  mind.rename('a', 'a2');
+  assert.equal(mind.id, 'a2');
+  assert.deepEqual(mind.order, ['a2', 'b2', 'c']);
+  assert.deepEqual(mind.heldBy('b2'), [c(7, 'H')]);
+  assert.deepEqual(mind.heldBy('b'), []);
+  assert.deepEqual(mind.evidenceAgainst('b2'), [c(9, 'C')]);
+  mind.observe({ type: 'leave', pid: 'b2' });
+  assert.deepEqual(mind.heldBy('b2'), []);
+  assert.deepEqual(mind.order, ['a2', 'c']);
+  mind.observe({ type: 'kick', pid: 'c' });
+  assert.deepEqual(mind.order, ['a2']);
+});
+
+test('a guest taking over a bot keeps its memory, under the new id', () => {
+  const room = new Room('R', 'Test', seeded(6));
+  const host = { id: 'h', name: 'Ann', conn: {}, room: null };
+  const guest = { id: 'g', name: 'Gus', conn: {}, room: null };
+  room.join(host);
+  const bot = room.addBot();
+  room.addBot();
+  room.watch(guest);
+  room.startHand(host);
+  room.takeSeat(guest, bot.id);
+  assert.equal(room.minds.has(bot.id), false);
+  assert.equal(room.minds.get('g').id, 'g');
+  assert.ok(room.minds.get('h').order.includes('g'));
+  assert.equal(room.minds.get('h').order.includes(bot.id), false);
+});
+
+test('a fault in a bot memory does not undo the move that was played', () => {
+  const room = new Room('R', 'Test', seeded(8));
+  const host = { id: 'h', name: 'Ann', conn: {}, room: null };
+  room.join(host);
+  room.addBot();
+  room.startHand(host);
+  for (const p of room.pendingTonkers) room.declareTonk(p);
+  const user = room.players.find((p) => p.id === room.round.order[room.round.turn]);
+  const mind = room.mindOf(user);
+  mind.observe = () => {
+    throw new Error('boom');
+  };
+  const quiet = console.error;
+  console.error = () => {};
+  try {
+    room.act(user, { type: 'draw' });
+  } finally {
+    console.error = quiet;
+  }
+  assert.equal(room.round.phase, 'play');
+  assert.equal(room.log.at(-1).type, 'draw');
 });

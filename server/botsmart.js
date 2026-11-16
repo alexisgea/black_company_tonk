@@ -139,11 +139,14 @@ function shouldGoDown(sight) {
   return worth >= chaseWorth(sight);
 }
 
+// Would taking `card` let the hand put down some spread that uses it? (Not only the biggest spread in the hand.)
+const completesSpread = (hand, card) => [...subsets([...hand, card])].some((group) => group.includes(card) && classifyMeld(group));
+
 function wantsDiscard(sight, top) {
   const { hand, mind } = sight;
   if (!mind.decide('spotDiscard', 'top')) return false;
   if (findLayoff([top], noticedMelds(sight))) return true;
-  if (findMeld([...hand, top])?.includes(top)) return true;
+  if (completesSpread(hand, top)) return true;
   return cardValue(top) <= T.POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= T.POTENTIAL_MIN_OUTS;
 }
 
