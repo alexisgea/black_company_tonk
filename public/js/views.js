@@ -752,7 +752,8 @@ function passwordPrompt() {
   );
 }
 
-// Invite friends with a link; the host can also lock the table with a password. The password rides in the link's
+// Invite friends with a link; the host can also lock the table by setting a password (applied on Enter or when the
+// field loses focus; clearing it unlocks). The password rides in the link's
 // hash (never sent to the server) so invited friends get straight in.
 function invitePanel(isHost) {
   const room = state.room;
@@ -797,13 +798,12 @@ function invitePanel(isHost) {
             id: 'table-lock',
             type: 'text',
             maxLength: 32,
-            placeholder: 'Password',
+            placeholder: 'Set a password to lock the table',
             value: room.password ?? '',
             'data-sync': true,
             class: 'invite-link',
-            onKeydown: (e) => e.key === 'Enter' && lock(),
+            onChange: lock,
           }),
-          h('button', { class: 'secondary', onClick: lock }, room.locked ? 'Change password' : 'Lock table'),
           room.locked
             ? h(
                 'button',

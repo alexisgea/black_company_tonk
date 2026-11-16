@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.16.1',
+    date: '2026-11-16',
+    changes: ['The "Lock table" button is gone: the host just types a password to lock the table (clear it to unlock).'],
+  },
+  {
     version: '0.16.0',
     date: '2026-11-16',
     changes: [
