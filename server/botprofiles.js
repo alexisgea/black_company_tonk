@@ -17,35 +17,299 @@
 // `speed` scales the thinking time (below 1 is quick, above 1 is slow). `tag` is how hard the character is meant to be.
 const { BOT_NAMES } = require('./botnames');
 
-const BASE_SKILL = 0.8;
+const BASE_SKILL = 0.8; // used only for a skill that is missing from a profile
 const SKILL_KEYS = ['memory', 'spotDiscard', 'layoffOthers', 'planAhead', 'denyHelp', 'goDownRisk', 'finishHand', 'danger'];
-const BASE = Object.fromEntries(SKILL_KEYS.map((key) => [key, BASE_SKILL]));
 const TAGS = ['easy', 'normal', 'hard'];
 
-// Override single skills like this: { tag: 'hard', speed: 0.8, skills: { ...BASE, memory: 0.95 } }
+// TEMPLATE: copy this block to start a new character (or just edit the values of an existing one below).
+// Every skill is a probability from 0 (never) to 1 (always).
+//
+//   tag:   easy | normal | hard (a label only, the skills decide how well it plays)
+//   speed: thinking time factor, 0.5 = twice as fast as usual, 2 = twice as slow
+//   {
+//     tag: 'normal',
+//     speed: 1,
+//     skills: {
+//       memory: 0.8, //       remembers discards older than the last full round
+//       spotDiscard: 0.8, //  notices that the top discard helps
+//       layoffOthers: 0.8, // notices that a card fits another player's spread
+//       planAhead: 0.8, //    keeps cards that are part of a promising pair or run
+//       denyHelp: 0.8, //     avoids discarding a card that helps the opponents
+//       goDownRisk: 0.8, //   calculates the risk of going down (low: gut feeling)
+//       finishHand: 0.8, //   finds a way to empty its hand, and chases it when close
+//       danger: 0.8, //       notices opponents about to empty their hand
+//     },
+//   }
 const PROFILES = {
-  Croaker: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Goblin: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  'One-Eye': { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Elmo: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Silent: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  'The Lieutenant': { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Otto: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Hagop: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  'Willow Swan': { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Slink: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Gupta: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Puddle: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Corey: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Buzz: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Murgen: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Sleepy: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Raven: { tag: 'normal', speed: 1, skills: { ...BASE } },
-  Case: { tag: 'normal', speed: 1, skills: { ...BASE } },
+  Croaker: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Goblin: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  'One-Eye': {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Elmo: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Silent: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  'The Lieutenant': {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Otto: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Hagop: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  'Willow Swan': {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Slink: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Gupta: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Puddle: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Corey: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Buzz: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Murgen: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Sleepy: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Raven: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
+  Case: {
+    tag: 'normal',
+    speed: 1,
+    skills: {
+      memory: 0.8,
+      spotDiscard: 0.8,
+      layoffOthers: 0.8,
+      planAhead: 0.8,
+      denyHelp: 0.8,
+      goDownRisk: 0.8,
+      finishHand: 0.8,
+      danger: 0.8,
+    },
+  },
 };
 
 // Plays for a human who is away or disconnected (they have no character of their own).
-const SUBSTITUTE = { tag: 'normal', speed: 1, skills: { ...BASE } };
+const SUBSTITUTE = {
+  tag: 'normal',
+  speed: 1,
+  skills: {
+    memory: 0.8,
+    spotDiscard: 0.8,
+    layoffOthers: 0.8,
+    planAhead: 0.8,
+    denyHelp: 0.8,
+    goDownRisk: 0.8,
+    finishHand: 0.8,
+    danger: 0.8,
+  },
+};
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
@@ -75,4 +339,4 @@ function profileProblems() {
   return problems;
 }
 
-module.exports = { PROFILES, SKILL_KEYS, BASE, profileFor, profileProblems };
+module.exports = { PROFILES, SKILL_KEYS, profileFor, profileProblems };
