@@ -1,81 +1,39 @@
 // Rules popup: built once, lives outside #app so game updates never reset it.
+// The text is in the locale files (keys "rules.*"): each section has a title and a list of paragraphs.
 import { h } from './dom.js';
+import { t, tList } from './i18n.js';
 
 const rulesEl = document.getElementById('rules');
 
+const SECTIONS = ['goal', 'values', 'deal', 'turn', 'spreads', 'emptyHand', 'words', 'other'];
+
 function buildRules() {
-  const section = (title, items) => [
-    h('h3', null, title),
+  const section = (name) => [
+    h('h3', null, t(`rules.${name}.title`)),
     h(
       'ul',
       null,
-      items.map((t) => h('li', null, t)),
+      tList(`rules.${name}.items`).map((item) => h('li', null, item)),
     ),
   ];
+  const link = (href, label) => h('li', null, h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, label));
   const dialog = h(
     'div',
-    { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Rules' },
+    { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('rules.button') },
     h(
       'div',
       { class: 'dialog-head' },
-      h('h2', null, 'Tonk rules'),
+      h('h2', null, t('rules.title')),
       h('span', { class: 'spacer' }),
-      h('button', { onClick: closeRules }, 'Close'),
+      h('button', { onClick: closeRules }, t('common.close')),
     ),
-    section('Goal', [
-      'This game is played by 2 to 5 players.',
-      'Win the hand in one of two ways: have the lowest total when a player goes down, or get rid of all your cards. The losers pay the winner.',
-    ]),
-    section('Card values', ['Ace = 1. Cards 2\u201310 = the number on the card. Jack, Queen and King = 10 each.']),
-    section('The deal', [
-      'Each player gets 5 cards. One card is turned face up to start the discard pile. The other cards form the draw pile. The player to the left of the dealer plays first.',
-      'TONK: right after the deal, if your hand total is 15 or less, or 49 or more, you must call it: press the TONK! button to put your cards down (it is pressed for you if you take too long). Then you win immediately and every other player pays you double (2). If two or more players have Tonk, nobody wins and the cards are dealt again. You can only get Tonk right after the deal, never later in the hand.',
-    ]),
-    section('Your turn \u2013 choose one option', [
-      'Go down (only at the start of your turn): you show your hand and say its total. Everyone\u2019s totals are compared.',
-      'If your total is lower than every other player\u2019s total, you win. Each other player pays you 1.',
-      'If any other player has the same total as you or a lower one, you lose. A tie is a loss for you, not a win. You pay 2 to each player whose total is the same as yours or lower. Each player with a higher total pays 1 to the player with the lowest total.',
-      'Normal play: take the top card of the draw pile or the top card of the discard pile. Then you may put down spreads (see below) and add cards to spreads that are already on the table. At the end of your turn, discard one card.',
-    ]),
-    section('Putting cards down', [
-      'A spread (also called a meld) is a group of cards you put down on the table. There are two kinds of spread: sets and runs.',
-      'Set: 3 or 4 cards with the same number or letter (for example 8-8-8).',
-      'Run: 3 or more cards of the same suit in number order (for example 4-5-6 of hearts). Ace is only low: A-2-3 is allowed, but Q-K-A is not. You cannot continue from King to Ace.',
-      'To put down a spread, select the cards in your hand and press \u201cSpread\u201d. Cards you put down do not count in your hand total.',
-      'Adding to a spread (also called laying off): you can add one card to either end of any run on the table, including runs of other players. Select the card, then click the run. You cannot add cards to sets.',
-    ]),
-    section('Winning by emptying your hand', [
-      'If you have no cards left during your turn       (after putting down a spread, adding to a spread, or discarding your last card), you win. Every other player pays you double (2).',
-    ]),
-    section('Words you may hear', [
-      'Spread or meld: a group of cards put down on the table (a set or a run).',
-      'Add to a spread, lay off or hit: put one card from your hand on a run that is already on the table.',
-      'Go down, drop or knock: end the hand by showing your cards, hoping to have the lowest total.',
-      'Draw pile or stock: the face-down cards you draw from. Discard pile: the face-up cards you throw away.',
-      'Caught: you went down but another player had the same total or a lower one, so you pay double.',
-    ]),
-    section('Other', [
-      'If the draw pile is empty, the discard pile is shuffled to make a new draw pile. The top discard card stays in place.',
-      'The coins in the side panel are what each player has left. A plain win pays 1 bet; TONK, emptying your hand or getting caught going down pays 2 bets; the host sets the starting coins and the bet before the game starts. Nobody can pay more than they have. A player who loses their last coin is out of the game: humans keep watching as guests, bots are thrown out.',
-    ]),
-    h('h3', null, 'Credits'),
+    SECTIONS.map(section),
+    h('h3', null, t('rules.credits.title')),
     h(
       'ul',
       null,
-      h(
-        'li',
-        null,
-        h('a', { href: 'https://www.bsfs.org/bsfstonk.htm', target: '_blank', rel: 'noopener noreferrer' }, 'BSFS \u2013 Tonk'),
-      ),
-      h(
-        'li',
-        null,
-        h(
-          'a',
-          { href: 'http://www.gamecabinet.com/rules/Tonk.html', target: '_blank', rel: 'noopener noreferrer' },
-          'Game Cabinet \u2013 Tonk',
-        ),
-      ),
+      link('https://www.bsfs.org/bsfstonk.htm', t('rules.credits.bsfs')),
+      link('http://www.gamecabinet.com/rules/Tonk.html', t('rules.credits.gamecabinet')),
     ),
   );
   rulesEl.replaceChildren(dialog);
@@ -92,5 +50,5 @@ function closeRules() {
   rulesEl.hidden = true;
 }
 
-export const rulesButton = () => h('button', { class: 'secondary', onClick: openRules }, 'Rules');
+export const rulesButton = () => h('button', { class: 'secondary', onClick: openRules }, t('rules.button'));
 buildRules();

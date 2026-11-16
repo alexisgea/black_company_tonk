@@ -2,6 +2,7 @@
 // Pure rules engine for Tonk (Black Company). No I/O, no networking.
 // Card ids and the set/run rules live in ../shared/cards.js (also used by the browser).
 const { rankOf, suitOf, cardValue, handTotal, isCard, classifyMeld, layoffEnd } = require('../shared/cards');
+const { text } = require('./i18n');
 
 const HAND_SIZE = 5;
 const TONK_LOW = 15; // total <= 15 is Tonk
@@ -9,7 +10,15 @@ const TONK_HIGH = 49; // total >= 49 is Tonk
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 
-class GameError extends Error {}
+// An illegal move or request. `code` names the English message under "err." in public/locales/en.json; the
+// client translates it from the code and `params`, and shows `message` (English) when it does not know the code.
+class GameError extends Error {
+  constructor(code, params) {
+    super(text(`err.${code}`, params));
+    this.code = code;
+    if (params) this.params = params;
+  }
+}
 
 function shuffle(arr, rng = Math.random) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -62,7 +71,7 @@ function resolveTonk(round) {
 // `deferTonk` is set: then the round waits in the 'tonk' phase until every tonker calls declareTonk.
 function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false } = {}) {
   if (playerIds.length < MIN_PLAYERS || playerIds.length > MAX_PLAYERS) {
-    throw new GameError(`Tonk needs ${MIN_PLAYERS}-${MAX_PLAYERS} players`);
+    throw new GameError('playerCount', { min: MIN_PLAYERS, max: MAX_PLAYERS });
   }
   const deck = newDeck(rng);
   const hands = {};
@@ -98,9 +107,9 @@ function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false
 
 // A player with Tonk puts their cards down. Once every tonker has, the hand is resolved.
 function declareTonk(round, pid) {
-  if (round.result || round.phase !== 'tonk') throw new GameError('Nobody needs to declare TONK right now');
-  if (!round.tonkers.includes(pid)) throw new GameError('You do not have TONK');
-  if (round.declared.includes(pid)) throw new GameError('You already declared TONK');
+  if (round.result || round.phase !== 'tonk') throw new GameError('noTonkNeeded');
+  if (!round.tonkers.includes(pid)) throw new GameError('notTonker');
+  if (round.declared.includes(pid)) throw new GameError('alreadyDeclared');
   round.declared.push(pid);
   if (round.declared.length === round.tonkers.length) resolveTonk(round);
 }
@@ -160,31 +169,31 @@ function winByEmptyHand(round, pid) {
 
 function takeFromHand(round, pid, cards) {
   const hand = round.hands[pid];
-  if (!cards.every(isCard) || new Set(cards).size !== cards.length) throw new GameError('Invalid cards');
-  if (!cards.every((c) => hand.includes(c))) throw new GameError('You do not hold those cards');
+  if (!cards.every(isCard) || new Set(cards).size !== cards.length) throw new GameError('invalidCards');
+  if (!cards.every((c) => hand.includes(c))) throw new GameError('cardsNotHeld');
   round.hands[pid] = hand.filter((c) => !cards.includes(c));
 }
 
 // Applies one player action. Returns an array of event objects describing what happened.
 // Throws GameError for anything illegal, leaving the round unchanged.
 function applyAction(round, pid, action) {
-  if (round.result) throw new GameError('This hand is over');
-  if (round.phase === 'tonk') throw new GameError('Waiting for TONK! to be declared');
-  if (round.order[round.turn] !== pid) throw new GameError('Not your turn');
-  if (!action || typeof action !== 'object') throw new GameError('Bad action');
+  if (round.result) throw new GameError('handOver');
+  if (round.phase === 'tonk') throw new GameError('waitingForTonk');
+  if (round.order[round.turn] !== pid) throw new GameError('notYourTurn');
+  if (!action || typeof action !== 'object') throw new GameError('badAction');
   const events = [];
 
   switch (action.type) {
     case 'goDown': {
-      if (round.phase !== 'draw') throw new GameError('You can only go down at the start of your turn');
+      if (round.phase !== 'draw') throw new GameError('goDownTiming');
       events.push({ type: 'goDown', pid, total: handTotal(round.hands[pid]) });
       goDown(round, pid);
       break;
     }
     case 'draw': {
-      if (round.phase !== 'draw') throw new GameError('You already took a card');
+      if (round.phase !== 'draw') throw new GameError('alreadyDrew');
       const reshuffled = refillDeck(round);
-      if (round.deck.length === 0) throw new GameError('The draw pile is empty; take the discard instead');
+      if (round.deck.length === 0) throw new GameError('drawPileEmpty');
       round.hands[pid].push(round.deck.pop());
       round.phase = 'play';
       if (reshuffled) events.push({ type: 'reshuffle' });
@@ -192,8 +201,8 @@ function applyAction(round, pid, action) {
       break;
     }
     case 'takeDiscard': {
-      if (round.phase !== 'draw') throw new GameError('You already took a card');
-      if (round.discard.length === 0) throw new GameError('The discard pile is empty');
+      if (round.phase !== 'draw') throw new GameError('alreadyDrew');
+      if (round.discard.length === 0) throw new GameError('discardPileEmpty');
       const card = round.discard.pop();
       round.hands[pid].push(card);
       round.phase = 'play';
@@ -201,11 +210,11 @@ function applyAction(round, pid, action) {
       break;
     }
     case 'meld': {
-      if (round.phase !== 'play') throw new GameError('Take a card first');
+      if (round.phase !== 'play') throw new GameError('drawFirst');
       const cards = action.cards;
-      if (!Array.isArray(cards)) throw new GameError('Invalid cards');
+      if (!Array.isArray(cards)) throw new GameError('invalidCards');
       const meld = classifyMeld(cards);
-      if (!meld) throw new GameError('Not a valid set or run');
+      if (!meld) throw new GameError('invalidMeld');
       takeFromHand(round, pid, cards);
       round.melds.push({ id: round.nextMeldId++, owner: pid, ...meld });
       events.push({ type: 'meld', pid, kind: meld.type, cards: meld.cards });
@@ -213,13 +222,13 @@ function applyAction(round, pid, action) {
       break;
     }
     case 'layoff': {
-      if (round.phase !== 'play') throw new GameError('Take a card first');
+      if (round.phase !== 'play') throw new GameError('drawFirst');
       const meld = round.melds.find((m) => m.id === action.meldId);
-      if (!meld) throw new GameError('No such spread');
+      if (!meld) throw new GameError('noSuchMeld');
       const card = action.card;
-      if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('You do not hold that card');
+      if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('cardNotHeld');
       const end = layoffEnd(meld, card);
-      if (!end) throw new GameError('That card does not extend this spread');
+      if (!end) throw new GameError('layoffMismatch');
       takeFromHand(round, pid, [card]);
       if (end === 'low') meld.cards.unshift(card);
       else meld.cards.push(card);
@@ -228,9 +237,9 @@ function applyAction(round, pid, action) {
       break;
     }
     case 'discard': {
-      if (round.phase !== 'play') throw new GameError('Take a card first');
+      if (round.phase !== 'play') throw new GameError('drawFirst');
       const card = action.card;
-      if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('You do not hold that card');
+      if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('cardNotHeld');
       takeFromHand(round, pid, [card]);
       round.discard.push(card);
       events.push({ type: 'discard', pid, card });
@@ -239,14 +248,14 @@ function applyAction(round, pid, action) {
       break;
     }
     default:
-      throw new GameError('Unknown action');
+      throw new GameError('unknownAction');
   }
   return events;
 }
 
 // Players may reorder their own hand at any time; it never affects the game state.
 function reorderHand(round, pid, cards) {
-  if (!round.hands[pid]) throw new GameError('No hand to reorder');
+  if (!round.hands[pid]) throw new GameError('noHandToReorder');
   const hand = round.hands[pid];
   if (
     !Array.isArray(cards) ||
@@ -254,7 +263,7 @@ function reorderHand(round, pid, cards) {
     new Set(cards).size !== cards.length ||
     !cards.every((c) => hand.includes(c))
   ) {
-    throw new GameError('Invalid card order');
+    throw new GameError('invalidOrder');
   }
   round.hands[pid] = [...cards];
 }

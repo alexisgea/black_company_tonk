@@ -1,5 +1,5 @@
 import { h, patchChildren } from './dom.js';
-import { state, toast, nameOf, isSpectator } from './state.js';
+import { state, toast, nameOf, isSpectator, playerName, tableName } from './state.js';
 import { send, sendAction, sendHello, connect, enterTable } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
@@ -11,17 +11,20 @@ import { fullscreenButton } from './fullscreen.js';
 import { changelogButton } from './changelog-dialog.js';
 import { drag, handCardEl } from './hand.js';
 import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
+import { t, tNodes, botName } from './i18n.js';
 
 const app = document.getElementById('app');
 const chatSlot = () => h('div', { 'data-persist': 'chat' });
 const secondsLeft = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 const URGENT_SECONDS = 15;
+const FEEDBACK_EMAIL = 'alexis@geaxle.com';
+const title = () => h('h1', null, t('app.title'));
 
 const marksOf = (id) => ({
   bot: !!state.room.players.find((p) => p.id === id)?.isBot,
   host: state.room.hostId === id,
 });
-const playerTag = (p) => nameTag(p.name, { bot: p.isBot, host: p.id === state.room.hostId });
+const playerTag = (p) => nameTag(playerName(p), { bot: p.isBot, host: p.id === state.room.hostId });
 
 export function render() {
   if (drag.active) {
@@ -65,11 +68,11 @@ function screen() {
     return h(
       'div',
       { class: 'screen' },
-      h('h1', null, 'Black Company Tonk'),
+      h('h1', null, t('app.title')),
       h(
         'div',
         { class: 'panel' },
-        h('p', null, 'This game was opened in another tab or window, so this one was disconnected.'),
+        h('p', null, t('connection.replaced')),
         h(
           'button',
           {
@@ -78,7 +81,7 @@ function screen() {
               connect();
             },
           },
-          'Use this tab',
+          t('connection.useThisTab'),
         ),
       ),
     );
@@ -87,7 +90,7 @@ function screen() {
     return h(
       'div',
       { class: 'screen' },
-      h('p', null, 'Connecting to server\u2026'),
+      h('p', null, t('connection.connecting')),
       state.retryAt ? h('p', { class: 'muted retry-timer' }, retryText()) : null,
     );
   }
@@ -101,14 +104,7 @@ function credits() {
     'div',
     { class: 'footer' },
     footerActions(),
-    h(
-      'p',
-      { class: 'credits muted' },
-      'Thanks to Glen Cook for his Black Company series. Based on the rules from John P. Speno and the Baltimore Science Fiction Society. ' +
-        'Programming by Claude Sonnet 5.5 and Gemini with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: ',
-      h('a', { href: 'mailto:alexis@geaxle.com' }, 'alexis@geaxle.com'),
-      '.',
-    ),
+    h('p', { class: 'credits muted' }, tNodes('credits.text', { email: h('a', { href: `mailto:${FEEDBACK_EMAIL}` }, FEEDBACK_EMAIL) })),
   );
 }
 
@@ -122,7 +118,7 @@ function renderName() {
     id: 'name-input',
     type: 'text',
     maxLength: 20,
-    placeholder: 'Your name',
+    placeholder: t('name.placeholder'),
     value: state.name,
     autofocus: true,
     onKeydown: (e) => e.key === 'Enter' && go(e.currentTarget),
@@ -130,15 +126,15 @@ function renderName() {
   // `field` is the live input: the patcher may keep an older element instead of the one built here.
   const go = (field) => {
     const name = field.value.trim();
-    if (!name) return toast('Please enter a name');
+    if (!name) return toast(t('name.required'));
     state.name = name;
     sendHello(name);
   };
   return h(
     'div',
     { class: 'screen' },
-    h('h1', null, 'Black Company Tonk'),
-    h('div', { class: 'panel row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, 'Play')),
+    title(),
+    h('div', { class: 'panel row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, t('name.play'))),
     credits(),
   );
 }
@@ -152,26 +148,30 @@ function renderLobby() {
           h(
             'li',
             null,
-            h('strong', null, g.locked ? `\u{1F512} ${g.name}` : g.name),
-            h('span', { class: 'muted' }, `${g.players.join(', ')} (${g.players.length}/${g.max})`),
-            g.spectators ? h('span', { class: 'muted' }, `\u2022 ${g.spectators} watching`) : null,
-            h('span', { class: 'muted' }, `\u2022 ${g.startingCoins} coins, bet ${g.bet}`),
+            h('strong', null, g.locked ? `\u{1F512} ${tableName(g)}` : tableName(g)),
+            h(
+              'span',
+              { class: 'muted' },
+              `${g.players.map((name, i) => (g.bots?.[i] ? botName(g.bots[i], name) : name)).join(', ')} (${g.players.length}/${g.max})`,
+            ),
+            g.spectators ? h('span', { class: 'muted' }, `\u2022 ${t('lobby.watching', { count: g.spectators })}`) : null,
+            h('span', { class: 'muted' }, `\u2022 ${t('lobby.stakes', { coins: g.startingCoins, bet: g.bet })}`),
             h('span', { class: 'spacer' }),
-            h('span', { class: 'muted' }, g.status === 'playing' ? 'in progress' : 'open'),
-            h('button', { disabled: !g.joinable, onClick: () => enterTable(g, 'join') }, 'Join'),
-            h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => enterTable(g, 'watch') }, 'Watch'),
+            h('span', { class: 'muted' }, g.status === 'playing' ? t('lobby.inProgress') : t('lobby.open')),
+            h('button', { disabled: !g.joinable, onClick: () => enterTable(g, 'join') }, t('common.join')),
+            h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => enterTable(g, 'watch') }, t('common.watch')),
           ),
         ),
       )
-    : h('p', { class: 'muted' }, 'No tables yet. Create one!');
+    : h('p', { class: 'muted' }, t('lobby.noTables'));
   return h(
     'div',
     { class: 'screen' },
-    h('h1', null, 'Black Company Tonk'),
+    title(),
     h(
       'div',
       { class: 'panel row' },
-      h('span', null, 'Playing as ', h('strong', null, state.name)),
+      h('span', null, tNodes('lobby.playingAs', { name: h('strong', null, state.name) })),
       h('span', { class: 'spacer' }),
       h(
         'button',
@@ -182,18 +182,18 @@ function renderLobby() {
             render();
           },
         },
-        'Change name',
+        t('lobby.changeName'),
       ),
       rulesButton(),
       changelogButton(),
-      h('button', { onClick: () => send({ t: 'createGame' }) }, 'Create table'),
+      h('button', { onClick: () => send({ t: 'createGame' }) }, t('lobby.createTable')),
     ),
     passwordPrompt(),
     h(
       'div',
       { class: 'panel' },
-      h('h3', { style: 'margin-top:0' }, 'Open tables'),
-      h('p', { class: 'muted' }, `${state.online} ${state.online === 1 ? 'player' : 'players'} online`),
+      h('h3', { style: 'margin-top:0' }, t('lobby.openTables')),
+      h('p', { class: 'muted' }, t('lobby.online', { count: state.online })),
       list,
     ),
     credits(),
@@ -202,7 +202,7 @@ function renderLobby() {
 
 function renderRoom() {
   const room = state.room;
-  const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, 'Leave table');
+  const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, t('room.leave'));
   if (room.status === 'waiting') {
     const isHost = room.hostId === state.you;
     const spectating = isSpectator();
@@ -210,11 +210,11 @@ function renderRoom() {
     return h(
       'div',
       { class: 'screen' },
-      h('h1', null, room.name),
+      h('h1', null, tableName(room)),
       h(
         'div',
         { class: 'panel' },
-        h('h3', { style: 'margin-top:0' }, 'Players'),
+        h('h3', { style: 'margin-top:0' }, t('room.players')),
         room.players.map((p) =>
           h(
             'div',
@@ -223,12 +223,12 @@ function renderRoom() {
               'span',
               null,
               playerTag(p),
-              p.id === state.you ? ' (you)' : '',
-              p.connected ? '' : ' \u2013 disconnected',
-              p.away ? ' \u2013 bot playing' : '',
+              p.id === state.you ? ` ${t('player.you')}` : '',
+              p.connected ? '' : ` \u2013 ${t('player.disconnected')}`,
+              p.away ? ` \u2013 ${t('player.botPlaying')}` : '',
             ),
             isHost && p.isBot
-              ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, 'Remove')
+              ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, t('room.remove'))
               : kickControls(p),
             takeOverButton(p),
           ),
@@ -241,15 +241,11 @@ function renderRoom() {
       h(
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
-        spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, 'Start game'),
+        spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, t('room.startGame')),
         addBotButton(),
         leave,
         rulesButton(),
-        h(
-          'span',
-          { class: 'muted' },
-          isHost ? (canStart ? '' : 'Waiting for at least one more player\u2026') : 'Waiting for the host to start\u2026',
-        ),
+        h('span', { class: 'muted' }, isHost ? (canStart ? '' : t('room.needMorePlayers')) : t('room.waitingForHost')),
       ),
       chatSlot(),
       footerActions(),
@@ -264,8 +260,8 @@ function awayNotice() {
   return h(
     'div',
     { class: 'away-notice' },
-    h('span', null, 'You took too long, so a bot is playing your turns.'),
-    h('button', { onClick: () => send({ t: 'resume' }) }, 'Take back control'),
+    h('span', null, t('room.awayNotice')),
+    h('button', { onClick: () => send({ t: 'resume' }) }, t('room.takeBackControl')),
   );
 }
 
@@ -276,7 +272,7 @@ function pauseButton() {
   return h(
     'button',
     { class: 'secondary pause-btn', onClick: () => send({ t: room.paused ? 'unpause' : 'pause' }) },
-    room.paused ? 'Resume game' : 'Pause game',
+    room.paused ? t('room.resumeGame') : t('room.pauseGame'),
   );
 }
 
@@ -294,8 +290,8 @@ function renderSide(leaveBtn) {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'row' }, h('strong', null, room.name), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
-      h('div', { class: 'muted' }, `Hand #${room.handNo}`, room.paused ? ' \u2013 paused' : ''),
+      h('div', { class: 'row' }, h('strong', null, tableName(room)), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
+      h('div', { class: 'muted' }, t('room.handNumber', { number: room.handNo }), room.paused ? ` \u2013 ${t('room.paused')}` : ''),
       pauseButton(),
     ),
     h('div', { class: 'panel' }, invitePanel(room.hostId === state.you)),
@@ -305,15 +301,20 @@ function renderSide(leaveBtn) {
       h(
         'div',
         { class: 'row' },
-        h('strong', null, 'Coins'),
+        h('strong', null, t('room.coins')),
         h('span', { class: 'spacer' }),
-        h('span', { class: 'muted' }, `Bet: ${room.settings.bet}`),
+        h('span', { class: 'muted' }, t('room.bet', { bet: room.settings.bet })),
       ),
       room.players.map((p) =>
         h(
           'div',
           { class: 'score-row' },
-          h('span', { class: 'score-name' }, playerTag(p), (p.connected ? '' : ' (offline)') + (p.away ? ' (bot playing)' : '')),
+          h(
+            'span',
+            { class: 'score-name' },
+            playerTag(p),
+            (p.connected ? '' : ` (${t('player.offline')})`) + (p.away ? ` (${t('player.botPlaying')})` : ''),
+          ),
           h('span', { class: 'score-actions' }, kickControls(p), takeOverButton(p)),
           h('span', { class: 'score-value' }, String(p.coins)),
         ),
@@ -321,7 +322,7 @@ function renderSide(leaveBtn) {
     ),
     spectatorsPanel(),
     chatSlot(),
-    h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
+    h('div', { class: 'panel' }, h('strong', null, t('room.log')), logEl),
     footerActions(),
   );
 }
@@ -360,8 +361,13 @@ function renderTable() {
           (info?.away ? ' away' : ''),
         'data-player': id,
       },
-      h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ' (bot playing)' : ''),
-      h('span', { class: 'muted' }, ` \u2022 ${p.count} cards`, p.total !== null ? ` \u2022 total ${p.total}` : ''),
+      h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ` (${t('player.botPlaying')})` : ''),
+      h(
+        'span',
+        { class: 'muted' },
+        ` \u2022 ${t('table.cards', { count: p.count })}`,
+        p.total !== null ? ` \u2022 ${t('table.total', { total: p.total })}` : '',
+      ),
       cards,
       meldsOf(id),
     );
@@ -382,7 +388,7 @@ function renderTable() {
             class: 'meld' + (canLayoff ? ' target' : ''),
             onClick: canLayoff ? () => sendAction({ type: 'layoff', card: selected[0], meldId: m.id }) : null,
           },
-          h('div', { class: 'label' }, m.type === 'set' ? 'set' : 'run'),
+          h('div', { class: 'label' }, m.type === 'set' ? t('table.set') : t('table.run')),
           h(
             'div',
             { class: 'cards' },
@@ -397,7 +403,7 @@ function renderTable() {
     'div',
     { class: 'pile', 'data-pile': 'deck' },
     cardEl(null, { back: round.deckCount > 0, size: '', onClick: canDrawPhase ? () => sendAction({ type: 'draw' }) : null }),
-    h('div', null, `Draw (${round.deckCount})`),
+    h('div', null, t('table.draw', { count: round.deckCount })),
   );
   const discardClick = canDrawPhase
     ? () => sendAction({ type: 'takeDiscard' })
@@ -408,21 +414,16 @@ function renderTable() {
     'div',
     { class: 'pile', 'data-pile': 'discard' },
     cardEl(round.discardTop, { onClick: discardClick, zone: 'discard' }),
-    h('div', null, canPlayPhase ? 'Discard here' : 'Discard'),
+    h('div', null, canPlayPhase ? t('table.discardHere') : t('table.discard')),
   );
 
   let status = '';
-  if (paused) status = 'The game is paused by the host.';
+  if (paused) status = t('status.paused');
   else if (!over) {
-    if (!inHand) status = isSpectator() ? 'Watching this hand\u2026' : 'Spectating this hand\u2026';
-    else if (tonkPhase)
-      status = round.mustDeclareTonk ? 'You have TONK! Press the button to put your cards down.' : 'Waiting for TONK! to be declared\u2026';
-    else if (myTurn)
-      status =
-        round.phase === 'draw'
-          ? 'Your turn: draw, take the discard, or go down.'
-          : 'Put down a spread or add cards to a spread, then discard one card.';
-    else status = `Waiting for ${nameOf(round.turn)}\u2026`;
+    if (!inHand) status = isSpectator() ? t('status.watchingHand') : t('status.spectatingHand');
+    else if (tonkPhase) status = round.mustDeclareTonk ? t('status.mustTonk') : t('status.waitingForTonk');
+    else if (myTurn) status = round.phase === 'draw' ? t('status.yourTurnDraw') : t('status.yourTurnPlay');
+    else status = t('status.waitingFor', { name: nameOf(round.turn) });
   }
 
   const handEls = (inHand ? me.hand : []).map((c) => handCardEl(c, true));
@@ -433,14 +434,14 @@ function renderTable() {
     { class: 'row' },
     round.mustDeclareTonk
       ? [
-          h('button', { class: 'tonk-btn', disabled: paused, onClick: () => send({ t: 'declareTonk' }) }, 'TONK!'),
+          h('button', { class: 'tonk-btn', disabled: paused, onClick: () => send({ t: 'declareTonk' }) }, t('action.tonk')),
           h('span', { class: 'muted tonk-timer' }, tonkCountdownText()),
         ]
       : null,
   );
   // Custom CSS tooltip (data-tip) on a wrapper: native title tooltips are slow, flaky on disabled buttons and absent on touch.
   const tipped = (tip, button) => h('span', { class: 'tip-wrap', 'data-tip': tip, tabindex: tip ? 0 : null }, button);
-  const waitingTip = myTurn ? 'Draw a card or go down first.' : 'You can only do this during your turn, after drawing.';
+  const waitingTip = myTurn ? t('tip.drawFirst') : t('tip.notYourTurn');
   const sub = (label, hint) => [label, h('small', { class: 'btn-sub' }, hint)];
   const confirming = state.confirmDown && canDrawPhase;
   const controls = h(
@@ -456,7 +457,7 @@ function renderTable() {
                 sendAction({ type: 'goDown' });
               },
             },
-            "I'm sure",
+            t('action.sure'),
           ),
           h(
             'button',
@@ -467,12 +468,12 @@ function renderTable() {
                 render();
               },
             },
-            'Cancel',
+            t('common.cancel'),
           ),
         ]
       : [
           tipped(
-            canDrawPhase ? null : 'You can only go down at the start of your turn, before drawing.',
+            canDrawPhase ? null : t('tip.goDownTiming'),
             h(
               'button',
               {
@@ -483,7 +484,7 @@ function renderTable() {
                   render();
                 },
               },
-              'Go down',
+              t('action.goDown'),
             ),
           ),
           tipped(
@@ -491,7 +492,7 @@ function renderTable() {
             h(
               'button',
               { class: 'greyed', disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) },
-              sub('Spread', '(selection)'),
+              sub(t('action.spread'), t('action.selection')),
             ),
           ),
           tipped(
@@ -503,7 +504,7 @@ function renderTable() {
                 disabled: !(canPlayPhase && selected.length === 1),
                 onClick: () => sendAction({ type: 'discard', card: selected[0] }),
               },
-              sub('Discard', '(selection)'),
+              sub(t('action.discard'), t('action.selection')),
             ),
           ),
         ],
@@ -523,18 +524,14 @@ function renderTable() {
           turnTimerLine(myTurn),
           awayNotice(),
           meldsOf(state.you),
-          h('div', { class: 'hand-value' }, `Hand value: ${me.total}`),
+          h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
         )
       : h(
           'div',
           { class: 'me-panel' },
-          h(
-            'div',
-            { class: 'status' },
-            isSpectator() ? status || 'You are watching this table.' : status || 'Join the next hand when this one ends.',
-          ),
+          h('div', { class: 'status' }, isSpectator() ? status || t('status.watchingTable') : status || t('status.joinNextHand')),
           isSpectator() && !over ? h('div', { class: 'row' }, freeSeatButton()) : null,
         ),
   );
@@ -547,12 +544,16 @@ function spectatorsPanel() {
   return h(
     'div',
     { class: 'panel scores' },
-    h('strong', null, 'Watching'),
+    h('strong', null, t('room.watching')),
     room.spectators.map((s) =>
       h(
         'div',
         { class: 'score-row' },
-        h('span', { class: 'score-name' }, s.name + (s.id === state.you ? ' (you)' : '') + (s.connected ? '' : ' (offline)')),
+        h(
+          'span',
+          { class: 'score-name' },
+          s.name + (s.id === state.you ? ` ${t('player.you')}` : '') + (s.connected ? '' : ` (${t('player.offline')})`),
+        ),
         h('span', { class: 'score-actions' }, kickControls(s)),
       ),
     ),
@@ -560,11 +561,11 @@ function spectatorsPanel() {
 }
 
 function tonkCountdownText() {
-  return state.room?.paused ? 'Paused' : `Automatic in ${secondsLeft(state.tonkDeadline)}s`;
+  return state.room?.paused ? t('action.tonkPaused') : t('action.tonkCountdown', { seconds: secondsLeft(state.tonkDeadline) });
 }
 
-const turnTimerText = () => `Bot takes over in ${secondsLeft(state.turnDeadline)}s`;
-const retryText = () => `Retrying in ${secondsLeft(state.retryAt)}s\u2026`;
+const turnTimerText = () => t('table.botTakesOver', { seconds: secondsLeft(state.turnDeadline) });
+const retryText = () => t('connection.retrying', { seconds: secondsLeft(state.retryAt) });
 
 // The countdown stays hidden until the last part of the turn; the 250 ms ticker below reveals it.
 const turnTimerShown = () => state.turnDeadline - Date.now() <= state.turnWarningMs;
@@ -592,25 +593,23 @@ setInterval(() => {
 function renderResult(round) {
   const r = round.result;
   const room = state.room;
-  const nameFor = (id) => r.names?.[id] ?? nameOf(id);
+  const nameFor = (id) => (r.bots?.[id] ? botName(r.bots[id], r.names?.[id]) : (r.names?.[id] ?? nameOf(id)));
   let headline;
   switch (r.type) {
     case 'tonk':
-      headline = `${nameFor(r.winners[0])} has TONK and everyone pays double!`;
+      headline = t('result.tonk', { name: nameFor(r.winners[0]) });
       break;
     case 'tonkDraw':
-      headline = 'More than one player has TONK \u2013 the hand is a draw and no coins change hands.';
+      headline = t('result.tonkDraw');
       break;
     case 'down':
-      headline = r.success
-        ? `${nameFor(r.actor)} went down with ${r.totals[r.actor]} and pockets the coins!`
-        : `${nameFor(r.actor)} went down with ${r.totals[r.actor]} but was caught and pays double.`;
+      headline = t(r.success ? 'result.downWon' : 'result.downCaught', { name: nameFor(r.actor), total: r.totals[r.actor] });
       break;
     case 'empty':
-      headline = `${nameFor(r.actor)} emptied their hand and everyone pays double!`;
+      headline = t('result.empty', { name: nameFor(r.actor) });
       break;
     default:
-      headline = 'Hand aborted: not enough players. Every coin stays where it was.';
+      headline = t('result.aborted');
   }
   const rows = round.order.map((id) =>
     h(
@@ -621,7 +620,7 @@ function renderResult(round) {
       h(
         'span',
         { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') },
-        `${r.deltas[id] > 0 ? '+' : ''}${r.deltas[id]} ${Math.abs(r.deltas[id]) === 1 ? 'coin' : 'coins'}`,
+        t('result.coins', { count: Math.abs(r.deltas[id]), amount: `${r.deltas[id] > 0 ? '+' : ''}${r.deltas[id]}` }),
       ),
     ),
   );
@@ -641,7 +640,7 @@ function renderResult(round) {
           h(
             'button',
             { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
-            canDeal ? 'Deal next hand' : 'Waiting for players\u2026',
+            canDeal ? t('result.dealNext') : t('result.waitingForPlayers'),
           ),
           addBotButton(),
         ),
@@ -653,13 +652,13 @@ function renderResult(round) {
 function kickControls(p) {
   if (state.room.hostId !== state.you || p.id === state.you) return null;
   if (p.isBot && state.room.status === 'playing') return null;
-  const label = p.isBot ? 'Remove' : 'Kick';
+  const label = p.isBot ? t('room.remove') : t('room.kick');
   if (state.confirmKick !== p.id) {
     return h(
       'button',
       {
         class: 'secondary small-btn',
-        title: `Remove ${p.name} from the table`,
+        title: t('room.removeFromTable', { name: playerName(p) }),
         onClick: () => {
           state.confirmKick = p.id;
           render();
@@ -678,7 +677,7 @@ function kickControls(p) {
           send({ t: p.isBot ? 'removeBot' : 'kick', id: p.id });
         },
       },
-      'Confirm',
+      t('common.confirm'),
     ),
     h(
       'button',
@@ -689,7 +688,7 @@ function kickControls(p) {
           render();
         },
       },
-      'Cancel',
+      t('common.cancel'),
     ),
   ];
 }
@@ -697,13 +696,17 @@ function kickControls(p) {
 // Guests can sit in a bot's seat (it keeps the bot's cards and coins) or, between hands, in a free one.
 function takeOverButton(p) {
   if (!p.isBot || !isSpectator()) return null;
-  return h('button', { class: 'small-btn', title: `Play ${p.name}'s seat`, onClick: () => send({ t: 'takeSeat', id: p.id }) }, 'Take over');
+  return h(
+    'button',
+    { class: 'small-btn', title: t('room.takeOverTitle', { name: playerName(p) }), onClick: () => send({ t: 'takeSeat', id: p.id }) },
+    t('room.takeOver'),
+  );
 }
 
 function freeSeatButton() {
   const room = state.room;
   if (!isSpectator() || room.status === 'playing' || room.players.length >= room.maxPlayers) return null;
-  return h('button', { onClick: () => send({ t: 'takeSeat' }) }, 'Join the game');
+  return h('button', { onClick: () => send({ t: 'takeSeat' }) }, t('room.joinGame'));
 }
 
 // Asks for the password of the locked table the player just tried to enter.
@@ -712,14 +715,14 @@ function passwordPrompt() {
   if (!prompt) return null;
   const submit = (field) => {
     const password = field.value;
-    if (!password) return toast('Please enter the password');
+    if (!password) return toast(t('password.required'));
     enterTable({ id: prompt.gameId, name: prompt.name }, prompt.mode, password);
   };
   const input = h('input', {
     id: 'table-password',
     type: 'password',
     maxLength: 32,
-    placeholder: 'Table password',
+    placeholder: t('password.placeholder'),
     autofocus: true,
     onKeydown: (e) => e.key === 'Enter' && submit(e.currentTarget),
   });
@@ -729,14 +732,18 @@ function passwordPrompt() {
     h(
       'p',
       { style: 'margin-top:0' },
-      `\u{1F512} ${prompt.name} is locked.`,
+      `\u{1F512} ${t('password.locked', { name: prompt.name })}`,
       prompt.error ? h('span', { class: 'muted' }, ` ${prompt.error}`) : null,
     ),
     h(
       'div',
       { class: 'row' },
       input,
-      h('button', { onClick: () => submit(document.getElementById('table-password')) }, prompt.mode === 'join' ? 'Join' : 'Watch'),
+      h(
+        'button',
+        { onClick: () => submit(document.getElementById('table-password')) },
+        prompt.mode === 'join' ? t('common.join') : t('common.watch'),
+      ),
       h(
         'button',
         {
@@ -746,7 +753,7 @@ function passwordPrompt() {
             render();
           },
         },
-        'Cancel',
+        t('common.cancel'),
       ),
     ),
   );
@@ -762,9 +769,9 @@ function invitePanel(isHost) {
     field.select();
     try {
       await navigator.clipboard.writeText(field.value);
-      toast('Invite link copied');
+      toast(t('invite.copied'));
     } catch {
-      toast('Press Ctrl+C to copy the selected link');
+      toast(t('invite.copyFailed'));
     }
   };
   const linkInput = h('input', {
@@ -783,12 +790,12 @@ function invitePanel(isHost) {
   return h(
     'div',
     null,
-    h('h3', { style: 'margin-top:0' }, 'Invite friends'),
+    h('h3', { style: 'margin-top:0' }, t('invite.title')),
     h(
       'div',
       { class: 'row' },
       linkInput,
-      h('button', { class: 'secondary', onClick: () => copy(document.getElementById('invite-link')) }, 'Copy link'),
+      h('button', { class: 'secondary', onClick: () => copy(document.getElementById('invite-link')) }, t('invite.copyLink')),
     ),
     isHost
       ? h(
@@ -798,7 +805,7 @@ function invitePanel(isHost) {
             id: 'table-lock',
             type: 'text',
             maxLength: 32,
-            placeholder: 'Set a password to lock the table',
+            placeholder: t('invite.lockPlaceholder'),
             value: room.password ?? '',
             'data-sync': true,
             class: 'invite-link',
@@ -814,12 +821,12 @@ function invitePanel(isHost) {
                     lock();
                   },
                 },
-                'Unlock',
+                t('invite.unlock'),
               )
             : null,
         )
       : room.locked
-        ? h('div', { class: 'muted', style: 'margin-top:6px' }, 'This table is locked with a password.')
+        ? h('div', { class: 'muted', style: 'margin-top:6px' }, t('invite.lockedNote'))
         : null,
   );
 }
@@ -831,22 +838,22 @@ function addBotButton() {
   return h(
     'button',
     { class: 'secondary', disabled: room.players.length >= room.maxPlayers, onClick: () => send({ t: 'addBot' }) },
-    'Add bot',
+    t('room.addBot'),
   );
 }
 
 // The Company's reaction to a player losing their last coin.
 function brokeText(name, bot) {
-  return bot
-    ? `${name} lost every last coin and left the table.`
-    : `${name} lost every last coin and is out of the game. They watch from the shadows as a guest now.`;
+  return t(bot ? 'broke.bot' : 'broke.human', { name });
 }
 
 // Table rules: the host edits them in the waiting room, everyone else just sees them.
 function settingsPanel(isHost) {
   const { settings, settingLimits } = state.room;
-  const field = (key, hint) => {
-    const { min, max, label } = settingLimits[key];
+  const field = (key) => {
+    const { min, max } = settingLimits[key];
+    const label = t(`tableRules.${key}.label`);
+    const hint = t(`tableRules.${key}.hint`);
     if (!isHost) return h('div', null, `${label}: `, h('strong', null, String(settings[key])), h('span', { class: 'muted' }, ` ${hint}`));
     const input = h('input', {
       type: 'number',
@@ -863,50 +870,50 @@ function settingsPanel(isHost) {
   return h(
     'div',
     { class: 'panel' },
-    h('h3', { style: 'margin-top:0' }, 'Table rules'),
-    field('startingCoins', 'coins for each player at the start'),
-    field('bet', 'coins per payoff unit (a plain win pays 1 bet, TONK, emptying your hand or getting caught 2)'),
-    h('div', { class: 'muted' }, 'Run out of coins and you are out of the game.'),
+    h('h3', { style: 'margin-top:0' }, t('tableRules.title')),
+    field('startingCoins'),
+    field('bet'),
+    h('div', { class: 'muted' }, t('tableRules.outOfCoins')),
   );
 }
 
 function formatEvent(e) {
-  const who = nameOf(e.pid, e.name);
+  const who = e.botId && e.type !== 'takeover' ? botName(e.botId, e.name) : nameOf(e.pid, e.name);
   switch (e.type) {
     case 'broke':
-      return e.bot ? `${who} lost every last coin and left the table.` : `${who} lost every last coin and is now a guest.`;
+      return t(e.bot ? 'log.brokeBot' : 'log.brokeHuman', { who });
     case 'join':
-      return `${who} joined.`;
+      return t('log.join', { who });
     case 'leave':
-      return `${who} left.`;
+      return t('log.leave', { who });
     case 'kick':
-      return `${who} was removed by the host.`;
+      return t('log.kick', { who });
     case 'takeover':
-      return `${who} took over ${e.botName}'s seat.`;
+      return t('log.takeover', { who, bot: botName(e.botId, e.botName) });
     case 'deal':
-      return `Hand #${e.hand} dealt by ${who}.`;
+      return t('log.deal', { number: e.hand, who });
     case 'draw':
-      return `${who} drew from the pile.`;
+      return t('log.draw', { who });
     case 'takeDiscard':
-      return `${who} took ${cardLabel(e.card)} from the discard.`;
+      return t('log.takeDiscard', { who, card: cardLabel(e.card) });
     case 'discard':
-      return `${who} discarded ${cardLabel(e.card)}.`;
+      return t('log.discard', { who, card: cardLabel(e.card) });
     case 'meld':
-      return `${who} put down ${e.kind === 'set' ? 'a set' : 'a run'}: ${e.cards.map(cardLabel).join(' ')}.`;
+      return t(e.kind === 'set' ? 'log.meldSet' : 'log.meldRun', { who, cards: e.cards.map(cardLabel).join(' ') });
     case 'layoff':
-      return `${who} added ${cardLabel(e.card)} to a spread.`;
+      return t('log.layoff', { who, card: cardLabel(e.card) });
     case 'goDown':
-      return `${who} went down with ${e.total}.`;
+      return t('log.goDown', { who, total: e.total });
     case 'reshuffle':
-      return 'Discard pile reshuffled into the draw pile.';
+      return t('log.reshuffle');
     case 'timeout':
-      return `${who} took too long, a bot plays their turns now.`;
+      return t('log.timeout', { who });
     case 'back':
-      return `${who} is back at the table.`;
+      return t('log.back', { who });
     case 'pause':
-      return `${who} paused the game.`;
+      return t('log.pause', { who });
     case 'unpause':
-      return `${who} resumed the game.`;
+      return t('log.unpause', { who });
     default:
       return null;
   }

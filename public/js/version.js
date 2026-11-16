@@ -1,4 +1,5 @@
 import { LOADED_VERSION } from './app-version.js';
+import { t } from './i18n.js';
 
 // Shows "v x" in the bottom-right corner. If the server has been updated since this page loaded, asks for a reload.
 export async function showVersion() {
@@ -8,7 +9,7 @@ export async function showVersion() {
     const res = await fetch('/version');
     const { version } = await res.json();
     if (version !== LOADED_VERSION) {
-      label.textContent = `v${LOADED_VERSION} · v${version} available, click to reload`;
+      label.textContent = t('version.updateAvailable', { loaded: LOADED_VERSION, latest: version });
       label.classList.add('update');
       label.addEventListener('click', () => {
         // Navigating to a unique URL bypasses any stale cached copy of the page; the modules then revalidate too.

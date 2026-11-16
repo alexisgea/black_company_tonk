@@ -1,5 +1,9 @@
 # Agent instructions
 
+## Player-facing text
+
+Never hardcode text a player can read. Put it in `public/locales/en.json` and use `t('key', params)` from `public/js/i18n.js` (see "Localisation" in the README). On the server, raise errors with `new GameError('code', params)` and add the English message under `err.<code>` (notices: `notice.<code>`). `npm test` fails when a key or code is missing. The changelog stays in English.
+
 ## Finishing a task: bump the version and commit
 
 When you have finished making changes that the user asked for, do the following as the last step, without waiting to be asked:

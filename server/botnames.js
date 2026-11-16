@@ -1,28 +1,30 @@
 'use strict';
+const { text, allTranslations } = require('./i18n');
 
-// The computer players. The `id` never changes (profiles and anything else that needs to know which bot it is use it);
-// the `name` is only what people see, so it can be changed or translated freely. Players cannot use these names.
-const BOTS = [
-  { id: 'croaker', name: 'Croaker' },
-  { id: 'goblin', name: 'Goblin' },
-  { id: 'one-eye', name: 'One-Eye' },
-  { id: 'elmo', name: 'Elmo' },
-  { id: 'silent', name: 'Silent' },
-  { id: 'lieutenant', name: 'The Lieutenant' },
-  { id: 'otto', name: 'Otto' },
-  { id: 'hagop', name: 'Hagop' },
-  { id: 'willow-swan', name: 'Willow Swan' },
-  { id: 'slink', name: 'Slink' },
-  { id: 'gupta', name: 'Gupta' },
-  { id: 'puddle', name: 'Puddle' },
-  { id: 'corey', name: 'Corey' },
-  { id: 'buzz', name: 'Buzz' },
-  { id: 'murgen', name: 'Murgen' },
-  { id: 'sleepy', name: 'Sleepy' },
-  { id: 'raven', name: 'Raven' },
-  { id: 'case', name: 'Case' },
+// The computer players. The `id` never changes (profiles and anything else that needs to know which bot it is use it).
+// What people see is the name under "bot.<id>" in the locale files (public/locales), one per language; the English
+// name is what the server sends along, and players cannot take a bot's name in any language.
+const BOT_IDS = [
+  'croaker',
+  'goblin',
+  'one-eye',
+  'elmo',
+  'silent',
+  'lieutenant',
+  'otto',
+  'hagop',
+  'willow-swan',
+  'slink',
+  'gupta',
+  'puddle',
+  'corey',
+  'buzz',
+  'murgen',
+  'sleepy',
+  'raven',
+  'case',
 ];
-const BOT_IDS = BOTS.map((b) => b.id);
+const BOTS = BOT_IDS.map((id) => ({ id, name: text(`bot.${id}`) }));
 const BOT_NAMES = BOTS.map((b) => b.name);
 
 // Ignores case, accents, full-width letters, spacing, punctuation and symbols, so "one eye", "GOBLIN",
@@ -32,7 +34,7 @@ const normalize = (s) =>
     .normalize('NFKD')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]/gu, '');
-const RESERVED = new Set(BOT_NAMES.map(normalize));
+const RESERVED = new Set(BOT_IDS.flatMap((id) => allTranslations(`bot.${id}`)).map(normalize));
 
 function isReservedName(name) {
   const n = normalize(name);

@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.20.0',
+    date: '2026-11-16',
+    changes: [
+      'The game can now be translated: all its text (including the rules and the computer players’ names) lives in language files, ready for a second language. Nothing changes in English, except that “1 cards” is now “1 card”.',
+      'When the server turns down a request, the message now comes from the same language files.',
+    ],
+  },
+  {
     version: '0.19.2',
     date: '2026-11-16',
     changes: [

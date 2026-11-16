@@ -7,6 +7,7 @@ const { smartAction } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
 const { THINK_DRAW, THINK_PLAY, THINK_JITTER_MIN, THINK_JITTER_SPREAD } = require('./bottuning');
 const { isReservedName } = require('./botnames');
+const { describe } = require('./i18n');
 
 const { RateLimiter } = require('./limits');
 
@@ -27,12 +28,13 @@ function cleanName(raw) {
 }
 
 function requireRoom(room) {
-  if (!room) throw new GameError('Not at a table');
+  if (!room) throw new GameError('notAtTable');
 }
 
-function requireHost(room, user, what) {
+// `code` is the error to raise for anyone but the host, one per action (e.g. 'hostOnlyLock'), so each reads naturally.
+function requireHost(room, user, code) {
   requireRoom(room);
-  if (room.hostId !== user.id) throw new GameError(`Only the host can ${what}`);
+  if (room.hostId !== user.id) throw new GameError(code);
 }
 
 const DEVICE_ID = /^[\w-]{8,64}$/;
@@ -90,8 +92,8 @@ class Lobby {
     if (conn && conn.readyState === OPEN) conn.send(JSON.stringify(obj));
   }
 
-  sendError(conn, message) {
-    this.send(conn, { t: 'error', message });
+  sendError(conn, code, params) {
+    this.send(conn, { t: 'error', ...describe('err', code, params) });
   }
 
   gameList() {
@@ -121,7 +123,7 @@ class Lobby {
   handleBroke(room) {
     const broke = room.takeBroke();
     if (broke.length && room.humans.length === 0) {
-      this.closeRoom(room, 'Every player at this table is flat broke. The Company has taken the last coin and the table is closed.');
+      this.closeRoom(room, 'closedAllBroke');
       return true;
     }
     for (const user of broke) {
@@ -132,10 +134,7 @@ class Lobby {
         this.users.delete(user.token);
         continue;
       }
-      this.send(user.conn, {
-        t: 'broke',
-        message: 'You are out of coins! Watch and chat from the shadows.',
-      });
+      this.send(user.conn, { t: 'broke', ...describe('notice', 'youAreBroke') });
     }
     return false;
   }
@@ -206,7 +205,7 @@ class Lobby {
           return;
         }
         if (!this.botMove(room, bot)) {
-          this.closeRoom(room, 'This table was closed because of a server error. Sorry!');
+          this.closeRoom(room, 'closedServerError');
           return;
         }
         this.broadcastRoom(room);
@@ -359,9 +358,9 @@ class Lobby {
     this.rooms.delete(room.id);
   }
 
-  // Closes a game and sends everyone in it back to the lobby with an explanation. Members who are
-  // disconnected have nowhere to come back to, so they are forgotten instead of lingering in this.users.
-  closeRoom(room, message) {
+  // Closes a game and sends everyone in it back to the lobby with an explanation (`code`: a "notice." message).
+  // Members who are disconnected have nowhere to come back to, so they are forgotten instead of lingering in this.users.
+  closeRoom(room, code) {
     const members = room.audience;
     this.deleteRoom(room);
     for (const user of members) {
@@ -369,7 +368,7 @@ class Lobby {
       user.room = null;
       user.away = false;
       if (user.conn) {
-        this.send(user.conn, { t: 'closed', message });
+        this.send(user.conn, { t: 'closed', ...describe('notice', code) });
       } else {
         clearTimeout(user.timer);
         this.users.delete(user.token);
@@ -390,12 +389,12 @@ class Lobby {
     for (const room of [...this.rooms.values()]) {
       const idle = now - room.lastActivity;
       if (idle >= this.roomIdleMs) {
-        this.closeRoom(room, 'This table was closed because nobody did anything for a while.');
+        this.closeRoom(room, 'closedIdle');
       } else if (!room.idleWarned && this.roomIdleMs > this.idleWarningMs && idle >= this.roomIdleMs - this.idleWarningMs) {
         room.idleWarned = true;
         const minutes = Math.max(1, Math.ceil((this.roomIdleMs - idle) / 60000));
         for (const user of room.audience) {
-          this.send(user.conn, { t: 'notice', message: `This table will close in about ${minutes} min if nobody does anything.` });
+          this.send(user.conn, { t: 'notice', ...describe('notice', 'closeSoon', { minutes }) });
         }
       }
     }
@@ -416,7 +415,7 @@ class Lobby {
     room.leave(user, reason);
     user.away = false;
     if (room.humans.length === 0 && room.spectators.length > 0) {
-      this.closeRoom(room, 'This table was closed because all the players left.');
+      this.closeRoom(room, 'closedEmpty');
       return;
     }
     if (room.humans.length === 0) this.deleteRoom(room);
@@ -429,32 +428,32 @@ class Lobby {
     try {
       msg = JSON.parse(raw);
     } catch {
-      return this.sendError(conn, 'Malformed message');
+      return this.sendError(conn, 'malformed');
     }
     if (!msg || typeof msg !== 'object' || typeof msg.t !== 'string') {
-      return this.sendError(conn, 'Malformed message');
+      return this.sendError(conn, 'malformed');
     }
     try {
       if (msg.t === 'hello') return this.onHello(conn, msg);
-      if (!conn.user) return this.sendError(conn, 'Say hello first');
+      if (!conn.user) return this.sendError(conn, 'sayHello');
       this.onMessage(conn.user, msg);
     } catch (err) {
-      if (err instanceof GameError) this.send(conn, { t: 'error', message: err.message, code: err.code });
+      if (err instanceof GameError) this.sendError(conn, err.code, err.params);
       else {
         console.error(err);
-        this.sendError(conn, 'Server error');
+        this.sendError(conn, 'serverError');
       }
     }
   }
 
   onHello(conn, msg) {
     const name = cleanName(msg.name);
-    if (!name) throw new GameError('Please enter a name');
-    if (isReservedName(name)) throw new GameError('That name is reserved for the bots, please pick another');
+    if (!name) throw new GameError('nameRequired');
+    if (isReservedName(name)) throw new GameError('nameReserved');
     let user = typeof msg.token === 'string' ? this.users.get(msg.token) : undefined;
     // A connection is one player. Another hello on it can only rename that player; it must not conjure up
     // extra users that stay behind (and count as "online") after the connection closes.
-    if (conn.user && user && user !== conn.user) throw new GameError('This connection already belongs to another player');
+    if (conn.user && user && user !== conn.user) throw new GameError('connectionTaken');
     user ??= conn.user ?? undefined;
     if (user) {
       clearTimeout(user.timer);
@@ -488,7 +487,7 @@ class Lobby {
 
   findRoom(gameId) {
     const r = typeof gameId === 'string' ? this.rooms.get(gameId.toUpperCase()) : null;
-    if (!r) throw new GameError('That table no longer exists');
+    if (!r) throw new GameError('tableGone');
     return r;
   }
 
@@ -496,7 +495,7 @@ class Lobby {
   // right guesses too, otherwise "it still answers" would reveal the password).
   checkPassword(user, room, given) {
     if (room.locked && typeof given === 'string' && given !== '' && !user.passwordLimiter.hit()) {
-      throw new GameError('Too many password attempts. Wait a minute and try again.');
+      throw new GameError('tooManyPasswordTries');
     }
     room.checkPassword(given);
   }
@@ -506,12 +505,13 @@ class Lobby {
     if (room && !room.spectators.includes(user)) room.touch(); // anything a player sends counts as using the game (watching does not)
     switch (msg.t) {
       case 'createGame': {
-        if (room) throw new GameError('Already at a table');
-        if (this.rooms.size >= this.maxRooms) throw new GameError('The server is full right now. Please try again later.');
-        if (!user.createLimiter.hit()) throw new GameError('You are creating tables too quickly.');
+        if (room) throw new GameError('alreadySeated');
+        if (this.rooms.size >= this.maxRooms) throw new GameError('serverFull');
+        if (!user.createLimiter.hit()) throw new GameError('tooManyTables');
         const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng, {
           tonkTimeoutMs: this.tonkTimeoutMs,
           turnWarningMs: this.turnWarningMs,
+          owner: user.name,
         });
         r.password = validatePassword(msg.password);
         this.rooms.set(r.id, r);
@@ -520,7 +520,7 @@ class Lobby {
         break;
       }
       case 'joinGame': {
-        if (room) throw new GameError('Already at a table');
+        if (room) throw new GameError('alreadySeated');
         const r = this.findRoom(msg.gameId);
         this.checkPassword(user, r, msg.password);
         r.join(user);
@@ -529,7 +529,7 @@ class Lobby {
         break;
       }
       case 'watchGame': {
-        if (room) throw new GameError('Already at a table');
+        if (room) throw new GameError('alreadySeated');
         const r = this.findRoom(msg.gameId);
         this.checkPassword(user, r, msg.password);
         r.watch(user);
@@ -544,16 +544,16 @@ class Lobby {
         break;
       }
       case 'setPassword': {
-        requireHost(room, user, 'lock the table');
+        requireHost(room, user, 'hostOnlyLock');
         room.setPassword(user, msg.password);
         this.broadcastAll(room);
         break;
       }
       case 'kick': {
-        requireHost(room, user, 'remove players');
+        requireHost(room, user, 'hostOnlyKick');
         const target = room.players.find((p) => p.id === msg.id && !p.isBot) ?? room.spectators.find((s) => s.id === msg.id);
-        if (!target) throw new GameError('No such player');
-        if (target === user) throw new GameError('You cannot remove yourself');
+        if (!target) throw new GameError('noSuchPlayer');
+        if (target === user) throw new GameError('cannotKickSelf');
         room.ban(target);
         this.send(target.conn, { t: 'kicked' });
         this.leaveRoom(target, 'kick'); // also updates the table and sends the lobby list to the kicked player
@@ -594,7 +594,7 @@ class Lobby {
       }
       case 'pause':
       case 'unpause': {
-        requireHost(room, user, msg.t === 'pause' ? 'pause the game' : 'resume the game');
+        requireHost(room, user, msg.t === 'pause' ? 'hostOnlyPause' : 'hostOnlyResume');
         if (msg.t === 'pause') room.pause(user);
         else room.unpause(user);
         this.broadcastRoom(room);
@@ -613,32 +613,32 @@ class Lobby {
         break;
       }
       case 'updateSettings': {
-        requireHost(room, user, 'change the table rules');
+        requireHost(room, user, 'hostOnlySettings');
         room.updateSettings(user, msg.settings);
         this.broadcastAll(room);
         break;
       }
       case 'addBot': {
-        requireHost(room, user, 'add bots');
+        requireHost(room, user, 'hostOnlyAddBot');
         room.addBot();
         this.broadcastAll(room);
         break;
       }
       case 'removeBot': {
-        requireHost(room, user, 'remove bots');
+        requireHost(room, user, 'hostOnlyRemoveBot');
         room.removeBot(msg.id);
         this.broadcastAll(room);
         break;
       }
       case 'chat': {
         requireRoom(room);
-        if (!user.chatLimiter.hit()) throw new GameError('You are sending messages too fast');
+        if (!user.chatLimiter.hit()) throw new GameError('chatTooFast');
         const message = room.addChat(user, msg.text);
         for (const p of room.audience) this.send(p.conn, { t: 'chat', message });
         break;
       }
       default:
-        throw new GameError('Unknown message');
+        throw new GameError('unknownMessage');
     }
   }
 

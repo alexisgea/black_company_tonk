@@ -1,16 +1,17 @@
 // Chat: one persistent DOM node that the patcher keeps in place (or re-attaches), so incoming
 // game updates never clear the text being typed or the scroll position.
 import { h, persistent } from './dom.js';
-import { state } from './state.js';
+import { state, playerName } from './state.js';
 import { send } from './net.js';
 import { nameTag } from './name-tag.js';
+import { t, tNodes } from './i18n.js';
 
 const MAX_CHAT_KEPT = 50;
 export const chat = { messages: [], el: null, logEl: null, input: null };
 
 function buildChat() {
   chat.logEl = h('div', { class: 'chat-log' });
-  chat.input = h('input', { type: 'text', maxLength: 200, placeholder: 'Say something\u2026', autocomplete: 'off' });
+  chat.input = h('input', { type: 'text', maxLength: 200, placeholder: t('chat.placeholder'), autocomplete: 'off' });
   const form = h(
     'form',
     {
@@ -24,22 +25,27 @@ function buildChat() {
       },
     },
     chat.input,
-    h('button', { type: 'submit' }, 'Send'),
+    h('button', { type: 'submit' }, t('chat.send')),
   );
-  chat.el = h('div', { class: 'panel chat' }, h('strong', null, 'Chat'), chat.logEl, form);
+  chat.el = h('div', { class: 'panel chat' }, h('strong', null, t('chat.title')), chat.logEl, form);
   persistent.set('chat', chat.el);
 }
 
+// Messages the game speaks for a player (see Room.pushChat) are worded here, in the reader's language.
+const chatText = (m) => (m.kind === 'tonk' ? t('chat.tonk') : m.text);
+
 export function fillChatLog() {
   chat.logEl.replaceChildren(
-    ...chat.messages.map((m) =>
-      h(
+    ...chat.messages.map((m) => {
+      const who = nameTag(playerName(m), { bot: !!m.bot, host: state.room?.hostId === m.pid });
+      return h(
         'div',
         { class: 'chat-msg' + (m.pid === state.you ? ' mine' : '') },
-        h('strong', null, nameTag(m.name, { bot: !!m.bot, host: state.room?.hostId === m.pid }), m.spectator ? ' (guest): ' : ': '),
-        m.text,
-      ),
-    ),
+        h('strong', null, tNodes(m.spectator ? 'chat.guestSender' : 'chat.sender', { name: who })),
+        ' ',
+        chatText(m),
+      );
+    }),
   );
 }
 

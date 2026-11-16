@@ -8,18 +8,18 @@ const { profileFor } = require('./botprofiles');
 // Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
 // so a hidden card can never leak through the log. A draw from the pile deliberately has no card.
 const PUBLIC_LOG_FIELDS = {
-  join: ['pid', 'name'],
-  leave: ['pid', 'name'],
+  join: ['pid', 'name', 'botId'],
+  leave: ['pid', 'name', 'botId'],
   kick: ['pid', 'name'],
-  takeover: ['pid', 'name', 'botName'],
-  deal: ['pid', 'name', 'hand'],
+  takeover: ['pid', 'name', 'botId', 'botName'], // botId and botName are the bot whose seat was taken
+  deal: ['pid', 'name', 'botId', 'hand'],
   draw: ['pid'],
   takeDiscard: ['pid', 'card'],
   discard: ['pid', 'card'],
   meld: ['pid', 'kind', 'cards'],
   layoff: ['pid', 'card', 'meldId'],
   goDown: ['pid', 'total'],
-  broke: ['pid', 'name', 'bot'],
+  broke: ['pid', 'name', 'botId', 'bot'],
   timeout: ['pid', 'name'], // took too long: a bot plays their turns until they come back
   back: ['pid', 'name'],
   pause: ['pid', 'name'],
@@ -27,11 +27,11 @@ const PUBLIC_LOG_FIELDS = {
   reshuffle: [],
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
-// (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2).
+// (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2). The labels are in the locale files.
 const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5 };
 const SETTING_LIMITS = {
-  startingCoins: { min: 10, max: 10000, label: 'Starting coins' },
-  bet: { min: 1, max: 1000, label: 'Bet' },
+  startingCoins: { min: 10, max: 10000, error: 'startingCoinsRange' },
+  bet: { min: 1, max: 1000, error: 'betRange' },
 };
 // A turn ends with a discard (or going down, which ends the hand).
 const TURN_END_EVENTS = new Set(['discard', 'goDown']);
@@ -44,35 +44,30 @@ const ORDINALS = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eig
 const MAX_PASSWORD = 32;
 const nameKey = (name) => name.normalize('NFKC').toLowerCase();
 const digest = (text) => crypto.createHash('sha256').update(text).digest();
+// Who a log event is about. A bot also carries its id, so each client can show its name in the player's language.
+const whoIs = (user) => (user.botId ? { pid: user.id, name: user.name, botId: user.botId } : { pid: user.id, name: user.name });
+const settingLimitsView = () => Object.fromEntries(Object.entries(SETTING_LIMITS).map(([key, { min, max }]) => [key, { min, max }]));
 
-// A GameError the client answers by asking for the table password.
-function passwordError(message) {
-  const err = new tonk.GameError(message);
-  err.code = 'password';
-  return err;
-}
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 // Checks table settings from a client. Unknown fields are ignored; anything invalid is an error.
 function validateSettings(raw) {
-  if (!raw || typeof raw !== 'object') throw new tonk.GameError('Bad settings');
+  if (!raw || typeof raw !== 'object') throw new tonk.GameError('badSettings');
   const settings = {};
-  for (const [key, { min, max, label }] of Object.entries(SETTING_LIMITS)) {
+  for (const [key, { min, max, error }] of Object.entries(SETTING_LIMITS)) {
     const value = raw[key];
-    if (!Number.isInteger(value) || value < min || value > max) {
-      throw new tonk.GameError(`${label} must be a whole number from ${min} to ${max}`);
-    }
+    if (!Number.isInteger(value) || value < min || value > max) throw new tonk.GameError(error, { min, max });
     settings[key] = value;
   }
-  if (settings.bet > settings.startingCoins) throw new tonk.GameError('The bet cannot be more than the starting coins');
+  if (settings.bet > settings.startingCoins) throw new tonk.GameError('betTooHigh');
   return settings;
 }
 
 // An empty (or missing) password means the table is open.
 function validatePassword(raw) {
   const password = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, '').trim() : '';
-  if (password.length > MAX_PASSWORD) throw new tonk.GameError(`The password can be at most ${MAX_PASSWORD} characters`);
+  if (password.length > MAX_PASSWORD) throw new tonk.GameError('passwordTooLong', { max: MAX_PASSWORD });
   return password || null;
 }
 
@@ -82,10 +77,11 @@ class Room {
     id,
     name,
     rng = Math.random,
-    { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, turnWarningMs = null, settings = DEFAULT_SETTINGS } = {},
+    { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, turnWarningMs = null, settings = DEFAULT_SETTINGS, owner = null } = {},
   ) {
     this.id = id;
     this.name = name;
+    this.owner = owner; // who made the table, so each client can word its default name ("X's table") in its own language
     this.rng = rng;
     this.settings = { ...settings };
     this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
@@ -143,11 +139,11 @@ class Room {
     return this.password !== null;
   }
 
-  // Throws unless the table is open or `given` is its password.
+  // Throws unless the table is open or `given` is its password. The client answers these two codes with a password prompt.
   checkPassword(given) {
     if (!this.locked) return;
-    if (typeof given !== 'string' || given === '') throw passwordError('This table is locked. Enter its password to get in.');
-    if (!crypto.timingSafeEqual(digest(given), digest(this.password))) throw passwordError('Wrong password');
+    if (typeof given !== 'string' || given === '') throw new tonk.GameError('tableLocked');
+    if (!crypto.timingSafeEqual(digest(given), digest(this.password))) throw new tonk.GameError('wrongPassword');
   }
 
   // The host locks the table with a password, or opens it again with an empty one. People already seated are not affected.
@@ -157,7 +153,7 @@ class Room {
   }
 
   requirePlayer(user) {
-    if (!this.players.includes(user)) throw new tonk.GameError('Spectators cannot do that');
+    if (!this.players.includes(user)) throw new tonk.GameError('spectatorsCannot');
   }
 
   // Adds a computer player. It has no connection; the lobby plays its turns.
@@ -178,8 +174,8 @@ class Room {
   // Only between hands (or before the first one), so a hand is never cut short or changed under the players.
   removeBot(id) {
     const bot = this.players.find((p) => p.id === id && p.isBot);
-    if (!bot) throw new tonk.GameError('No such bot');
-    if (this.status === 'playing') throw new tonk.GameError('Bots can only be removed between hands');
+    if (!bot) throw new tonk.GameError('noSuchBot');
+    if (this.status === 'playing') throw new tonk.GameError('botsBetweenHands');
     this.leave(bot);
   }
 
@@ -270,19 +266,19 @@ class Room {
   }
 
   join(user) {
-    if (this.isBanned(user)) throw new tonk.GameError('You were removed from this table by the host');
-    if (!this.joinable) throw new tonk.GameError('That table cannot be joined right now');
+    if (this.isBanned(user)) throw new tonk.GameError('banned');
+    if (!this.joinable) throw new tonk.GameError('cannotJoin');
     this.claimName(user);
     this.coins[user.id] = this.coinsForNewcomer();
     this.players.push(user);
     if (!this.hostId) this.hostId = user.id;
     user.room = this;
-    this.addLog({ type: 'join', pid: user.id, name: user.name });
+    this.addLog({ type: 'join', ...whoIs(user) });
   }
 
   watch(user) {
-    if (this.isBanned(user)) throw new tonk.GameError('You were removed from this table by the host');
-    if (!this.watchable) throw new tonk.GameError('This table has too many spectators');
+    if (this.isBanned(user)) throw new tonk.GameError('banned');
+    if (!this.watchable) throw new tonk.GameError('tooManySpectators');
     this.claimName(user);
     this.spectators.push(user);
     user.room = this;
@@ -299,7 +295,7 @@ class Room {
     }
     const idx = this.players.indexOf(user);
     if (idx === -1) return;
-    this.addLog({ type: reason, pid: user.id, name: user.name });
+    this.addLog({ type: reason, ...whoIs(user) });
     this.players.splice(idx, 1);
     delete this.coins[user.id];
     user.room = null;
@@ -314,15 +310,15 @@ class Room {
   // A guest sits down: at a bot's seat (taking over its cards and coins, even mid-hand) or, between hands, at a free one.
   takeSeat(user, botId) {
     const spectatorIdx = this.spectators.indexOf(user);
-    if (spectatorIdx === -1) throw new tonk.GameError('Only guests can take a seat');
+    if (spectatorIdx === -1) throw new tonk.GameError('onlyGuestsSit');
     if (botId === undefined || botId === null) {
-      if (!this.joinable) throw new tonk.GameError('There is no free seat right now');
+      if (!this.joinable) throw new tonk.GameError('noFreeSeat');
       this.spectators.splice(spectatorIdx, 1);
       this.join(user);
       return;
     }
     const idx = this.players.findIndex((p) => p.id === botId && p.isBot);
-    if (idx === -1) throw new tonk.GameError('That bot is no longer at the table');
+    if (idx === -1) throw new tonk.GameError('botGone');
     const bot = this.players[idx];
     this.spectators.splice(spectatorIdx, 1);
     this.players[idx] = user;
@@ -337,24 +333,24 @@ class Room {
     }
     if (this.status === 'playing') tonk.renamePlayer(this.round, bot.id, user.id);
     bot.room = null;
-    this.addLog({ type: 'takeover', pid: user.id, name: user.name, botName: bot.name });
+    this.addLog({ type: 'takeover', pid: user.id, name: user.name, botId: bot.botId, botName: bot.name });
   }
 
   // The host can change the settings until the first hand is dealt. Everyone's coins are reset to the new pool.
   updateSettings(user, raw) {
     this.requirePlayer(user);
-    if (this.status !== 'waiting') throw new tonk.GameError('The table rules can only be changed before the game starts');
+    if (this.status !== 'waiting') throw new tonk.GameError('settingsLocked');
     this.settings = validateSettings(raw);
     for (const p of this.players) this.coins[p.id] = this.settings.startingCoins;
   }
 
   startHand(user) {
     this.requirePlayer(user);
-    if (this.status === 'playing') throw new tonk.GameError('A hand is already in progress');
+    if (this.status === 'playing') throw new tonk.GameError('handInProgress');
     if (this.status === 'waiting' && user.id !== this.hostId) {
-      throw new tonk.GameError('Only the host can start the game');
+      throw new tonk.GameError('onlyHostStarts');
     }
-    if (this.players.length < tonk.MIN_PLAYERS) throw new tonk.GameError(`Need at least ${tonk.MIN_PLAYERS} players`);
+    if (this.players.length < tonk.MIN_PLAYERS) throw new tonk.GameError('notEnoughPlayers', { min: tonk.MIN_PLAYERS });
     const n = this.players.length;
     this.dealerIdx = this.handNo === 0 ? Math.floor(this.rng() * n) : (this.dealerIdx + 1) % n;
     this.handNo++;
@@ -367,7 +363,7 @@ class Room {
     this.status = 'playing';
     this.minds = new Map();
     for (const p of this.players) this.mindOf(p);
-    this.addLog({ type: 'deal', pid: this.players[this.dealerIdx].id, name: this.players[this.dealerIdx].name, hand: this.handNo });
+    this.addLog({ type: 'deal', ...whoIs(this.players[this.dealerIdx]), hand: this.handNo });
     this.tonkDeadline = this.round.phase === 'tonk' ? Date.now() + this.tonkTimeoutMs : null;
   }
 
@@ -381,22 +377,22 @@ class Room {
   // for bots and when the timer runs out.
   declareTonk(user) {
     this.requirePlayer(user);
-    if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
+    if (this.status !== 'playing') throw new tonk.GameError('noHand');
     this.requireNotPaused();
     tonk.declareTonk(this.round, user.id);
-    this.pushChat(user, 'TONK!');
+    this.pushChat(user, 'TONK!', 'tonk');
     if (this.round.result) this.settle();
   }
 
   requireNotPaused() {
-    if (this.paused) throw new tonk.GameError('The game is paused');
+    if (this.paused) throw new tonk.GameError('paused');
   }
 
   // The host can stop the game during a hand. Everything that counts down is frozen, and the time left is kept
   // so it carries on from there (the lobby restarts the turn timer from `turnResume`).
   pause(user) {
     this.requirePlayer(user);
-    if (this.status !== 'playing') throw new tonk.GameError('There is no hand to pause');
+    if (this.status !== 'playing') throw new tonk.GameError('nothingToPause');
     if (this.paused) return;
     const now = Date.now();
     this.tonkLeftMs = this.tonkDeadline ? Math.max(0, this.tonkDeadline - now) : null;
@@ -416,7 +412,7 @@ class Room {
 
   act(user, action) {
     this.requirePlayer(user);
-    if (this.status !== 'playing') throw new tonk.GameError('No hand in progress');
+    if (this.status !== 'playing') throw new tonk.GameError('noHand');
     this.requireNotPaused();
     const events = tonk.applyAction(this.round, user.id, action);
     events.forEach((e) => this.addLog(e));
@@ -424,16 +420,21 @@ class Room {
   }
 
   addChat(user, raw) {
-    if (!this.players.includes(user) && !this.spectators.includes(user)) throw new tonk.GameError('Not at this table');
+    if (!this.players.includes(user) && !this.spectators.includes(user)) throw new tonk.GameError('notAtThisTable');
     const text = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CHAT_LENGTH) : '';
-    if (!text) throw new tonk.GameError('Message is empty');
+    if (!text) throw new tonk.GameError('emptyMessage');
     return this.pushChat(user, text);
   }
 
-  pushChat(user, text) {
+  // `kind` marks messages the game speaks for a player (like shouting TONK!), which each client words in its own language.
+  pushChat(user, text, kind = null) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
+    if (kind) message.kind = kind;
     if (this.spectators.includes(user)) message.spectator = true;
-    if (user.isBot) message.bot = true;
+    if (user.isBot) {
+      message.bot = true;
+      message.botId = user.botId;
+    }
     this.chat.push(message);
     if (this.chat.length > MAX_CHAT) this.chat.shift();
     return message;
@@ -441,7 +442,7 @@ class Room {
 
   reorder(user, cards) {
     this.requirePlayer(user);
-    if (this.status === 'waiting') throw new tonk.GameError('No hand in progress');
+    if (this.status === 'waiting') throw new tonk.GameError('noHand');
     tonk.reorderHand(this.round, user.id, cards);
   }
 
@@ -473,6 +474,9 @@ class Room {
     result.deltas = this.payout(result.deltas);
     for (const [id, delta] of Object.entries(result.deltas)) this.coins[id] += delta;
     result.names = Object.fromEntries(this.round.order.map((id) => [id, this.nameOfPlayer(id)]));
+    result.bots = Object.fromEntries(
+      this.round.order.map((id) => [id, this.players.find((p) => p.id === id)?.botId]).filter(([, botId]) => botId),
+    );
     const broke = this.players.filter((p) => this.coins[p.id] <= 0);
     result.broke = broke.map((p) => ({ id: p.id, bot: !!p.isBot }));
     this.status = 'between';
@@ -494,7 +498,7 @@ class Room {
 
   // A player with no coins left cannot play on: bots are sent away, humans keep watching as guests.
   sendBroke(user) {
-    this.addLog({ type: 'broke', pid: user.id, name: user.name, bot: !!user.isBot });
+    this.addLog({ type: 'broke', ...whoIs(user), bot: !!user.isBot });
     this.players.splice(this.players.indexOf(user), 1);
     delete this.coins[user.id];
     user.away = false;
@@ -510,7 +514,9 @@ class Room {
     return {
       id: this.id,
       name: this.name,
+      owner: this.owner,
       players: this.players.map((p) => p.name),
+      bots: this.players.map((p) => p.botId ?? null), // parallel to players: which character a bot is, for translated names
       max: tonk.MAX_PLAYERS,
       status: this.status,
       joinable: this.joinable,
@@ -529,6 +535,7 @@ class Room {
       room: {
         id: this.id,
         name: this.name,
+        owner: this.owner,
         hostId: this.hostId,
         locked: this.locked,
         password: user.id === this.hostId ? this.password : null, // only the host can read it back (to put it in invite links)
@@ -538,10 +545,11 @@ class Room {
         minPlayers: tonk.MIN_PLAYERS,
         maxPlayers: tonk.MAX_PLAYERS,
         settings: { ...this.settings },
-        settingLimits: SETTING_LIMITS,
+        settingLimits: settingLimitsView(),
         players: this.players.map((p) => ({
           id: p.id,
           name: p.name,
+          botId: p.botId ?? null,
           coins: this.coins[p.id],
           connected: p.isBot || !!p.conn,
           isBot: !!p.isBot,

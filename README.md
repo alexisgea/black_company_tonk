@@ -55,6 +55,18 @@ Anyone can press **Watch** next to a table in the lobby, at any time (up to 20 g
 
 A guest can sit down: **Take over** next to any bot on the scoreboard (also in the middle of a hand: the guest gets that bot's cards, coins and place in the turn order, and the log says so), or **Join the game** for a free seat (waiting room and between hands only; a newcomer's coins follow the "coins for latecomers" rule). The `takeSeat` message does both (`id` is the bot's id; without it a free seat is taken).
 
+### Localisation
+
+Every piece of text the player can read lives in `public/locales/<language>.json`, a flat `"dotted.key": "text"` map; English (`en.json`) is the reference and the fallback for anything another language leaves out. It is also the one place to review all the wording of the game. The sections are `common`, `lobby`, `room`, `table`, `status`, `action`, `result`, `log`, `chat`, `rules` (the whole rules dialog, as lists of paragraphs), `bot` (character names), `notice` and `err` (what the server reports). The changelog entries (`public/js/changelog-data.js`) stay in English on purpose.
+
+- Code uses `t('key', { name })` from `public/js/i18n.js`. Text may hold `{placeholders}`; a key with a `count` parameter picks the plural form from `key.one`, `key.other`, ... (CLDR categories, via `Intl.PluralRules`). `tNodes` is the same but lets a placeholder be a DOM node (a link, a name tag), and `tList` returns a list such as the rules paragraphs or the card rank letters.
+- The language is the saved choice (`localStorage`, key `tonk.lang`), then the browser's language list, then English. A language picker appears in Settings once there is more than one; changing it reloads the page.
+- **Server messages carry a code.** Errors are `{ t: 'error', code, params, message }` and notices are `{ t: 'closed' | 'notice' | 'broke', code, params, message }`; `message` is the English text (from `err.<code>` / `notice.<code>` in `en.json`, filled in by `server/i18n.js`), shown by clients that do not know the code. In the server, `new GameError('code', { params })` raises an error; `code` must exist under `err.` in `en.json`.
+- **Bots** are sent with their id (`botId`) next to their English `name`, and the client shows the translated `bot.<id>` name. Players cannot take a bot's name in any language: the reserved list is built from every locale file.
+- Chat lines the game speaks for a player (shouting TONK!) carry a `kind` and are worded by each client; what players type is shown as sent.
+- **To add a language** (say French): copy `en.json` to `fr.json`, translate the values (keep the keys and `{placeholders}`; add the plural forms the language needs), and add `'fr'` to `SUPPORTED` in `public/js/i18n.js`. `npm test` checks that every locale has the same keys, placeholders and list lengths as English, that every key used by the client code and every code used by the server exists in `en.json`, and that `SUPPORTED` matches the files.
+- Not yet translatable: the server console logs, the `the Second` / `the Third` suffix of duplicate player names, and what players type (names, table passwords, chat).
+
 ### Hosting
 
 See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, exposing it with a Cloudflare Tunnel, and the abuse-limit settings (environment variables such as `HOST`, `TRUST_PROXY`, `MAX_CONNECTIONS_PER_IP`).
@@ -74,9 +86,11 @@ See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, 
 | `server/botrisk.js` | Monte Carlo estimate of what going down is worth. |
 | `server/botprofiles.js` | The character (speed and skills) of each bot. |
 | `server/bottuning.js` | The named constants behind the bot decisions (margins, weights, payoffs, pace). |
-| `server/botnames.js` | Bot name list, random pick, and the reserved-name check for players. |
+| `server/botnames.js` | Bot id list, random pick, and the reserved-name check for players (names come from `public/locales`). |
+| `server/i18n.js` | English messages for the error and notice codes the server sends, and the bot names in every language. |
 | `shared/cards.js` | Card ids, hand totals, set/run validation. Loaded by the server (`require`) and the browser (`<script>`), so both always agree. |
-| `public/js/` | UI as native ES modules (no build step): `main.js` (entry), `net.js` (WebSocket + messages), `state.js`, `views.js` (screens), `hand.js` (selection and drag-reorder), `chat.js`, `animation.js`, `rules-dialog.js`, `theme.js` (card drawing; `style.css` has a matching theme block). |
+| `public/locales/` | All player-facing text, one JSON file per language (see "Localisation"). |
+| `public/js/` | UI as native ES modules (no build step): `main.js` (entry), `net.js` (WebSocket + messages), `state.js`, `views.js` (screens), `hand.js` (selection and drag-reorder), `chat.js`, `animation.js`, `rules-dialog.js`, `i18n.js` / `i18n-core.js` (translation), `theme.js` (card drawing; `style.css` has a matching theme block). |
 
 The server is authoritative; clients only send intents (`draw`, `takeDiscard`, `meld`, `layoff`, `discard`, `goDown`) and receive a per-player view (opponent hands are never sent until the hand ends). Hand order is stored server-side: dealt cards are unsorted, new cards are appended on the right, and players can drag cards to reorder (`reorder` message, never affects game state).
 

@@ -2,8 +2,9 @@
 // Card ids are 0..51: rank = id % 13 + 1 (1 = Ace), suit = floor(id / 13) in C, D, H, S order.
 import { rankOf, suitOf } from './rules.js';
 import { on } from './dom.js';
+import { tList } from './i18n.js';
 
-const RANK_LABELS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const RANK_LABELS = tList('card.ranks'); // A, 2 ... 10, J, Q, K in English; other languages may use other letters
 const SUIT_LABELS = ['\u2663', '\u2666', '\u2665', '\u2660'];
 
 export const cardLabel = (id) => RANK_LABELS[rankOf(id) - 1] + SUIT_LABELS[suitOf(id)];

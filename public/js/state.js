@@ -1,3 +1,5 @@
+import { botName, t } from './i18n.js';
+
 const toastEl = document.getElementById('toast');
 
 export const state = {
@@ -53,7 +55,15 @@ export function toast(message, ms = 3500) {
   toastTimer = setTimeout(() => (toastEl.hidden = true), ms);
 }
 
-export const nameOf = (id, fallback) =>
-  state.room?.players.find((p) => p.id === id)?.name || state.room?.spectators.find((s) => s.id === id)?.name || fallback || 'Someone';
+// A bot shows its character's name in the player's language; everyone else shows the name they chose.
+export const playerName = (p) => (p.botId ? botName(p.botId, p.name) : p.name);
+
+export const nameOf = (id, fallback) => {
+  const who = state.room?.players.find((p) => p.id === id) || state.room?.spectators.find((s) => s.id === id);
+  return (who && playerName(who)) || fallback || t('player.someone');
+};
+
+// Tables are named after their creator; the wording ("X's table") belongs to the language.
+export const tableName = (table) => (table.owner ? t('table.name', { owner: table.owner }) : table.name);
 
 export const isSpectator = () => !!state.room && !state.room.players.some((p) => p.id === state.you);

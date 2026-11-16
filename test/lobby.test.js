@@ -617,11 +617,12 @@ test('a locked table needs its password to join or watch; the host can lock, cha
   assert.equal(lobby.gameList()[0].locked, true);
 
   say(lobby, friend, { t: 'joinGame', gameId });
-  assert.equal(friend.last('error').code, 'password');
+  assert.equal(friend.last('error').code, 'tableLocked');
   say(lobby, friend, { t: 'joinGame', gameId, password: 'nope' });
+  assert.equal(friend.last('error').code, 'wrongPassword');
   assert.match(friend.last('error').message, /wrong password/i);
   say(lobby, guest, { t: 'watchGame', gameId });
-  assert.equal(guest.last('error').code, 'password');
+  assert.equal(guest.last('error').code, 'tableLocked');
   say(lobby, guest, { t: 'watchGame', gameId, password: 'swordfish' });
   assert.equal(guest.last('room').room.spectators.length, 1);
   assert.equal(guest.last('room').room.password, null, 'only the host sees the password');
@@ -685,7 +686,8 @@ test('a guest can take a bot seat mid-hand, keeping its cards and coins', () => 
   assert.deepEqual(after.round.players[guestId].hand, botHand);
   assert.equal(after.round.order.includes(bot.id), false);
   assert.equal(after.round.turn === guestId, turnWasBots);
-  assert.ok(after.log.some((e) => e.type === 'takeover' && e.pid === guestId && e.botName === bot.name));
+  assert.ok(bot.botId, 'clients are told which character a bot is, so they can show its name in their language');
+  assert.ok(after.log.some((e) => e.type === 'takeover' && e.pid === guestId && e.botName === bot.name && e.botId === bot.botId));
 
   // Once seated, the guest is a player like any other and cannot take another seat.
   say(lobby, guest, { t: 'takeSeat', id: bot.id });
@@ -729,6 +731,21 @@ test('only the host can change the table settings, and everyone sees them', () =
   const room = guest.last('room').room;
   assert.deepEqual(room.settings, { startingCoins: 20, bet: 2 });
   assert.ok(room.players.every((p) => p.coins === 20));
+});
+
+test('errors carry a code and parameters next to the English message, so clients can translate them', () => {
+  const lobby = new Lobby();
+  const {
+    humans: [host],
+  } = seatedGame(lobby);
+  say(lobby, host, { t: 'updateSettings', settings: { startingCoins: 5, bet: 2 } });
+  const err = host.last('error');
+  assert.equal(err.code, 'startingCoinsRange');
+  assert.deepEqual(err.params, { min: 10, max: 10000 });
+  assert.equal(err.message, 'Starting coins must be a whole number from 10 to 10000');
+  say(lobby, host, { t: 'nonsense' });
+  assert.equal(host.last('error').code, 'unknownMessage');
+  assert.equal('params' in host.last('error'), false);
 });
 
 test('a human who loses every coin becomes a guest and is told so', () => {

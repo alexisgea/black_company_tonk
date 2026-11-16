@@ -1,6 +1,10 @@
-import { state, toast } from './state.js';
+import { state, toast, tableName } from './state.js';
 import { chat, addChatMessage } from './chat.js';
 import { render } from './views.js';
+import { t, serverText } from './i18n.js';
+
+// Answers that mean "this table needs its password": the client asks for it instead of just reporting the error.
+const PASSWORD_CODES = new Set(['tableLocked', 'wrongPassword']);
 
 export function send(msg) {
   if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(msg));
@@ -11,11 +15,11 @@ export const sendHello = (name) => send({ t: 'hello', name, token: state.token, 
 // Asks to sit down (mode 'join') or watch at a table. A locked table first asks for its password.
 export function enterTable(game, mode, password) {
   if (game.locked && password === undefined) {
-    state.passwordPrompt = { gameId: game.id, mode, name: game.name, error: null };
+    state.passwordPrompt = { gameId: game.id, mode, name: tableName(game), error: null };
     render();
     return;
   }
-  state.pendingJoin = { gameId: game.id, mode, name: game.name };
+  state.pendingJoin = { gameId: game.id, mode, name: tableName(game) };
   send({ t: mode === 'join' ? 'joinGame' : 'watchGame', gameId: game.id, password });
 }
 
@@ -24,10 +28,10 @@ function followInvite() {
   const { gameId, password } = state.invite;
   state.invite = null;
   const game = state.games.find((g) => g.id === gameId);
-  if (!game) toast('That table no longer exists.');
+  if (!game) toast(t('toast.tableGone'));
   else if (game.joinable) enterTable(game, 'join', password);
   else if (game.watchable) enterTable(game, 'watch', password);
-  else toast('That table is full and has too many guests.');
+  else toast(t('toast.tableFull'));
 }
 
 const RETRY_BASE_MS = 1000;
@@ -141,23 +145,23 @@ function onMessage(msg) {
       return;
     case 'kicked':
       state.confirmKick = null;
-      toast('The host removed you from the table.', 6000);
+      toast(t('toast.kicked'), 6000);
       return; // the lobby list that follows takes you back to the lobby
     case 'closed':
-      toast(msg.message, 7000);
+      toast(serverText('notice', msg), 7000);
       return;
     case 'broke':
-      toast(msg.message, 9000);
+      toast(serverText('notice', msg), 9000);
       break;
     case 'notice':
-      toast(msg.message, 9000);
+      toast(serverText('notice', msg), 9000);
       return;
     case 'error':
-      if (msg.code === 'password' && state.pendingJoin) {
-        state.passwordPrompt = { ...state.pendingJoin, error: msg.message };
+      if (PASSWORD_CODES.has(msg.code) && state.pendingJoin) {
+        state.passwordPrompt = { ...state.pendingJoin, error: serverText('err', msg) };
         break;
       }
-      toast(msg.message);
+      toast(serverText('err', msg));
       return;
   }
   render();
