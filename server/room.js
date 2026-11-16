@@ -2,6 +2,8 @@
 const crypto = require('crypto');
 const tonk = require('./tonk');
 const { pickBotName } = require('./botnames');
+const { Mind } = require('./botmind');
+const { profileFor } = require('./botprofiles');
 
 // Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
 // so a hidden card can never leak through the log. A draw from the pile deliberately has no card.
@@ -98,6 +100,7 @@ class Room {
     this.password = null; // when set, newcomers (players and guests) must give it to sit down or watch
     this.status = 'waiting'; // 'waiting' (never dealt) | 'playing' | 'between' (hand finished)
     this.round = null;
+    this.minds = new Map(); // player id -> what that seat's computer player remembers of the hand (see botmind.js)
     this.handNo = 0;
     this.dealerIdx = 0;
     this.coins = {}; // player id -> coins left
@@ -186,7 +189,23 @@ class Room {
       pub[field] = Array.isArray(event[field]) ? [...event[field]] : event[field];
     }
     this.log.push(pub);
+    for (const mind of this.minds.values()) mind.observe(pub);
     this.trimLog();
+  }
+
+  // A computer player (or an away human's seat) decides from what a human at that seat sees plus its own memory.
+  botSight(user) {
+    return { view: tonk.viewRound(this.round, user.id), mind: this.mindOf(user) };
+  }
+
+  mindOf(user) {
+    let mind = this.minds.get(user.id);
+    if (!mind) {
+      mind = new Mind(user.id, profileFor(user).skills, this.rng);
+      mind.start(tonk.viewRound(this.round, user.id));
+      this.minds.set(user.id, mind);
+    }
+    return mind;
   }
 
   trimLog() {
@@ -300,6 +319,13 @@ class Room {
     this.players[idx] = user;
     this.coins[user.id] = this.coins[bot.id];
     delete this.coins[bot.id];
+    const mind = this.minds.get(bot.id);
+    if (mind) {
+      for (const m of this.minds.values()) m.rename(bot.id, user.id);
+      this.minds.delete(bot.id);
+      mind.skills = profileFor(user).skills; // if they go away, a stand-in plays their seat, not the bot's character
+      this.minds.set(user.id, mind);
+    }
     if (this.status === 'playing') tonk.renamePlayer(this.round, bot.id, user.id);
     bot.room = null;
     this.addLog({ type: 'takeover', pid: user.id, name: user.name, botName: bot.name });
@@ -330,6 +356,8 @@ class Room {
       { deferTonk: true },
     );
     this.status = 'playing';
+    this.minds = new Map();
+    for (const p of this.players) this.mindOf(p);
     this.addLog({ type: 'deal', pid: this.players[this.dealerIdx].id, name: this.players[this.dealerIdx].name, hand: this.handNo });
     this.tonkDeadline = this.round.phase === 'tonk' ? Date.now() + this.tonkTimeoutMs : null;
   }

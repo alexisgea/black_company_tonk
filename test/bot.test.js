@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../server/tonk');
-const { chooseAction, fallbackAction, findMeld } = require('../server/bot');
+const { legacyAction, fallbackAction, findMeld } = require('../server/bot');
 
 const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 
@@ -34,7 +34,7 @@ test('bots only ever make legal moves and always finish the hand', () => {
     while (!round.result) {
       assert.ok(++steps < 2000, `seed ${seed} did not finish`);
       const id = round.order[round.turn];
-      const action = chooseAction(round, id);
+      const action = legacyAction(round, id);
       if (action.type === 'meld') melds++;
       if (action.type === 'layoff') layoffs++;
       T.applyAction(round, id, action); // throws on any illegal move
@@ -60,9 +60,9 @@ test('the fallback move is always legal, so a failing bot cannot freeze a table'
 test('bot takes a discard that completes a meld, draws otherwise', () => {
   const base = { melds: [], deck: [c(2, 'S')], phase: 'draw' };
   const helpful = { ...base, hands: { a: [c(8, 'C'), c(8, 'D'), c(13, 'S'), c(12, 'S'), c(11, 'S')] }, discard: [c(8, 'H')] };
-  assert.equal(chooseAction(helpful, 'a').type, 'takeDiscard');
+  assert.equal(legacyAction(helpful, 'a').type, 'takeDiscard');
   const useless = { ...base, hands: { a: [c(8, 'C'), c(8, 'D'), c(13, 'S'), c(12, 'S'), c(11, 'S')] }, discard: [c(2, 'H')] };
-  assert.equal(chooseAction(useless, 'a').type, 'draw');
+  assert.equal(legacyAction(useless, 'a').type, 'draw');
   const low = { ...base, hands: { a: [c(1, 'C'), c(2, 'D'), c(3, 'S')] }, discard: [c(2, 'H')] };
-  assert.equal(chooseAction(low, 'a').type, 'goDown');
+  assert.equal(legacyAction(low, 'a').type, 'goDown');
 });

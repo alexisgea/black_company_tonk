@@ -269,7 +269,8 @@ test('bots: can be removed before and between hands, but not mid-hand', () => {
 });
 
 // Starts hands on fresh lobbies until one is in progress (no Tonk on the deal) with the wanted
-// player to move. Returns the lobby, the humans (seat order of joining) and a view helper.
+// player to move, holding a high hand so a bot playing that seat does not simply go down at once.
+// Returns the lobby, the humans (seat order of joining) and a view helper.
 function playingGame(opts, moverIndex) {
   for (let attempt = 0; attempt < 200; attempt++) {
     const lobby = new Lobby(opts);
@@ -277,7 +278,8 @@ function playingGame(opts, moverIndex) {
     say(lobby, humans[0], { t: 'startGame' });
     const room = humans[0].last('room').room;
     if (room.status !== 'playing' || room.round.phase === 'tonk') continue;
-    if (humans[moverIndex].last('room').you !== room.round.turn) continue;
+    const mover = humans[moverIndex].last('room');
+    if (mover.you !== room.round.turn || mover.room.round.players[mover.you].total < 30) continue;
     return { lobby, humans, state: () => humans[0].last('room').room };
   }
   throw new Error('no suitable deal found');
@@ -802,13 +804,12 @@ test('turn timer: a human who takes too long is replaced by a bot until they com
 test('turn timer: a bot takes over for an away player and plays their turn', async () => {
   const { humans, state } = playingGame({ turnTimeoutMs: 30, botDelayMs: 5 }, 1);
   const bobId = humans[1].last('room').you;
-  // The log only keeps the last round, so look as soon as the bot has moved instead of after a fixed delay.
-  for (let i = 0; i < 1000 && !state().log.some((e) => e.type === 'discard' && e.pid === bobId); i++) await wait(2);
+  // The bot may also go down at once, which ends the hand. The log only keeps the last round, so look as soon as
+  // the bot has moved instead of after a fixed delay.
+  const moved = () => state().log.some((e) => (e.type === 'discard' || e.type === 'goDown') && e.pid === bobId);
+  for (let i = 0; i < 1000 && !moved(); i++) await wait(2);
   assert.ok(state().log.some((e) => e.type === 'timeout' && e.pid === bobId));
-  assert.ok(
-    state().log.some((e) => e.type === 'discard' && e.pid === bobId),
-    'the bot discarded for Bob',
-  );
+  assert.ok(moved(), 'the bot played for Bob');
 });
 
 test('turn timer: 0 turns the timer off', async () => {
@@ -872,13 +873,15 @@ test('pause: only the host can pause, nobody can move meanwhile, and the turn ti
 test('pause: bots stop playing until the game is resumed', async () => {
   const { lobby, humans, state } = playingGame({ turnTimeoutMs: 0, botDelayMs: 20 }, 1);
   const host = humans[0];
+  const bobId = humans[1].last('room').you;
+  const moved = () => state().log.some((e) => (e.type === 'discard' || e.type === 'goDown') && e.pid === bobId);
   say(lobby, host, { t: 'pause' });
   lobby.disconnect(humans[1]); // a seat the server plays by itself
   await wait(100);
-  assert.ok(!state().log.some((e) => e.pid === humans[1].last('room').you && e.type === 'discard'));
+  assert.ok(!moved());
   say(lobby, host, { t: 'unpause' });
-  await wait(100);
-  assert.ok(state().log.some((e) => e.pid === humans[1].last('room').you && e.type === 'discard'));
+  for (let i = 0; i < 500 && !moved(); i++) await wait(2);
+  assert.ok(moved());
 });
 
 test('kick also bans the browser: a new token from the same device cannot rejoin, another device can', () => {

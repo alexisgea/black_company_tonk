@@ -15,9 +15,26 @@ Open the page, enter a name, create a table or join one from the list (3-5 playe
 
 ### Bots
 
-The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot in the waiting room or on the scoreboard between hands (with a confirmation). Bots cannot be added or removed during a hand. Bots count toward the 3-5 players, so one human with two bots is enough to play alone. Each bot gets a random name from a fixed list (Croaker, Goblin, One-Eye, ...) followed by a small helmet icon so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). The host (the table's creator, or the next human if they leave) is marked with a ★ next to their name. They run inside the server: they draw (or take a useful discard), put down sets and runs, add to spreads, discard their highest card, and go down when their total is 12 or lower. See `server/bot.js`. A table is removed when its last human leaves.
+The host of a table can fill empty seats with computer players: **Add bot** in the waiting room and between hands, and **Remove** next to each bot in the waiting room or on the scoreboard between hands (with a confirmation). Bots cannot be added or removed during a hand. Bots count toward the 3-5 players, so one human with two bots is enough to play alone. Each bot gets a random name from a fixed list (Croaker, Goblin, One-Eye, ...) followed by a small helmet icon so it can be told apart from a human; players cannot use those names (see `server/botnames.js`). The host (the table's creator, or the next human if they leave) is marked with a ★ next to their name. They run inside the server (see "How the bots play" below). A table is removed when its last human leaves.
 
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
+
+### How the bots play
+
+Every bot has a character in `server/botprofiles.js` (edit the table to tune one): a **speed** (how long it thinks) and a set of **skills**, each a probability from 0 to 1 that it gets that part of the game right (all start at 0.8). A skill is rolled once per turn for each situation, so a bot that misses something stays blind to it for that turn and gets another chance on the next one. A table-wide difficulty can later scale every skill with the same factor (`profileFor(player, difficulty)`), keeping the gaps between characters.
+
+| Skill | What it does |
+| --- | --- |
+| `memory` | Remembers discards (and cards others took from the pile) older than the last full round. The last round is always remembered; an older fact is kept or forgotten by one roll. A reshuffle wipes the discard memory. |
+| `spotDiscard` | Notices that the top discard helps: it fits a spread, or makes a pair or two-card run with a cheap card. |
+| `layoffOthers` | Notices that a card fits another player's run (it never misses its own spreads). |
+| `planAhead` | Keeps a card that is part of a promising pair or run, counting the cards it has not seen go by. |
+| `denyHelp` | Avoids discarding a card that helps the opponents (the next player counts most). It still does it when the remaining hand is 12 or less. It uses cards it knows others hold, and cards they threw away or turned down. |
+| `goDownRisk` | Estimates the payoff of going down by dealing the opponents' unknown cards at random (Monte Carlo) and goes down when it pays enough. The lower the skill, the noisier the estimate, and the more often it decides on gut feeling (the old "12 or lower", stretched by wishful thinking up to 20). |
+| `finishHand` | Looks for a way to put down every card and win the hand instead of just the biggest spread. |
+| `danger` | Notices opponents with one or two cards left: it goes down sooner and sheds high cards. |
+
+Bots only use what a human at their seat sees (the view from `viewRound`) plus their own memory (`server/botmind.js`, fed by the public log), never the opponents' hands or the order of the draw pile. When the draw pile has run out for the second time they go down regardless, so a table never cycles forever. The original simple bot (draw, spread, discard the highest card, go down at 12 or lower) is kept as a safety net in `server/bot.js`: it plays if the smart logic ever fails.
 
 ### Tables: lifetime and hosts
 
@@ -51,7 +68,11 @@ See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, 
 | `server/lobby.js` | Connections, identity/reconnect, table list, message routing. |
 | `server/index.js` | HTTP static server + WebSocket glue, connection-level abuse limits. |
 | `server/limits.js` | Rate limiter, client-IP and Origin checks. |
-| `server/bot.js` | Bot decision logic. |
+| `server/bot.js` | The original simple bot (also the safety net) and the spread finder. |
+| `server/botsmart.js` | The smart bot: draw, spread, layoff, discard and go-down decisions. |
+| `server/botmind.js` | What one bot remembers about the hand (fed by the public log). |
+| `server/botrisk.js` | Monte Carlo estimate of what going down is worth. |
+| `server/botprofiles.js` | The character (speed and skills) of each bot. |
 | `server/botnames.js` | Bot name list, random pick, and the reserved-name check for players. |
 | `shared/cards.js` | Card ids, hand totals, set/run validation. Loaded by the server (`require`) and the browser (`<script>`), so both always agree. |
 | `public/js/` | UI as native ES modules (no build step): `main.js` (entry), `net.js` (WebSocket + messages), `state.js`, `views.js` (screens), `hand.js` (selection and drag-reorder), `chat.js`, `animation.js`, `rules-dialog.js`, `theme.js` (card drawing; `style.css` has a matching theme block). |
@@ -83,6 +104,6 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 
 ## Known gaps / ideas
 
-- A player who is idle or disconnected is only replaced after the turn timer (120 s by default); the bot that takes over is the simple one in `server/bot.js`.
+- A player who is idle or disconnected is only replaced after the turn timer (120 s by default); the bot that takes over plays like any other bot (see `server/botprofiles.js`).
 - Players can join between hands, not mid-hand (guests can watch at any time). No persistent accounts yet.
 - Single-process in-memory state; restarting the server drops all tables.

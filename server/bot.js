@@ -1,5 +1,6 @@
 'use strict';
-// Computer opponent. Pure decision logic: given the round, pick an action.
+// The original, simple computer opponent: given the round, pick an action. It is the safety net for the smart player
+// in botsmart.js, which is used first (see Lobby.botMove).
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('./tonk');
 
 const GO_DOWN_AT = 12;
@@ -43,7 +44,7 @@ const findLayoff = (hand, melds) => {
 // Would taking this card from the discard pile let the bot put cards down right away?
 const discardHelps = (round, hand, card) => !!findLayoff([card], round.melds) || !!findMeld([...hand, card])?.includes(card);
 
-function chooseAction(round, id) {
+function legacyAction(round, id) {
   const hand = round.hands[id];
   if (round.phase === 'draw') {
     // An empty draw pile means the table is cycling without anyone getting low enough; end the hand.
@@ -61,7 +62,7 @@ function chooseAction(round, id) {
   return { type: 'discard', card: worst };
 }
 
-// Plain legal move used when chooseAction fails, so a bug in the smart logic can never freeze a table:
+// Plain legal move used when everything else fails, so a bug in the bot logic can never freeze a table:
 // take a card, then throw away the highest one.
 function fallbackAction(round, id) {
   if (round.phase === 'draw') {
@@ -71,4 +72,4 @@ function fallbackAction(round, id) {
   return { type: 'discard', card: worst };
 }
 
-module.exports = { chooseAction, fallbackAction, findMeld };
+module.exports = { legacyAction, fallbackAction, findMeld, GO_DOWN_AT };

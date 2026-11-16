@@ -1,6 +1,16 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.17.0',
+    date: '2026-11-16',
+    changes: [
+      "The computer players are much smarter: they remember discards, avoid helping the next player, add to other players' spreads, keep promising pairs and runs, and weigh the risk before going down.",
+      'They also go for a win when they can put down all their cards, and play it safe when an opponent is about to empty their hand.',
+      'Bots are not perfect: each one sometimes forgets a card, misses a spread or misjudges a hand, and some think faster than others.',
+      'When the draw pile runs out for the second time, the bots go down so a table never goes round in circles.',
+    ],
+  },
+  {
     version: '0.16.1',
     date: '2026-11-16',
     changes: ['The "Lock table" button is gone: the host just types a password to lock the table (clear it to unlock).'],

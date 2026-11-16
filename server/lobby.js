@@ -2,7 +2,9 @@
 const crypto = require('crypto');
 const { Room, validatePassword } = require('./room');
 const { GameError } = require('./tonk');
-const { chooseAction, fallbackAction } = require('./bot');
+const { legacyAction, fallbackAction } = require('./bot');
+const { smartAction } = require('./botsmart');
+const { profileFor } = require('./botprofiles');
 const { isReservedName } = require('./botnames');
 
 const { RateLimiter } = require('./limits');
@@ -38,7 +40,7 @@ const cleanDevice = (raw) => (typeof raw === 'string' && DEVICE_ID.test(raw) ? r
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
-  // botDelayMs: pause before a bot moves. maxRooms / createsPerMinute: abuse limits.
+  // botDelayMs: base pause before a bot moves (scaled by the character's speed, see thinkMs). maxRooms / createsPerMinute: abuse limits.
   // roomIdleMs: a game nobody has touched for this long is closed (warning idleWarningMs before).
   // turnTimeoutMs: a connected player who takes longer than this on their turn is replaced by a bot (0 = never).
   // It only applies when at least two humans play; a lone human with bots is covered by roomIdleMs instead.
@@ -209,20 +211,35 @@ class Lobby {
         this.broadcastRoom(room);
         if (room.status !== 'playing') this.broadcastLobby();
       }),
-      this.botDelayMs,
+      this.thinkMs(room, seat),
     );
     room.botTimer.unref?.();
   }
 
-  // Plays one move for an auto-played seat. If the bot logic fails, a plain legal move is used instead so the
-  // table never freezes. Returns false only if even that fails.
+  // How long a computer player takes over this move: each character has its own pace, a draw takes a little
+  // longer to think about than putting cards down, and no two moves take exactly the same time.
+  thinkMs(room, seat) {
+    const pace = profileFor(seat).speed * (room.round.phase === 'draw' ? 1.3 : 0.8);
+    return Math.round(this.botDelayMs * pace * (0.75 + Math.random() * 0.5));
+  }
+
+  // Plays one move for an auto-played seat: the smart player first, then the original simple one, then a plain
+  // legal move, so a bug in the bot logic never freezes the table. Returns false only if all of them fail.
   botMove(room, bot) {
-    for (const choose of [chooseAction, fallbackAction]) {
+    const attempts = [
+      () => {
+        const { view, mind } = room.botSight(bot);
+        return smartAction(view, bot.id, mind);
+      },
+      () => legacyAction(room.round, bot.id),
+      () => fallbackAction(room.round, bot.id),
+    ];
+    for (const choose of attempts) {
       try {
-        room.act(bot, choose(room.round, bot.id));
+        room.act(bot, choose());
         return true;
       } catch (err) {
-        console.error(`Bot move failed (${choose.name}):`, err);
+        console.error('Bot move failed:', err);
       }
     }
     return false;
