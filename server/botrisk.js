@@ -3,18 +3,17 @@
 // account for, many times over, and scores each deal with the real go-down payoff. Everything it uses comes from the
 // view a human gets and from its own memory.
 const { handTotal } = require('../shared/cards');
-
-const SAMPLES = 120;
+const { PAY_DOWN_WIN, PAY_DOWN_LOSS, RISK_SAMPLES } = require('./bottuning');
 
 // Payoff, in bets, for the player going down with `mine` against these opponent totals (see goDown in tonk.js).
 function goDownPayoff(mine, totals) {
-  if (totals.every((t) => t > mine)) return totals.length;
-  return -2 * totals.filter((t) => t <= mine).length;
+  if (totals.every((t) => t > mine)) return PAY_DOWN_WIN * totals.length;
+  return -PAY_DOWN_LOSS * totals.filter((t) => t <= mine).length;
 }
 
 // opponents: [{ count, known }]: how many cards they hold and which of those the bot knows about.
 // unseen: the cards that could be in an opponent's hand (the bot's best guess).
-function estimateGoDown(mine, opponents, unseen, rng, samples = SAMPLES) {
+function estimateGoDown(mine, opponents, unseen, rng, samples = RISK_SAMPLES) {
   const knownTotals = opponents.map((o) => handTotal(o.known));
   const unknownCounts = opponents.map((o) => Math.max(0, o.count - o.known.length));
   let sum = 0;

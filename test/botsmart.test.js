@@ -122,6 +122,29 @@ test('finishHand: the bot picks the spreads that empty its hand, not the biggest
   assert.deepEqual([...planned.cards].sort(), [c(4, 'S'), c(5, 'S'), c(6, 'S')].sort(), 'the run first, then the three sixes');
 });
 
+test('finishHand chase: with few cards left it keeps the pair that can still empty the hand', () => {
+  const hand = [c(5, 'H'), c(5, 'D'), c(2, 'C'), c(3, 'S')];
+  assert.equal(act(setup({ hand })).card, c(5, 'H'), 'without the skill it throws the highest card');
+  assert.equal(act(setup({ hand }, { finishHand: 1 })).card, c(3, 'S'), 'with it, it keeps the pair and drops the dearest of the rest');
+  const dead = setup({ hand }, { finishHand: 1, memory: 1 });
+  dead.mind.observe({ type: 'discard', pid: 'b', card: c(5, 'S') });
+  dead.mind.observe({ type: 'discard', pid: 'c', card: c(5, 'C') });
+  assert.equal(act(dead).card, c(5, 'H'), 'both other fives are gone: the pair is no longer worth keeping');
+});
+
+test('finishHand chase: it takes a discard that lets it empty its hand this turn, and does not go down with a sure win in hand', () => {
+  const pair = [c(5, 'H'), c(5, 'D')];
+  assert.equal(act(setup({ hand: pair, phase: 'draw', top: c(5, 'S') }, { finishHand: 1, goDownRisk: 1 })).type, 'takeDiscard');
+  assert.notEqual(act(setup({ hand: pair, phase: 'draw', top: c(9, 'S') }, { finishHand: 1, goDownRisk: 1 })).type, 'takeDiscard');
+
+  // One card that fits a run on the table: any card drawn lets it lay that card off and discard the other.
+  // Going down would win 1 bet from each opponent; emptying the hand wins 2 from each. With no discard in view it draws.
+  const run = { id: 1, owner: 'b', type: 'run', cards: [c(5, 'D'), c(6, 'D'), c(7, 'D'), c(8, 'D')] };
+  const one = { hand: [c(9, 'D')], phase: 'draw', top: null, melds: [run] };
+  assert.equal(act(setup(one, { goDownRisk: 1, layoffOthers: 1 })).type, 'goDown');
+  assert.equal(act(setup(one, { goDownRisk: 1, layoffOthers: 1, finishHand: 1 })).type, 'draw');
+});
+
 test('planAhead keeps a pair together instead of throwing away the highest card', () => {
   const hand = [c(13, 'S'), c(13, 'D'), c(2, 'C'), c(4, 'H'), c(9, 'D')];
   assert.equal(act(setup({ hand })).card, c(13, 'S'));

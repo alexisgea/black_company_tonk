@@ -2,26 +2,15 @@
 // The smart computer player. It sees what a human sees (`view`, from viewRound) and what it remembers (`mind`, see
 // botmind.js), never the opponents' hands. Each skill in the bot's profile is the chance it gets that part right.
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('../shared/cards');
-const { findMeld, GO_DOWN_AT } = require('./bot');
+const { findMeld } = require('./bot');
 const { estimateGoDown } = require('./botrisk');
-
-const GO_MARGIN = 1.6; // expected bets a go-down must be worth before the bot dares (continuing the hand is not free of risk either)
-const THREAT_MARGIN = 0.8; // how much sooner it goes down per opponent about to empty their hand
-const LAPSE_RATE = 0.6; // chance of deciding on gut feeling instead of calculating, at a goDownRisk of 0
-const GUT_BASE = 5; // on gut feeling it goes down at this total...
-const WISHFUL = 10; // ...plus up to this much
-const NOISE = 1.5; // how far its calculation can be off, in bets, at a goDownRisk of 0
-const KEEP_WEIGHT = 2; // discard score lost per card that could still complete a spread with this one
-const HELP_WEIGHT = 6; // discard score lost for giving the opponents a full spread
-const BASE_HELP = 0.15; // any discard is a little useful to somebody
-const POSITION_WEIGHT = [0, 1, 0.5, 0.3, 0.15]; // how much the player N seats after the bot matters
-const POTENTIAL_MAX_VALUE = 7; // it only takes a discard for its potential if it is a cheap card
-const POTENTIAL_MIN_OUTS = 2;
+const T = require('./bottuning');
 
 const idOf = (suit, rank) => suit * 13 + rank - 1;
 const byValueDesc = (cards) => [...cards].sort((a, b) => cardValue(b) - cardValue(a));
-// Same rank, or the same suit within two ranks: the kind of card that goes with this one in a spread.
-const related = (a, b) => rankOf(a) === rankOf(b) || (suitOf(a) === suitOf(b) && Math.abs(rankOf(a) - rankOf(b)) <= 2);
+const centered = (rng) => rng() * 2 - 1; // a random number from -1 to 1
+// Same rank, or the same suit within a couple of ranks: the kind of card that goes with this one in a spread.
+const related = (a, b) => rankOf(a) === rankOf(b) || (suitOf(a) === suitOf(b) && Math.abs(rankOf(a) - rankOf(b)) <= T.RELATED_RANK_GAP);
 
 // Everything the bot can work with this turn.
 function sightOf(view, id, mind) {
@@ -105,31 +94,49 @@ function findFinish(hand, melds) {
   return plan(hand, melds)?.[0] ?? null;
 }
 
-// How close the opponents are to emptying their hand (0 = nobody, up to 2). Only if the bot pays attention.
+// How close the opponents are to emptying their hand (0 = nobody, up to THREAT_CAP). Only if the bot pays attention.
 function threatOf({ view, opponents, mind }) {
   if (!mind.decide('danger')) return 0;
   let threat = 0;
   for (const p of opponents) {
     const count = view.players[p].count;
-    if (count <= 1) threat += 1;
-    else if (count === 2) threat += 0.5;
+    if (count <= 1) threat += T.THREAT_ONE_CARD;
+    else if (count === 2) threat += T.THREAT_TWO_CARDS;
   }
-  return Math.min(2, threat);
+  return Math.min(T.THREAT_CAP, threat);
+}
+
+const unseenCards = ({ seen }) => [...Array(52).keys()].filter((c) => !seen.has(c));
+
+// The chance (0 to 1) that a hand of `cards` can be emptied on the next turn: the share of the cards it has not
+// seen that, drawn, let it put down everything (see findFinish).
+function finishOdds(cards, melds, sight) {
+  const unseen = unseenCards(sight);
+  if (!unseen.length) return 0;
+  return unseen.filter((card) => findFinish([...cards, card], melds)).length / unseen.length;
+}
+
+// What chasing an empty hand is worth, in bets, compared with going down: the chance to empty it next turn times
+// what every opponent pays for that. Zero unless the bot sees the chance (finishHand) and has few cards left.
+function chaseWorth(sight) {
+  const { hand, opponents, mind } = sight;
+  if (hand.length > T.CHASE_MAX_CARDS || !mind.decide('finishHand')) return 0;
+  return finishOdds(hand, noticedMelds(sight), sight) * T.PAY_EMPTY_HAND * opponents.length;
 }
 
 function shouldGoDown(sight) {
-  const { view, hand, opponents, held, seen, mind } = sight;
-  // The draw pile ran out for the second time: nobody is getting low enough, so end the hand.
-  if (view.deckCount === 0 && (mind.reshuffles >= 1 || mind.pileSize <= 1)) return true;
+  const { view, hand, opponents, held, mind } = sight;
+  // The draw pile ran out again after the allowed number of reshuffles: nobody is getting low enough, so end the hand.
+  if (view.deckCount === 0 && (mind.reshuffles >= T.RESHUFFLES_BEFORE_FORCED_DOWN || mind.pileSize <= 1)) return true;
   const total = handTotal(hand);
   const skill = mind.skills.goDownRisk;
   const rng = mind.rng;
   // Gut feeling: a rule of thumb that wishful thinking stretches (a 15 can feel safe).
-  if (rng() < (1 - skill) * LAPSE_RATE) return total <= GUT_BASE + Math.floor(rng() * (WISHFUL + 1));
-  const unseen = [...Array(52).keys()].filter((c) => !seen.has(c));
+  if (rng() < (1 - skill) * T.GUT_RATE) return total <= T.GUT_BASE + Math.floor(rng() * (T.GUT_WISHFUL + 1));
   const rivals = opponents.map((p) => ({ count: view.players[p].count, known: held[p] }));
-  const worth = estimateGoDown(total, rivals, unseen, rng) + (rng() * 2 - 1) * (1 - skill) * NOISE;
-  return worth >= GO_MARGIN - THREAT_MARGIN * threatOf(sight);
+  const worth = estimateGoDown(total, rivals, unseenCards(sight), rng) + centered(rng) * (1 - skill) * T.NOISE;
+  if (worth < T.GO_MARGIN - T.THREAT_GO_DOWN_BONUS * threatOf(sight)) return false;
+  return worth >= chaseWorth(sight);
 }
 
 function wantsDiscard(sight, top) {
@@ -137,20 +144,20 @@ function wantsDiscard(sight, top) {
   if (!mind.decide('spotDiscard', 'top')) return false;
   if (findLayoff([top], noticedMelds(sight))) return true;
   if (findMeld([...hand, top])?.includes(top)) return true;
-  return cardValue(top) <= POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= POTENTIAL_MIN_OUTS;
+  return cardValue(top) <= T.POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= T.POTENTIAL_MIN_OUTS;
 }
 
 // How useful `card` would be to `pid` if it landed on the discard pile: what the bot knows they hold and what they
 // have thrown away or turned down before, nothing else.
 function helpFor(card, pid, { view, held, mind }) {
-  if (view.melds.some((m) => layoffEnd(m, card))) return 1;
+  if (view.melds.some((m) => layoffEnd(m, card))) return T.HELP_LAYOFF;
   const cards = held[pid];
-  let score = BASE_HELP;
+  let score = T.HELP_BASE;
   for (const a of cards) {
-    if (related(a, card)) score = Math.max(score, 0.3);
-    for (const b of cards) if (a < b && classifyMeld([a, b, card])) score = 0.9;
+    if (related(a, card)) score = Math.max(score, T.HELP_RELATED);
+    for (const b of cards) if (a < b && classifyMeld([a, b, card])) score = T.HELP_COMPLETES;
   }
-  if (score < 0.9 && mind.evidenceAgainst(pid).some((e) => related(e, card))) score *= 0.5;
+  if (score < T.HELP_COMPLETES && mind.evidenceAgainst(pid).some((e) => related(e, card))) score *= T.HELP_TURNED_DOWN;
   return score;
 }
 
@@ -161,42 +168,44 @@ function helpOf(card, sight) {
   let total = 0;
   for (const p of opponents) {
     const distance = (view.order.indexOf(p) - me + n) % n;
-    total += (POSITION_WEIGHT[distance] ?? 0.1) * helpFor(card, p, sight);
+    total += (T.SEAT_WEIGHT[distance] ?? T.HELP_FAR_SEAT) * helpFor(card, p, sight);
   }
   return total;
 }
 
+// The card to throw away: the one with the highest score. Dear cards score high, and so does a card whose removal
+// leaves a hand that can be emptied next turn; cards that are part of a promising spread or that would help the
+// opponents score lower.
 function chooseDiscard(sight) {
   const { hand, mind } = sight;
   if (hand.length === 1) return hand[0];
   const threat = threatOf(sight);
   const planAhead = mind.decide('planAhead');
   const denyHelp = mind.decide('denyHelp');
+  const chase = hand.length - 1 <= T.CHASE_MAX_CARDS && mind.decide('finishHand');
+  const melds = chase ? noticedMelds(sight) : [];
   const total = handTotal(hand);
   let best = null;
   for (const card of hand) {
-    let score = cardValue(card) * (1 + 0.4 * threat);
-    if (planAhead)
-      score -=
-        KEEP_WEIGHT *
-        linkOuts(
-          card,
-          hand.filter((c) => c !== card),
-          sight,
-        ) *
-        (1 - 0.5 * Math.min(1, threat));
+    const rest = hand.filter((c) => c !== card);
+    let score = cardValue(card) * (1 + T.THREAT_HIGH_CARD_BOOST * threat);
+    if (planAhead) score -= T.KEEP_WEIGHT * linkOuts(card, rest, sight) * (1 - T.THREAT_PLAN_DAMPING * Math.min(1, threat));
+    if (chase) score += T.CHASE_WEIGHT * finishOdds(rest, melds, sight);
     // Helping the next player is accepted when it leaves a hand low enough to go down with.
-    if (denyHelp && total - cardValue(card) > GO_DOWN_AT) score -= HELP_WEIGHT * helpOf(card, sight);
+    if (denyHelp && total - cardValue(card) > T.GO_DOWN_AT) score -= T.HELP_WEIGHT * helpOf(card, sight);
     if (!best || score > best.score) best = { card, score };
   }
   return best.card;
 }
 
 function drawPhase(sight) {
-  const { view, mind } = sight;
+  const { hand, view, mind } = sight;
+  const top = view.discardTop;
+  // The discard would let it empty its hand this very turn: nothing beats that.
+  if (top !== null && mind.decide('finishHand') && findFinish([...hand, top], noticedMelds(sight))) return { type: 'takeDiscard' };
   if (shouldGoDown(sight)) return { type: 'goDown' };
   const canDraw = view.deckCount > 0 || mind.pileSize > 1;
-  if (view.discardTop !== null && (!canDraw || wantsDiscard(sight, view.discardTop))) return { type: 'takeDiscard' };
+  if (top !== null && (!canDraw || wantsDiscard(sight, top))) return { type: 'takeDiscard' };
   return { type: 'draw' };
 }
 

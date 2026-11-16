@@ -31,10 +31,10 @@ Every bot has a character in `server/botprofiles.js` (edit the table to tune one
 | `planAhead` | Keeps a card that is part of a promising pair or run, counting the cards it has not seen go by. |
 | `denyHelp` | Avoids discarding a card that helps the opponents (the next player counts most). It still does it when the remaining hand is 12 or less. It uses cards it knows others hold, and cards they threw away or turned down. |
 | `goDownRisk` | Estimates the payoff of going down by dealing the opponents' unknown cards at random (Monte Carlo) and goes down when it pays enough. The lower the skill, the noisier the estimate, and the more often it decides on gut feeling (a total of 5 or lower, stretched by wishful thinking up to 15). |
-| `finishHand` | Looks for a way to put down every card and win the hand instead of just the biggest spread. |
+| `finishHand` | Looks for a way to put down every card and win the hand instead of just the biggest spread. With three cards or fewer it also chases an empty hand (which pays double a go-down): it keeps the cards most likely to finish, takes a discard that lets it finish, and does not go down when finishing is worth more. |
 | `danger` | Notices opponents with one or two cards left: it goes down sooner and sheds high cards. |
 
-Bots only use what a human at their seat sees (the view from `viewRound`) plus their own memory (`server/botmind.js`, fed by the public log), never the opponents' hands or the order of the draw pile. When the draw pile has run out for the second time they go down regardless, so a table never cycles forever. The original simple bot (draw, spread, discard the highest card, go down at 12 or lower) is kept as a safety net in `server/bot.js`: it plays if the smart logic ever fails.
+Bots only use what a human at their seat sees (the view from `viewRound`) plus their own memory (`server/botmind.js`, fed by the public log), never the opponents' hands or the order of the draw pile. When the draw pile has run out for the second time they go down regardless, so a table never cycles forever. The original simple bot (draw, spread, discard the highest card, go down at 12 or lower) is kept as a safety net in `server/bot.js`: it plays if the smart logic ever fails. A plain-language walkthrough of the whole logic is in [docs/bots.md](docs/bots.md); every fixed number behind it is named and explained in `server/bottuning.js`.
 
 ### Tables: lifetime and hosts
 
@@ -73,6 +73,7 @@ See [docs/hosting.md](docs/hosting.md): running on a Raspberry Pi with systemd, 
 | `server/botmind.js` | What one bot remembers about the hand (fed by the public log). |
 | `server/botrisk.js` | Monte Carlo estimate of what going down is worth. |
 | `server/botprofiles.js` | The character (speed and skills) of each bot. |
+| `server/bottuning.js` | The named constants behind the bot decisions (margins, weights, payoffs, pace). |
 | `server/botnames.js` | Bot name list, random pick, and the reserved-name check for players. |
 | `shared/cards.js` | Card ids, hand totals, set/run validation. Loaded by the server (`require`) and the browser (`<script>`), so both always agree. |
 | `public/js/` | UI as native ES modules (no build step): `main.js` (entry), `net.js` (WebSocket + messages), `state.js`, `views.js` (screens), `hand.js` (selection and drag-reorder), `chat.js`, `animation.js`, `rules-dialog.js`, `theme.js` (card drawing; `style.css` has a matching theme block). |

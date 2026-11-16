@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.18.0',
+    date: '2026-11-16',
+    changes: [
+      'Computer players now go for an empty hand (which pays double) when they are down to a few cards: they keep a pair that could finish the hand, grab a discard that lets them finish, and do not rush to go down when emptying their hand is worth more.',
+    ],
+  },
+  {
     version: '0.17.1',
     date: '2026-11-16',
     changes: ['When a computer player goes down on a gut feeling it now does so at a total of 5 to 15 instead of 12 to 20.'],

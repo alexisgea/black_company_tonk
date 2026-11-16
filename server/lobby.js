@@ -5,6 +5,7 @@ const { GameError } = require('./tonk');
 const { legacyAction, fallbackAction } = require('./bot');
 const { smartAction } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
+const { THINK_DRAW, THINK_PLAY, THINK_JITTER_MIN, THINK_JITTER_SPREAD } = require('./bottuning');
 const { isReservedName } = require('./botnames');
 
 const { RateLimiter } = require('./limits');
@@ -219,8 +220,8 @@ class Lobby {
   // How long a computer player takes over this move: each character has its own pace, a draw takes a little
   // longer to think about than putting cards down, and no two moves take exactly the same time.
   thinkMs(room, seat) {
-    const pace = profileFor(seat).speed * (room.round.phase === 'draw' ? 1.3 : 0.8);
-    return Math.round(this.botDelayMs * pace * (0.75 + Math.random() * 0.5));
+    const pace = profileFor(seat).speed * (room.round.phase === 'draw' ? THINK_DRAW : THINK_PLAY);
+    return Math.round(this.botDelayMs * pace * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
   }
 
   // Plays one move for an auto-played seat: the smart player first, then the original simple one, then a plain

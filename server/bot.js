@@ -2,8 +2,7 @@
 // The original, simple computer opponent: given the round, pick an action. It is the safety net for the smart player
 // in botsmart.js, which is used first (see Lobby.botMove).
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('./tonk');
-
-const GO_DOWN_AT = 12;
+const { GO_DOWN_AT } = require('./bottuning');
 
 // Finds a set or run (as card ids) inside a hand, or null. Prefers the largest spread.
 function findMeld(hand) {
@@ -72,4 +71,4 @@ function fallbackAction(round, id) {
   return { type: 'discard', card: worst };
 }
 
-module.exports = { legacyAction, fallbackAction, findMeld, GO_DOWN_AT };
+module.exports = { legacyAction, fallbackAction, findMeld };
