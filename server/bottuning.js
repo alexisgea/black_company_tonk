@@ -52,11 +52,29 @@ const POTENTIAL_MIN_OUTS = 2; // ...and it makes a pair or a two-card run with a
 const CHASE_MAX_CARDS = 3; // it chases an empty hand when it holds, or would keep after discarding, at most this many cards
 const CHASE_WEIGHT = 60; // discard score gained per unit of chance (0 to 1) that the hand left after the discard can be emptied next turn
 
+// --- Habits and blunders (the per-character traits live in botprofiles.js) ---
+const DISCARD_NOISE = 6; // discard score noise, at a sloppiness of 1 (a sloppy bot sometimes throws the second-best card)
+const PANIC_DOWN_AT = 20; // a bot that panics because an opponent is nearly out goes down with a total this low or lower
+const BLUR_SPOTS = 4; // an old fact it recalls can be misremembered as the same rank in a random one of this many suits
+
+// --- Mood: how a bot feels about the game changes between hands (see Room.updateMoods) ---
+const MOOD_WIN = 0.3; // confidence gained for winning a hand
+const MOOD_LOSS = 0.15; // confidence lost for losing a hand
+const MOOD_FAILED_DOWN = 0.6; // extra confidence lost when its own go-down failed (it becomes gun-shy)
+const MOOD_DECAY = 0.7; // how much of the confidence is left after each hand (it drifts back to normal)
+const BOLD_MARGIN = 0.25; // bets per opponent knocked off the go-down margin per point of boldness (negative boldness raises it)
+const DESPERATION_WEIGHT = 0.6; // boldness added when the bot has lost all its coins relative to the others (scales linearly with how far behind)
+
 // --- Pace (see Lobby.thinkMs) ---
 const THINK_DRAW = 1.3; // drawing or taking the discard is thought about a little longer...
 const THINK_PLAY = 0.8; // ...than putting cards down or discarding
 const THINK_JITTER_MIN = 0.75; // each move takes between this fraction...
 const THINK_JITTER_SPREAD = 0.5; // ...and this much more of the usual time
+const THINK_EFFORT_MIN = 0.6; // an obvious move takes this fraction of the usual time...
+const THINK_EFFORT_MAX = 1.8; // ...a close call takes this much of it
+const GO_CLOSE_RANGE = 0.5; // a go-down estimate within this many bets per opponent of the margin is a close call
+const DISCARD_CLOSE_GAP = 4; // the two best discards within this many score points of each other are a close call
+const THINK_EASY = 0.2; // effort (0 to 1) of a move made from habit, gut feeling or because there is nothing to decide
 
 module.exports = {
   PAY_DOWN_WIN,
@@ -98,4 +116,18 @@ module.exports = {
   THINK_PLAY,
   THINK_JITTER_MIN,
   THINK_JITTER_SPREAD,
+  THINK_EFFORT_MIN,
+  THINK_EFFORT_MAX,
+  GO_CLOSE_RANGE,
+  DISCARD_CLOSE_GAP,
+  THINK_EASY,
+  DISCARD_NOISE,
+  PANIC_DOWN_AT,
+  BLUR_SPOTS,
+  MOOD_WIN,
+  MOOD_LOSS,
+  MOOD_FAILED_DOWN,
+  MOOD_DECAY,
+  BOLD_MARGIN,
+  DESPERATION_WEIGHT,
 };

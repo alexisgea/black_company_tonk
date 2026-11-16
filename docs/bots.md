@@ -7,7 +7,7 @@ This page explains, in plain language, how a computer player decides what to do.
 | `botsmart.js` | The decisions themselves (draw, go down, spread, add to a spread, discard). |
 | `botmind.js` | What a bot remembers about the current hand. |
 | `botrisk.js` | The "is going down a good idea?" estimate. |
-| `botprofiles.js` | The character of each bot (keyed by its id from `botnames.js`): its skills and its speed. **Edit this to make a bot better or worse.** |
+| `botprofiles.js` | The character of each bot (keyed by its id from `botnames.js`): its skills, its personality traits (habits, slips, moods) and its speed. **Edit this to make a bot better, worse or different.** |
 | `bottuning.js` | Every fixed number behind the decisions, with a comment on what it means. **Edit this to change how the logic behaves for every bot.** |
 | `bot.js` | The original, simple bot. It is only used as a safety net (see the end of this page). |
 
@@ -22,7 +22,7 @@ A bot only knows what a human sitting in its seat knows:
 
 It never sees an opponent's hand or the order of the draw pile.
 
-On top of that, every bot has a set of **skills**. A skill is a number from 0 to 1: the chance that the bot gets that part of the game right. A skill of 0.8 means it spots the right thing four times out of five and misses it once. A skill is rolled **once per turn** for each situation, so a bot that misses a chance stays blind to it for that turn and gets a fresh chance on the next turn. That is what makes the mistakes look human instead of random flicker.
+On top of that, every bot has a set of **skills**. A skill is a number from 0 to 1: the chance that the bot gets that part of the game right. A skill of 0.8 means it spots the right thing four times out of five and misses it once. A skill is rolled **once per turn** for each situation, so a bot that misses a chance stays blind to it for that turn and gets a fresh chance on the next turn. That is what makes the mistakes look human instead of random flicker. On top of skills each character has a **personality** (habits, slips and a mood), see "Personality" below.
 
 Each bot also has a **speed** (how long it thinks; below 1 is quick, above 1 is slow), and a **tag** (easy, normal, hard) that is only a label for now.
 
@@ -98,9 +98,33 @@ The chance is used in three places:
 
 A small chance is a weak reason to hold on, so the chase mostly changes discards and finishing moves. It only stops a go-down when the chance is large (for example one card that fits a spread on the table).
 
+## Personality: habits, slips and moods
+
+Skills say how well a bot sees the game. A **personality** (the `traits` of each character in `botprofiles.js`) says how it behaves, including the mistakes a person makes even when they see perfectly well. Every character has its own mix, so Goblin, Lieutenant and One-Eye are easy to tell apart after a few hands.
+
+| Trait | What it does |
+| --- | --- |
+| `boldness` | From -1 to 1. A bold bot goes down on a thinner edge, a timid one wants a near-sure thing. |
+| `thumbRate`, `thumbAt` | A **rule of thumb**: with this chance per turn the bot skips the calculation and goes down if its total is `thumbAt` or lower (and does not if it is higher). A conservative bot is `thumbRate` 0.9, `thumbAt` 12. This differs from the gut feeling (see "Going down"): the gut feeling is a weak bot guessing, the rule of thumb is a habit the character has. |
+| `dumpHigh` | With this chance per turn the bot throws away its dearest card without weighing anything else, even if that breaks a pair. |
+| `panic` | When an opponent is nearly out of cards (and the bot notices, see the `danger` skill) it goes down with up to 20 points instead of calculating. |
+| `sloppiness` | Noise on every card's discard score, so now and then the second-best card is thrown. Close calls flip often, clear ones almost never. |
+| `ownMiss` | The chance that the bot overlooks that a card fits its **own** spread. |
+| `blur` | An old memory (older than the last full round) that is still remembered can have the right rank but the wrong suit: "a king went by", but which one? |
+| `moodiness` | How much the mood (below) sways the bot. 0 is steady. |
+
+### Mood
+
+Boldness is not fixed during a game. At the start of every hand a bot's boldness is its character plus:
+
+- **Confidence** (carried from hand to hand): a win adds a little, a loss takes a little away, and a **failed go-down of its own** takes a lot (it becomes gun-shy). Confidence fades back to normal by 30% after every hand.
+- **Being behind**: the further its coins are below the other players' average, the more reckless it gets.
+
+Both are multiplied by the character's `moodiness`, so a steady bot (Silent) hardly changes and a moody one (Goblin, Hagop) swings. Boldness moves the go-down margin by `BOLD_MARGIN` bets per opponent per point.
+
 ## Pace
 
-A bot waits before it moves so humans can follow the game. The wait is the table's base delay times the bot's `speed`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time.
+A bot waits before it moves so humans can follow the game. The wait is the table's base delay times the bot's `speed`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time. It also follows how **hard the decision was**: an obvious move (a habit, a gut feeling, laying down a spread, discarding a king instead of a two) takes about 60% of the usual time, a close call (a go-down that is almost worth it, two discards that score about the same) takes up to 180%. This does not change how the bot plays; it makes the mistakes look like thinking.
 
 ## When the smart logic fails
 
@@ -117,9 +141,13 @@ If a bug makes one of them fail, the next one plays, so a table can never freeze
 | I want... | Change |
 | --- | --- |
 | One bot to be better or worse at something | Its skill in `botprofiles.js` |
+| One bot to be bolder, more habit-driven, sloppier or moodier | Its traits in `botprofiles.js` |
 | One bot to play faster or slower | Its `speed` in `botprofiles.js` |
-| All bots to be harder or easier | The `difficulty` factor passed to `profileFor` (not exposed in the game yet) |
+| All bots to be harder or easier | The `difficulty` factor passed to `profileFor` (not exposed in the game yet; it scales skills, not traits) |
 | Bots to go down more or less eagerly | `GO_MARGIN` (lower is more eager) in `bottuning.js` |
+| Mood to swing more or less | `MOOD_WIN`, `MOOD_LOSS`, `MOOD_FAILED_DOWN`, `MOOD_DECAY`, `BOLD_MARGIN`, `DESPERATION_WEIGHT` |
+| Slips to be bigger or smaller | `DISCARD_NOISE`, `PANIC_DOWN_AT` |
+| Thinking time to follow the decision more or less | `THINK_EFFORT_MIN`, `THINK_EFFORT_MAX` |
 | Bots to expect lower or higher cards in the opponents' hands | `LOW_BIAS_PER_ROUND`, `LOW_BIAS_MAX` |
 | A mistaken gut feeling to be more or less wild | `GUT_RATE`, `GUT_BASE`, `GUT_WISHFUL`, `GUT_WILD_RATE`, `GUT_WILD` |
 | Bots to chase an empty hand harder | `CHASE_WEIGHT` (higher: they keep pairs of dearer cards), `CHASE_MAX_CARDS` |

@@ -4,6 +4,7 @@ const tonk = require('./tonk');
 const { pickBot } = require('./botnames');
 const { Mind } = require('./botmind');
 const { profileFor } = require('./botprofiles');
+const T = require('./bottuning');
 
 // Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
 // so a hidden card can never leak through the log. A draw from the pile deliberately has no card.
@@ -97,6 +98,7 @@ class Room {
     this.status = 'waiting'; // 'waiting' (never dealt) | 'playing' | 'between' (hand finished)
     this.round = null;
     this.minds = new Map(); // player id -> what that seat's computer player remembers of the hand (see botmind.js)
+    this.moods = new Map(); // bot id -> { confidence } how its last hands went; carries over between hands (see updateMoods)
     this.handNo = 0;
     this.dealerIdx = 0;
     this.coins = {}; // player id -> coins left
@@ -206,11 +208,39 @@ class Room {
   mindOf(user) {
     let mind = this.minds.get(user.id);
     if (!mind) {
-      mind = new Mind(user.id, profileFor(user).skills, this.rng);
+      const profile = profileFor(user);
+      mind = new Mind(user.id, profile.skills, this.rng, profile.traits);
+      mind.boldness = this.boldnessOf(user, profile);
       mind.start(tonk.viewRound(this.round, user.id));
       this.minds.set(user.id, mind);
     }
     return mind;
+  }
+
+  // How bold a bot feels at the start of a hand: its character, plus its mood (confidence from how its last hands
+  // went) and how far behind the others it is on coins (it gets reckless), both scaled by how moody it is.
+  boldnessOf(user, profile) {
+    if (!user.isBot) return 0;
+    const swing = profile.traits.moodiness * 2;
+    const confidence = this.moods.get(user.id)?.confidence ?? 0;
+    const others = this.players.filter((p) => p !== user).map((p) => this.coins[p.id]);
+    const average = others.length ? others.reduce((sum, c) => sum + c, 0) / others.length : 0;
+    const behind = average > 0 ? Math.min(1, Math.max(0, (average - this.coins[user.id]) / average)) : 0;
+    return profile.traits.boldness + swing * (confidence + T.DESPERATION_WEIGHT * behind);
+  }
+
+  // After a hand: a win makes a bot more confident, a loss less so, and a failed go-down of its own much less (it
+  // becomes gun-shy). The confidence drifts back towards normal a little with every hand.
+  updateMoods(result) {
+    for (const id of this.round.order) {
+      if (!this.players.some((p) => p.id === id && p.isBot)) continue;
+      let confidence = (this.moods.get(id)?.confidence ?? 0) * T.MOOD_DECAY;
+      const delta = result.deltas[id] ?? 0;
+      if (delta > 0) confidence += T.MOOD_WIN;
+      else if (delta < 0) confidence -= T.MOOD_LOSS;
+      if (result.type === 'down' && result.actor === id && !result.success) confidence -= T.MOOD_FAILED_DOWN;
+      this.moods.set(id, { confidence: Math.min(1, Math.max(-1, confidence)) });
+    }
   }
 
   trimLog() {
@@ -298,6 +328,7 @@ class Room {
     this.addLog({ type: reason, ...whoIs(user) });
     this.players.splice(idx, 1);
     delete this.coins[user.id];
+    this.moods.delete(user.id);
     user.room = null;
     this.restoreName(user);
     if (this.hostId === user.id) this.hostId = this.humans[0]?.id ?? null;
@@ -324,11 +355,15 @@ class Room {
     this.players[idx] = user;
     this.coins[user.id] = this.coins[bot.id];
     delete this.coins[bot.id];
+    this.moods.delete(bot.id);
     const mind = this.minds.get(bot.id);
     if (mind) {
       for (const m of this.minds.values()) m.rename(bot.id, user.id);
       this.minds.delete(bot.id);
-      mind.skills = profileFor(user).skills; // if they go away, a stand-in plays their seat, not the bot's character
+      const profile = profileFor(user);
+      mind.skills = profile.skills; // if they go away, a stand-in plays their seat, not the bot's character
+      mind.traits = profile.traits;
+      mind.boldness = 0;
       this.minds.set(user.id, mind);
     }
     if (this.status === 'playing') tonk.renamePlayer(this.round, bot.id, user.id);
@@ -471,6 +506,7 @@ class Room {
 
   settle() {
     const result = this.round.result;
+    this.updateMoods(result);
     result.deltas = this.payout(result.deltas);
     for (const [id, delta] of Object.entries(result.deltas)) this.coins[id] += delta;
     result.names = Object.fromEntries(this.round.order.map((id) => [id, this.nameOfPlayer(id)]));

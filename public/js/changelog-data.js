@@ -1,6 +1,16 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.21.0',
+    date: '2026-11-16',
+    changes: [
+      'Every computer player now has a personality: some are reckless (Goblin, Buzz), some go by the book and always go down at 12 (The Lieutenant), some remember everything (One-Eye), some forget (Sleepy), and some are simply stronger or weaker than others.',
+      'Bots now make human mistakes: they sometimes throw away the second-best card, overlook a card for their own spread, misremember the suit of an old card, or panic and go down in a hurry when an opponent is nearly out.',
+      'Bots have moods: winning makes them bolder, a failed go-down makes them cautious, and being behind on coins makes them reckless.',
+      'A bot now thinks longer over a close call (like a risky go-down) and moves quickly when the choice is obvious.',
+    ],
+  },
+  {
     version: '0.20.0',
     date: '2026-11-16',
     changes: [

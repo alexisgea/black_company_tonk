@@ -6,10 +6,17 @@
 // older fact (a discard, or a card someone took from the pile) is kept or forgotten by a single roll of the `memory`
 // skill, made the first time the bot looks at it, so a forgotten card stays forgotten.
 
+const { BLUR_SPOTS } = require('./bottuning');
+
+// A bot that has no personality: no habits, no blunders, no mood. Tests and plain use start from this.
+const NO_TRAITS = { boldness: 0, thumbRate: 0, thumbAt: 12, dumpHigh: 0, panic: 0, sloppiness: 0, ownMiss: 0, blur: 0, moodiness: 0 };
+
 class Mind {
-  constructor(id, skills, rng = Math.random) {
+  constructor(id, skills, rng = Math.random, traits = NO_TRAITS) {
     this.id = id;
     this.skills = skills;
+    this.traits = traits; // the character's habits and tendencies (see botprofiles.js)
+    this.boldness = 0; // how bold it feels right now: its character plus its mood (set by the room)
     this.rng = rng;
     this.start({ order: [], discardTop: null });
   }
@@ -114,20 +121,31 @@ class Mind {
     return fact.remembered;
   }
 
+  // What the bot thinks `fact` was. Now and then an old fact is half remembered: it knows a king went by, but gets the suit wrong.
+  shown(fact) {
+    if (!this.traits.blur || this.turnEnds - fact.t < this.order.length) return fact.card;
+    if (fact.blurred === undefined) {
+      const suit = Math.floor(this.rng() * BLUR_SPOTS);
+      fact.blurred = this.rng() < this.traits.blur ? suit * 13 + (fact.card % 13) : null;
+    }
+    return fact.blurred ?? fact.card;
+  }
+
   // Cards the bot knows lie in the discard pile (the top card is always in view).
   pileCards() {
     const pile = this.pile;
-    return pile.filter((d, i) => i === pile.length - 1 || this.recalls(d)).map((d) => d.card);
+    const top = pile[pile.length - 1];
+    return pile.filter((d) => d === top || this.recalls(d)).map((d) => (d === top ? d.card : this.shown(d)));
   }
 
   // Cards it knows a player took from the pile and still holds.
   heldBy(pid) {
-    return (this.held.get(pid) ?? []).filter((h) => this.recalls(h)).map((h) => h.card);
+    return (this.held.get(pid) ?? []).filter((h) => this.recalls(h)).map((h) => this.shown(h));
   }
 
   // Cards a player has thrown away or turned down (drew from the draw pile instead of taking them): what they do not collect.
   evidenceAgainst(pid) {
-    return this.drops.filter((d) => (d.pid === pid || d.passedBy.has(pid)) && this.recalls(d)).map((d) => d.card);
+    return this.drops.filter((d) => (d.pid === pid || d.passedBy.has(pid)) && this.recalls(d)).map((d) => this.shown(d));
   }
 
   // Rolls a skill (a probability from 0 to 1) for something, once per turn per `key`.
@@ -136,6 +154,14 @@ class Mind {
     if (!this.rolls.has(k)) this.rolls.set(k, this.rng() < this.skills[skill]);
     return this.rolls.get(k);
   }
+
+  // The same for a plain probability (a habit or a slip), rolled once per turn per `key`. Zero never happens and costs no roll.
+  chance(key, probability) {
+    if (!(probability > 0)) return false;
+    const k = `chance:${key}`;
+    if (!this.rolls.has(k)) this.rolls.set(k, this.rng() < probability);
+    return this.rolls.get(k);
+  }
 }
 
-module.exports = { Mind };
+module.exports = { Mind, NO_TRAITS };

@@ -3,9 +3,9 @@ const crypto = require('crypto');
 const { Room, validatePassword } = require('./room');
 const { GameError } = require('./tonk');
 const { legacyAction, fallbackAction } = require('./bot');
-const { smartAction } = require('./botsmart');
+const { smartAction, smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
-const { THINK_DRAW, THINK_PLAY, THINK_JITTER_MIN, THINK_JITTER_SPREAD } = require('./bottuning');
+const { THINK_DRAW, THINK_PLAY, THINK_JITTER_MIN, THINK_JITTER_SPREAD, THINK_EFFORT_MIN, THINK_EFFORT_MAX } = require('./bottuning');
 const { isReservedName } = require('./botnames');
 const { describe } = require('./i18n');
 
@@ -211,16 +211,30 @@ class Lobby {
         this.broadcastRoom(room);
         if (room.status !== 'playing') this.broadcastLobby();
       }),
-      this.thinkMs(room, seat),
+      this.thinkMs(room, seat, this.thinkEffort(room, seat)),
     );
     room.botTimer.unref?.();
   }
 
+  // How hard the seat's coming move is to decide (0 = obvious, 1 = a close call), so a bot ponders a marginal go-down
+  // and fires off an obvious draw. The move is worked out again when the pause is over; skill rolls are kept for the
+  // turn, so it comes out the same.
+  thinkEffort(room, seat) {
+    try {
+      const { view, mind } = room.botSight(seat);
+      return smartThink(view, seat.id, mind).effort;
+    } catch {
+      return 0.5; // the move itself is worked out (and its failure handled) when the pause is over
+    }
+  }
+
   // How long a computer player takes over this move: each character has its own pace, a draw takes a little
-  // longer to think about than putting cards down, and no two moves take exactly the same time.
-  thinkMs(room, seat) {
+  // longer to think about than putting cards down, a close call takes longer than an obvious move, and no two
+  // moves take exactly the same time.
+  thinkMs(room, seat, effort = 0.5) {
     const pace = profileFor(seat).speed * (room.round.phase === 'draw' ? THINK_DRAW : THINK_PLAY);
-    return Math.round(this.botDelayMs * pace * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
+    const ponder = THINK_EFFORT_MIN + effort * (THINK_EFFORT_MAX - THINK_EFFORT_MIN);
+    return Math.round(this.botDelayMs * pace * ponder * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
   }
 
   // Plays one move for an auto-played seat: the smart player first, then the original simple one, then a plain

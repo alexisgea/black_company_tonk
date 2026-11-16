@@ -46,8 +46,11 @@ function linkOuts(card, others, sight) {
   return outs;
 }
 
-// Spreads on the table it sees this turn: its own always, other players' with the layoffOthers skill.
-const noticedMelds = ({ view, id, mind }) => view.melds.filter((m) => m.owner === id || mind.decide('layoffOthers', `meld${m.id}`));
+// Spreads on the table it sees this turn: its own (barring a slip, see the ownMiss trait), other players' with the layoffOthers skill.
+const noticedMelds = ({ view, id, mind }) =>
+  view.melds.filter((m) =>
+    m.owner === id ? !mind.chance(`ownMiss:${m.id}`, mind.traits.ownMiss) : mind.decide('layoffOthers', `meld${m.id}`),
+  );
 
 function findLayoff(hand, melds) {
   for (const card of byValueDesc(hand)) {
@@ -131,8 +134,19 @@ function shouldGoDown(sight) {
   const total = handTotal(hand);
   const skill = mind.skills.goDownRisk;
   const rng = mind.rng;
+  // Panic: an opponent is nearly out, so a nervous bot goes down with whatever looks lowish without working it out.
+  if (mind.traits.panic > 0 && threatOf(sight) > 0 && mind.chance('panic', mind.traits.panic)) {
+    sight.effort = T.THINK_EASY;
+    return total <= T.PANIC_DOWN_AT;
+  }
+  // Habit: its character has a fixed total it goes down at, and it does not think about it.
+  if (mind.chance('thumb', mind.traits.thumbRate)) {
+    sight.effort = T.THINK_EASY;
+    return total <= mind.traits.thumbAt;
+  }
   // Gut feeling: a rule of thumb that wishful thinking stretches (a 15 can feel safe, and now and then a 25).
   if (rng() < (1 - skill) * T.GUT_RATE) {
+    sight.effort = T.THINK_EASY;
     const wishful = rng() < T.GUT_WILD_RATE ? T.GUT_WILD : T.GUT_WISHFUL;
     return total <= T.GUT_BASE + Math.floor(rng() * (wishful + 1));
   }
@@ -140,7 +154,9 @@ function shouldGoDown(sight) {
   const lowBias = Math.min(T.LOW_BIAS_MAX, (T.LOW_BIAS_PER_ROUND * mind.turnEnds) / view.order.length);
   const estimate = estimateGoDown(total, rivals, unseenCards(sight), rng, undefined, lowBias);
   const perOpponent = estimate / opponents.length + centered(rng) * (1 - skill) * T.NOISE;
-  if (perOpponent < T.GO_MARGIN - T.THREAT_GO_DOWN_BONUS * threatOf(sight)) return false;
+  const margin = T.GO_MARGIN - T.BOLD_MARGIN * mind.boldness - T.THREAT_GO_DOWN_BONUS * threatOf(sight);
+  sight.effort = 1 - Math.min(1, Math.abs(perOpponent - margin) / T.GO_CLOSE_RANGE); // a close call takes longer to think over
+  if (perOpponent < margin) return false;
   return perOpponent * opponents.length >= chaseWorth(sight);
 }
 
@@ -187,30 +203,41 @@ function helpOf(card, sight) {
 function chooseDiscard(sight) {
   const { hand, mind } = sight;
   if (hand.length === 1) return hand[0];
+  // Habit: it simply throws away its dearest card, without weighing anything else.
+  if (mind.chance('dumpHigh', mind.traits.dumpHigh)) {
+    sight.effort = T.THINK_EASY;
+    return byValueDesc(hand)[0];
+  }
   const threat = threatOf(sight);
   const planAhead = mind.decide('planAhead');
   const denyHelp = mind.decide('denyHelp');
   const chase = hand.length - 1 <= T.CHASE_MAX_CARDS && mind.decide('finishHand');
   const melds = chase ? noticedMelds(sight) : [];
   const total = handTotal(hand);
-  let best = null;
-  for (const card of hand) {
+  const scored = hand.map((card) => {
     const rest = hand.filter((c) => c !== card);
     let score = cardValue(card) * (1 + T.THREAT_HIGH_CARD_BOOST * threat);
     if (planAhead) score -= T.KEEP_WEIGHT * linkOuts(card, rest, sight) * (1 - T.THREAT_PLAN_DAMPING * Math.min(1, threat));
     if (chase) score += T.CHASE_WEIGHT * finishOdds(rest, melds, sight);
     // Helping the next player is accepted when it leaves a hand low enough to go down with.
     if (denyHelp && total - cardValue(card) > T.GO_DOWN_AT) score -= T.HELP_WEIGHT * helpOf(card, sight);
-    if (!best || score > best.score) best = { card, score };
-  }
-  return best.card;
+    // A sloppy bot misjudges the scores a little, so a close second can win.
+    if (mind.traits.sloppiness > 0) score += centered(mind.rng) * T.DISCARD_NOISE * mind.traits.sloppiness;
+    return { card, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  sight.effort = 1 - Math.min(1, (scored[0].score - scored[1].score) / T.DISCARD_CLOSE_GAP);
+  return scored[0].card;
 }
 
 function drawPhase(sight) {
   const { hand, view, mind } = sight;
   const top = view.discardTop;
   // The discard would let it empty its hand this very turn: nothing beats that.
-  if (top !== null && mind.decide('finishHand') && findFinish([...hand, top], noticedMelds(sight))) return { type: 'takeDiscard' };
+  if (top !== null && mind.decide('finishHand') && findFinish([...hand, top], noticedMelds(sight))) {
+    sight.effort = T.THINK_EASY;
+    return { type: 'takeDiscard' };
+  }
   if (shouldGoDown(sight)) return { type: 'goDown' };
   const canDraw = view.deckCount > 0 || mind.pileSize > 1;
   if (top !== null && (!canDraw || wantsDiscard(sight, top))) return { type: 'takeDiscard' };
@@ -220,6 +247,7 @@ function drawPhase(sight) {
 function playPhase(sight) {
   const { hand, mind } = sight;
   const melds = noticedMelds(sight);
+  sight.effort = T.THINK_EASY; // putting cards down is rarely a hard decision
   if (hand.length > 1 && mind.decide('finishHand')) {
     const step = findFinish(hand, melds);
     if (step) return step;
@@ -231,10 +259,14 @@ function playPhase(sight) {
   return { type: 'discard', card: chooseDiscard(sight) };
 }
 
-// One move for player `id`. `view` is viewRound(round, id); `mind` is that player's memory of the hand.
-function smartAction(view, id, mind) {
+// One move for player `id` and how hard it was to decide (0 = obvious, 1 = a close call): the lobby thinks longer over
+// the hard ones. `view` is viewRound(round, id); `mind` is that player's memory of the hand.
+function smartThink(view, id, mind) {
   const sight = sightOf(view, id, mind);
-  return view.phase === 'draw' ? drawPhase(sight) : playPhase(sight);
+  const action = view.phase === 'draw' ? drawPhase(sight) : playPhase(sight);
+  return { action, effort: sight.effort ?? T.THINK_EASY };
 }
 
-module.exports = { smartAction, linkOuts, findFinish };
+const smartAction = (view, id, mind) => smartThink(view, id, mind).action;
+
+module.exports = { smartAction, smartThink, linkOuts, findFinish };
