@@ -23,14 +23,16 @@
 @font-face { font-family: "EB Garamond"; font-weight: 400; font-style: italic; font-display: swap; src: url(/fonts/eb-garamond-latin-400-italic.woff2) format("woff2"); }
 @font-face { font-family: "EB Garamond"; font-weight: 700; font-style: normal; font-display: swap; src: url(/fonts/eb-garamond-latin-700-normal.woff2) format("woff2"); }
 
-html { font-size: calc(16px * var(--font-scale)); }
+html { font-size: calc(16px * var(--font-scale)); background-color: var(--felt-dark); }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(ellipse at center, var(--felt), var(--felt-dark));
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: radial-gradient(ellipse at center, var(--felt), var(--felt-dark)) var(--felt-dark);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 1.1rem;
@@ -98,8 +100,13 @@ button:disabled { opacity: 0.45; cursor: default; }
 button.greyed:disabled { opacity: 1; background: #55575a; color: #a09a8c; border-color: #0003; }
 .tip-wrap { display: inline-flex; position: relative; }
 .tip-wrap > button:disabled { pointer-events: none; }
-.tip-wrap[data-tip]:hover::after, .tip-wrap[data-tip]:focus::after {
-  content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+/* Tooltips need a real pointer or the keyboard: on touch, :hover and :focus stick after a tap and the tip would linger. */
+.tip-wrap[data-tip]:focus-visible::after { display: block; }
+@media (hover: hover) {
+  .tip-wrap[data-tip]:hover::after { display: block; }
+}
+.tip-wrap[data-tip]::after {
+  display: none; content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   width: max-content; max-width: min(260px, 80vw); padding: 6px 10px; border-radius: 6px; z-index: 10;
   background: #1c1a18; color: var(--text); border: 1px solid #d8d0bf44; font-size: 0.875rem; font-weight: 400; pointer-events: none;
 }
@@ -120,7 +127,11 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .small-btn { padding: 2px 8px; font-size: 0.75rem; }
 .pause-btn { margin-top: 8px; width: 100%; }
 .muted { opacity: 0.7; }
-.credits { font-size: 0.75rem; line-height: 1.5; margin-top: auto; padding-top: 24px; }
+.credits { font-size: 0.75rem; line-height: 1.5; margin: 0; }
+.footer { margin-top: auto; padding-top: 24px; }
+.footer-actions { margin-bottom: 14px; }
+.controls { align-items: stretch; }
+.btn-sub { display: block; font-size: 0.65em; font-weight: 400; letter-spacing: 0; text-transform: none; }
 .credits a { color: inherit; }
 
 .games { list-style: none; margin: 0; padding: 0; }
@@ -221,5 +232,18 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   .table-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
-  .screen, .table-layout { padding-top: 52px; }
+  .screen { padding: 16px 12px; }
+  .table-layout { padding: 8px; gap: 8px; min-height: 0; }
+  /* The playable area fills the visible screen; the side panels start below it. */
+  .table { gap: 8px; min-height: calc(100vh - 16px); min-height: calc(100dvh - 16px); }
+  .center { padding: 0; }
+  .opponents { gap: 8px; }
+  .opp { padding: 6px 10px; }
+  .me-panel { padding: 8px; }
+  .status { font-size: 1rem; }
+  .hand { padding: 14px 0 4px; }
+  .hand-value { margin-bottom: 0; }
+  .controls { flex-wrap: nowrap; gap: 6px; }
+  .controls > * { flex: 1 1 0; min-width: 0; }
+  .controls button { flex: 1; min-width: 0; padding: 6px 4px; }
 }

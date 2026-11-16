@@ -67,10 +67,8 @@ function closeSettings() {
   settingsEl.hidden = true;
 }
 
-// A cog fixed to the top-left corner, outside the game UI so it is always reachable.
-function addSettingsButton() {
-  document.body.append(h('button', { id: 'settings-btn', title: 'Settings', 'aria-label': 'Settings', onClick: openSettings }, '\u2699'));
+export function settingsButton() {
+  return h('button', { class: 'secondary', onClick: openSettings }, '\u2699 Settings');
 }
 
 buildSettings();
-addSettingsButton();

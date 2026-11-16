@@ -41,7 +41,7 @@ function buildRules() {
       'A spread (also called a meld) is a group of cards you put down on the table. There are two kinds of spread: sets and runs.',
       'Set: 3 or 4 cards with the same number or letter (for example 8-8-8).',
       'Run: 3 or more cards of the same suit in number order (for example 4-5-6 of hearts). Ace is only low: A-2-3 is allowed, but Q-K-A is not. You cannot continue from King to Ace.',
-      'To put down a spread, select the cards in your hand and press \u201cPut down selected\u201d. Cards you put down do not count in your hand total.',
+      'To put down a spread, select the cards in your hand and press \u201cSpread\u201d. Cards you put down do not count in your hand total.',
       'Adding to a spread (also called laying off): you can add one card to either end of any run on the table, including runs of other players. Select the card, then click the run. You cannot add cards to sets.',
     ]),
     section('Winning by emptying your hand', [

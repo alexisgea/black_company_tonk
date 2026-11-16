@@ -1,6 +1,18 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.16.0',
+    date: '2026-11-16',
+    changes: [
+      'New Full screen button (where the browser allows it) to get more room on phones.',
+      'The Settings button is no longer stuck at the top of the screen: it now sits at the bottom of the page, next to Full screen.',
+      'On phones the table now fits the screen without scrolling: less padding at the top, and Go down, Spread and Discard sit side by side on one line.',
+      '"Put down selected" is now called "Spread" so it is no longer confused with "Go down"; "Discard selected" is now "Discard". Both show "(selection)" underneath.',
+      'Fixed the hint on greyed-out buttons staying on screen after a tap on touch screens.',
+      'The strip at the bottom of the screen on phones now matches the table background instead of showing white.',
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-11-15',
     changes: [

@@ -6,6 +6,8 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { nameTag } from './name-tag.js';
 import { rulesButton } from './rules-dialog.js';
+import { settingsButton } from './settings-dialog.js';
+import { fullscreenButton } from './fullscreen.js';
 import { changelogButton } from './changelog-dialog.js';
 import { drag, handCardEl } from './hand.js';
 import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
@@ -96,13 +98,23 @@ function screen() {
 
 function credits() {
   return h(
-    'p',
-    { class: 'credits muted' },
-    'Thanks to Glen Cook for his Black Company series. Based on the rules from John P. Speno and the Baltimore Science Fiction Society. ' +
-      'Programming by Claude Sonnet 5.5 and Gemini with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: ',
-    h('a', { href: 'mailto:alexis@geaxle.com' }, 'alexis@geaxle.com'),
-    '.',
+    'div',
+    { class: 'footer' },
+    footerActions(),
+    h(
+      'p',
+      { class: 'credits muted' },
+      'Thanks to Glen Cook for his Black Company series. Based on the rules from John P. Speno and the Baltimore Science Fiction Society. ' +
+        'Programming by Claude Sonnet 5.5 and Gemini with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: ',
+      h('a', { href: 'mailto:alexis@geaxle.com' }, 'alexis@geaxle.com'),
+      '.',
+    ),
   );
+}
+
+// Display settings and full screen live at the bottom of the page, out of the way of the game.
+function footerActions() {
+  return h('div', { class: 'row footer-actions' }, settingsButton(), fullscreenButton());
 }
 
 function renderName() {
@@ -240,6 +252,7 @@ function renderRoom() {
         ),
       ),
       chatSlot(),
+      footerActions(),
     );
   }
   return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave));
@@ -309,6 +322,7 @@ function renderSide(leaveBtn) {
     spectatorsPanel(),
     chatSlot(),
     h('div', { class: 'panel' }, h('strong', null, 'Log'), logEl),
+    footerActions(),
   );
 }
 
@@ -427,25 +441,12 @@ function renderTable() {
   // Custom CSS tooltip (data-tip) on a wrapper: native title tooltips are slow, flaky on disabled buttons and absent on touch.
   const tipped = (tip, button) => h('span', { class: 'tip-wrap', 'data-tip': tip, tabindex: tip ? 0 : null }, button);
   const waitingTip = myTurn ? 'Draw a card or go down first.' : 'You can only do this during your turn, after drawing.';
+  const sub = (label, hint) => [label, h('small', { class: 'btn-sub' }, hint)];
+  const confirming = state.confirmDown && canDrawPhase;
   const controls = h(
     'div',
-    { class: 'row' },
-    tipped(
-      canDrawPhase ? null : 'You can only go down at the start of your turn, before drawing.',
-      h(
-        'button',
-        {
-          class: 'greyed',
-          disabled: !canDrawPhase || state.confirmDown,
-          onClick: () => {
-            state.confirmDown = true;
-            render();
-          },
-        },
-        'Go down',
-      ),
-    ),
-    state.confirmDown && canDrawPhase
+    { class: 'row controls' },
+    confirming
       ? [
           h(
             'button',
@@ -469,27 +470,43 @@ function renderTable() {
             'Cancel',
           ),
         ]
-      : null,
-    tipped(
-      canPlayPhase ? null : waitingTip,
-      h(
-        'button',
-        { class: 'greyed', disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) },
-        'Put down selected',
-      ),
-    ),
-    tipped(
-      canPlayPhase ? null : waitingTip,
-      h(
-        'button',
-        {
-          class: 'greyed',
-          disabled: !(canPlayPhase && selected.length === 1),
-          onClick: () => sendAction({ type: 'discard', card: selected[0] }),
-        },
-        'Discard selected',
-      ),
-    ),
+      : [
+          tipped(
+            canDrawPhase ? null : 'You can only go down at the start of your turn, before drawing.',
+            h(
+              'button',
+              {
+                class: 'greyed',
+                disabled: !canDrawPhase,
+                onClick: () => {
+                  state.confirmDown = true;
+                  render();
+                },
+              },
+              'Go down',
+            ),
+          ),
+          tipped(
+            canPlayPhase ? null : waitingTip,
+            h(
+              'button',
+              { class: 'greyed', disabled: !(canPlayPhase && validMeld), onClick: () => sendAction({ type: 'meld', cards: selected }) },
+              sub('Spread', '(selection)'),
+            ),
+          ),
+          tipped(
+            canPlayPhase ? null : waitingTip,
+            h(
+              'button',
+              {
+                class: 'greyed',
+                disabled: !(canPlayPhase && selected.length === 1),
+                onClick: () => sendAction({ type: 'discard', card: selected[0] }),
+              },
+              sub('Discard', '(selection)'),
+            ),
+          ),
+        ],
   );
 
   return h(

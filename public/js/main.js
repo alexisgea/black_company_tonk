@@ -8,6 +8,8 @@ import './settings-dialog.js';
 window.addEventListener('error', (e) => toast(`Script error: ${e.message}`));
 window.addEventListener('unhandledrejection', (e) => toast(`Script error: ${e.reason?.message || e.reason}`));
 
+document.addEventListener('fullscreenchange', render);
+
 render();
 connect();
 showVersion();
