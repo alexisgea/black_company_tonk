@@ -240,7 +240,11 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
       const hand = state().round.players[me].hand;
       say(lobby, host, { t: 'action', action: { type: 'discard', card: hand[hand.length - 1] } });
     }
-    assert.ok(state().log.some((e) => e.type === 'draw' || e.type === 'takeDiscard') && state().log.some((e) => botIds.includes(e.pid)));
+    const botMoves = new Set(['draw', 'takeDiscard', 'meld', 'layoff', 'discard', 'goDown']);
+    assert.ok(
+      state().log.some((e) => botMoves.has(e.type) && botIds.includes(e.pid)),
+      'a bot played a move (going down at once also counts)',
+    );
   }
 
   say(lobby, host, { t: 'leaveGame' });
