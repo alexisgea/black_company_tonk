@@ -224,9 +224,31 @@ test('going down: it weighs the risk, and a gut feeling can wrongly feel safe', 
   const hand = [c(10, 'S'), c(5, 'D')];
   const counts = { b: 2, c: 2 };
   assert.equal(act(setup({ hand, phase: 'draw', counts }, { goDownRisk: 1 })).type, 'draw');
-  // ...but on a gut-feeling roll (first number) with a wishful threshold (second number) the bot goes down anyway.
-  const rolls = [0.1, 0.99];
-  assert.equal(act(setup({ hand, phase: 'draw', counts }, { goDownRisk: 0 }, () => rolls.shift() ?? 0.5)).type, 'goDown');
+  // ...but on a gut-feeling roll (first number) with a wishful threshold (last number) the bot goes down anyway.
+  const rolls = [0.1, 0.99, 0.99];
+  assert.equal(act(setup({ hand, phase: 'draw', counts, top: null }, { goDownRisk: 0 }, () => rolls.shift() ?? 0.5)).type, 'goDown');
+
+  // Rarely the gut feeling is wild (second number) and sends it down with a big hand; a normal one does not.
+  const big = [c(10, 'S'), c(10, 'D'), c(5, 'C')];
+  const wild = [0.1, 0.01, 0.99];
+  assert.equal(act(setup({ hand: big, phase: 'draw', counts, top: null }, { goDownRisk: 0 }, () => wild.shift() ?? 0.5)).type, 'goDown');
+  const normal = [0.1, 0.5, 0.99];
+  assert.equal(act(setup({ hand: big, phase: 'draw', counts, top: null }, { goDownRisk: 0 }, () => normal.shift() ?? 0.5)).type, 'draw');
+});
+
+test('going down: heads-up a calculating bot can go down (a go-down pays one bet from one opponent)', () => {
+  const s = setup({ hand: [c(1, 'S'), c(2, 'D')], phase: 'draw', counts: { b: 5 } }, { goDownRisk: 1 });
+  s.view.order = ['a', 'b'];
+  delete s.view.players.c;
+  assert.equal(act(s).type, 'goDown');
+});
+
+test('going down: opponents who have played a while hold lower cards than a uniform deal says', () => {
+  const unseen = [...Array(52).keys()];
+  const rival = [{ count: 3, known: [] }];
+  const uniform = estimateGoDown(14, rival, unseen, seeded(3), 400, 0);
+  const leaning = estimateGoDown(14, rival, unseen, seeded(3), 400, 0.2);
+  assert.ok(leaning < uniform, `${leaning} should be below ${uniform}: low hidden cards make a go-down riskier`);
 });
 
 test('going down: the estimate pays out like the real rules', () => {

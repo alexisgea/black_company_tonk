@@ -131,12 +131,17 @@ function shouldGoDown(sight) {
   const total = handTotal(hand);
   const skill = mind.skills.goDownRisk;
   const rng = mind.rng;
-  // Gut feeling: a rule of thumb that wishful thinking stretches (a 15 can feel safe).
-  if (rng() < (1 - skill) * T.GUT_RATE) return total <= T.GUT_BASE + Math.floor(rng() * (T.GUT_WISHFUL + 1));
+  // Gut feeling: a rule of thumb that wishful thinking stretches (a 15 can feel safe, and now and then a 25).
+  if (rng() < (1 - skill) * T.GUT_RATE) {
+    const wishful = rng() < T.GUT_WILD_RATE ? T.GUT_WILD : T.GUT_WISHFUL;
+    return total <= T.GUT_BASE + Math.floor(rng() * (wishful + 1));
+  }
   const rivals = opponents.map((p) => ({ count: view.players[p].count, known: held[p] }));
-  const worth = estimateGoDown(total, rivals, unseenCards(sight), rng) + centered(rng) * (1 - skill) * T.NOISE;
-  if (worth < T.GO_MARGIN - T.THREAT_GO_DOWN_BONUS * threatOf(sight)) return false;
-  return worth >= chaseWorth(sight);
+  const lowBias = Math.min(T.LOW_BIAS_MAX, (T.LOW_BIAS_PER_ROUND * mind.turnEnds) / view.order.length);
+  const estimate = estimateGoDown(total, rivals, unseenCards(sight), rng, undefined, lowBias);
+  const perOpponent = estimate / opponents.length + centered(rng) * (1 - skill) * T.NOISE;
+  if (perOpponent < T.GO_MARGIN - T.THREAT_GO_DOWN_BONUS * threatOf(sight)) return false;
+  return perOpponent * opponents.length >= chaseWorth(sight);
 }
 
 // Would taking `card` let the hand put down some spread that uses it? (Not only the biggest spread in the hand.)

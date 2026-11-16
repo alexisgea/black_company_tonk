@@ -74,9 +74,9 @@ Going down early wins 1 bet from each opponent if the bot has the lowest total, 
 
 It does this in one of two ways, chosen by a roll of the `goDownRisk` skill:
 
-**Calculating** (the more skilled the bot, the more often). The bot takes all the cards it cannot account for, deals each opponent's hidden cards at random from them (using what it knows about cards they hold), and works out the payoff of going down with its own total using the real rules. It repeats this 120 times and averages. The lower the skill, the more **noise** is added to the result, so an unskilled bot misjudges by a bit. It goes down when the average is worth at least 1.6 bets. Why 1.6 and not just "more than 0": going down ends the hand early, and carrying on has its own chances of winning, so a small edge is not enough.
+**Calculating** (the more skilled the bot, the more often). The bot takes all the cards it cannot account for, deals each opponent's hidden cards at random from them (using what it knows about cards they hold), and works out the payoff of going down with its own total using the real rules. It repeats this 120 times and averages. The deal leans towards **low cards**, more so the longer the hand has lasted, because opponents keep their low cards and throw away the dear ones (measured: opponents' cards average about 6.4 at the deal and about 4 after eight rounds). The lower the skill, the more **noise** is added to the result, so an unskilled bot misjudges by a bit. It goes down when the average is worth at least 0.9 bets **per opponent** (1 would be a sure win). Why 0.9 and not just "more than 0": going down ends the hand early, and carrying on has its own chances of winning, so a small edge is not enough. There is no fixed limit on the total: a bot with 18 goes down if it calculates that the opponents are very likely to hold more, which is rare.
 
-**Gut feeling** (the less skilled the bot, the more often). It does not calculate. It goes down when its total is at or below a rule of thumb (5 plus a random 0 to 10). This is how a bot can wrongly think a hand of 15 is safe.
+**Gut feeling** (the less skilled the bot, the more often). It does not calculate. It goes down when its total is at or below a rule of thumb (5 plus a random 0 to 10). This is how a bot can wrongly think a hand of 15 is safe. One gut feeling in twenty is wild (5 plus a random 0 to 20), so now and then a weak bot goes down with a big hand and gets it wrong.
 
 Adjustments:
 
@@ -120,6 +120,7 @@ If a bug makes one of them fail, the next one plays, so a table can never freeze
 | One bot to play faster or slower | Its `speed` in `botprofiles.js` |
 | All bots to be harder or easier | The `difficulty` factor passed to `profileFor` (not exposed in the game yet) |
 | Bots to go down more or less eagerly | `GO_MARGIN` (lower is more eager) in `bottuning.js` |
-| A mistaken gut feeling to be more or less wild | `GUT_RATE`, `GUT_BASE`, `GUT_WISHFUL` |
+| Bots to expect lower or higher cards in the opponents' hands | `LOW_BIAS_PER_ROUND`, `LOW_BIAS_MAX` |
+| A mistaken gut feeling to be more or less wild | `GUT_RATE`, `GUT_BASE`, `GUT_WISHFUL`, `GUT_WILD_RATE`, `GUT_WILD` |
 | Bots to chase an empty hand harder | `CHASE_WEIGHT` (higher: they keep pairs of dearer cards), `CHASE_MAX_CARDS` |
 | Bots to care more or less about helping opponents | `HELP_WEIGHT` and the `HELP_*` values |

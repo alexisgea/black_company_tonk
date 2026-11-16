@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.19.2',
+    date: '2026-11-16',
+    changes: [
+      'Computer players judge going down better: they now know opponents keep low cards and throw away the dear ones, so they go down with a big hand much less often (though it can still happen, on a good calculation or a wild guess).',
+      'A computer player in a two-player game can now go down; before, it almost never did.',
+    ],
+  },
+  {
     version: '0.19.1',
     date: '2026-11-16',
     changes: [

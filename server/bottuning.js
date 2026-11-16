@@ -10,19 +10,23 @@ const PAY_EMPTY_HAND = 2; // emptying the hand: every opponent pays this
 
 // --- Going down ---
 const GO_DOWN_AT = 12; // the simple rule of thumb: a total this low is safe enough (also used by the original bot)
-const GO_MARGIN = 1.6; // expected bets a go-down must be worth before the bot dares (carrying on is not free of risk either)
+const GO_MARGIN = 0.9; // expected bets per opponent a go-down must be worth before the bot dares (1 is a sure win; carrying on is not free of risk either)
 const RISK_SAMPLES = 120; // how many random deals of the opponents' unknown cards the estimate averages over
-const NOISE = 1.5; // how far its estimate can be off, in bets, at a goDownRisk of 0 (shrinks as the skill rises)
+const LOW_BIAS_PER_ROUND = 0.04; // opponents keep low cards and throw dear ones: per round played, hidden cards are dealt leaning this much lower...
+const LOW_BIAS_MAX = 0.15; // ...up to this much (a card of value v is dealt with weight exp(-bias * (v - 1)))
+const NOISE = 0.75; // how far its estimate can be off, in bets per opponent, at a goDownRisk of 0 (shrinks as the skill rises)
 const GUT_RATE = 0.6; // chance of deciding on gut feeling instead of calculating, at a goDownRisk of 0
 const GUT_BASE = 5; // on gut feeling it goes down at this total...
 const GUT_WISHFUL = 10; // ...plus up to this much (wishful thinking)
+const GUT_WILD_RATE = 0.05; // rarely a gut feeling is wildly hopeful instead: it can send a bot down with a big hand
+const GUT_WILD = 20; // ...and then the wishful part is up to this much instead
 const RESHUFFLES_BEFORE_FORCED_DOWN = 1; // once the draw pile has run out again after this many reshuffles, it goes down
 
 // --- Danger: opponents about to empty their hand ---
 const THREAT_ONE_CARD = 1; // threat added per opponent with one card left
 const THREAT_TWO_CARDS = 0.5; // threat added per opponent with two cards left
 const THREAT_CAP = 2; // the most threat that counts
-const THREAT_GO_DOWN_BONUS = 0.8; // bets knocked off the go-down margin per point of threat (it goes down sooner)
+const THREAT_GO_DOWN_BONUS = 0.4; // bets per opponent knocked off the go-down margin per point of threat (it goes down sooner)
 const THREAT_HIGH_CARD_BOOST = 0.4; // discard score of a card grows by this fraction per point of threat (shed the dear ones)
 const THREAT_PLAN_DAMPING = 0.5; // under full threat planning ahead counts this much less (no time to build a spread)
 
@@ -61,10 +65,14 @@ module.exports = {
   GO_DOWN_AT,
   GO_MARGIN,
   RISK_SAMPLES,
+  LOW_BIAS_PER_ROUND,
+  LOW_BIAS_MAX,
   NOISE,
   GUT_RATE,
   GUT_BASE,
   GUT_WISHFUL,
+  GUT_WILD_RATE,
+  GUT_WILD,
   RESHUFFLES_BEFORE_FORCED_DOWN,
   THREAT_ONE_CARD,
   THREAT_TWO_CARDS,
