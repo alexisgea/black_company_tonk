@@ -196,8 +196,8 @@ test('going down: it weighs the risk, and a gut feeling can wrongly feel safe', 
   assert.equal(act(setup({ hand: [c(1, 'S'), c(2, 'D'), c(3, 'C')], phase: 'draw' }, { goDownRisk: 1 })).type, 'goDown');
   assert.equal(act(setup({ hand: [c(13, 'S'), c(12, 'D'), c(8, 'C'), c(4, 'H')], phase: 'draw' }, { goDownRisk: 1 })).type, 'draw');
 
-  // Twenty is hopeless against opponents who have two cards left each...
-  const hand = [c(10, 'S'), c(10, 'D')];
+  // Fifteen is hopeless against opponents who have two cards left each...
+  const hand = [c(10, 'S'), c(5, 'D')];
   const counts = { b: 2, c: 2 };
   assert.equal(act(setup({ hand, phase: 'draw', counts }, { goDownRisk: 1 })).type, 'draw');
   // ...but on a gut-feeling roll (first number) with a wishful threshold (second number) the bot goes down anyway.

@@ -30,7 +30,7 @@ Every bot has a character in `server/botprofiles.js` (edit the table to tune one
 | `layoffOthers` | Notices that a card fits another player's run (it never misses its own spreads). |
 | `planAhead` | Keeps a card that is part of a promising pair or run, counting the cards it has not seen go by. |
 | `denyHelp` | Avoids discarding a card that helps the opponents (the next player counts most). It still does it when the remaining hand is 12 or less. It uses cards it knows others hold, and cards they threw away or turned down. |
-| `goDownRisk` | Estimates the payoff of going down by dealing the opponents' unknown cards at random (Monte Carlo) and goes down when it pays enough. The lower the skill, the noisier the estimate, and the more often it decides on gut feeling (the old "12 or lower", stretched by wishful thinking up to 20). |
+| `goDownRisk` | Estimates the payoff of going down by dealing the opponents' unknown cards at random (Monte Carlo) and goes down when it pays enough. The lower the skill, the noisier the estimate, and the more often it decides on gut feeling (a total of 5 or lower, stretched by wishful thinking up to 15). |
 | `finishHand` | Looks for a way to put down every card and win the hand instead of just the biggest spread. |
 | `danger` | Notices opponents with one or two cards left: it goes down sooner and sheds high cards. |
 

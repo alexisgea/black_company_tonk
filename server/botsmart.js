@@ -8,7 +8,8 @@ const { estimateGoDown } = require('./botrisk');
 const GO_MARGIN = 1.6; // expected bets a go-down must be worth before the bot dares (continuing the hand is not free of risk either)
 const THREAT_MARGIN = 0.8; // how much sooner it goes down per opponent about to empty their hand
 const LAPSE_RATE = 0.6; // chance of deciding on gut feeling instead of calculating, at a goDownRisk of 0
-const WISHFUL = 8; // on gut feeling it goes down at 12 plus up to this much
+const GUT_BASE = 5; // on gut feeling it goes down at this total...
+const WISHFUL = 10; // ...plus up to this much
 const NOISE = 1.5; // how far its calculation can be off, in bets, at a goDownRisk of 0
 const KEEP_WEIGHT = 2; // discard score lost per card that could still complete a spread with this one
 const HELP_WEIGHT = 6; // discard score lost for giving the opponents a full spread
@@ -123,8 +124,8 @@ function shouldGoDown(sight) {
   const total = handTotal(hand);
   const skill = mind.skills.goDownRisk;
   const rng = mind.rng;
-  // Gut feeling: the old rule of thumb, stretched by wishful thinking (a 20 can feel safe).
-  if (rng() < (1 - skill) * LAPSE_RATE) return total <= GO_DOWN_AT + Math.floor(rng() * (WISHFUL + 1));
+  // Gut feeling: a rule of thumb that wishful thinking stretches (a 15 can feel safe).
+  if (rng() < (1 - skill) * LAPSE_RATE) return total <= GUT_BASE + Math.floor(rng() * (WISHFUL + 1));
   const unseen = [...Array(52).keys()].filter((c) => !seen.has(c));
   const rivals = opponents.map((p) => ({ count: view.players[p].count, known: held[p] }));
   const worth = estimateGoDown(total, rivals, unseen, rng) + (rng() * 2 - 1) * (1 - skill) * NOISE;
