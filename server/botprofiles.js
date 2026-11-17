@@ -43,23 +43,12 @@ const PROFILES = {
     moodSwing: 0.4, //    moderately swayed by how the game is going
     speed: 0.8, //        sharp
   },
-  // TODO write something
-  'the-lady': {
-    memory: 0.99, //      razor precision
-    calculating: 0.99, // mastermind
-    tunnelVision: 0.2, // focused on her own survival and vengeance
-    observant: 0.99, //   meticulous and disciplined
-    riskTaker: 0.7, //    calculated gambler
-    moodSwing: 0.2, //    icy control
-    speed: 1.0, //        lightning fast
-  },
-  // Sharp and watchful: remembers everything, slow to move, rarely slips.
   'one-eye': {
     memory: 0.6, //       remembers century old grudges but forget cards
     calculating: 0.3, //  can plan god killing plans but not his hand
     tunnelVision: 0.8, // fixated on one-upping goblin
     observant: 0.2, //    plays sloppily
-    riskTaker: 0.9, //    reckless gambler
+    riskTaker: 0.95, //   reckless gambler
     moodSwing: 0.9, //    volatile and theatrical
     speed: 0.95, //       surprisingly fast
   },
@@ -69,7 +58,7 @@ const PROFILES = {
     calculating: 0.7,
     tunnelVision: 0.7,
     observant: 0.7,
-    riskTaker: 0.7,
+    riskTaker: 0.85,
     moodSwing: 0.7,
     speed: 0.95,
   },
@@ -103,21 +92,11 @@ const PROFILES = {
     moodSwing: 0.6,
     speed: 0.7,
   },
-  // Forgetful and slow: nods off.
-  sleepy: {
-    memory: 0.9,
-    calculating: 0.9,
-    tunnelVision: 0.2,
-    observant: 0.9,
-    riskTaker: 0.4,
-    moodSwing: 0.4,
-    speed: 0.6,
-  },
-  // By the book: always goes down at 12 or lower without working it out, throws the dear cards, steady.
+  // By the book: almost always goes down at 12 or lower without working it out, throws the dear cards, steady.
   lieutenant: {
     memory: 0.5,
     calculating: 0.2,
-    tunnelVision: 0.2,
+    tunnelVision: 0.95,
     observant: 0.4,
     riskTaker: 0.3,
     moodSwing: 0.3,
@@ -152,6 +131,76 @@ const PROFILES = {
     riskTaker: 0.6,
     moodSwing: 0.4,
     speed: 0.7,
+  },
+  // Sharp, but bets everything on thin edges: goes down early whenever the odds look even slightly good.
+  gambler: {
+    memory: 0.85,
+    calculating: 0.85,
+    tunnelVision: 0.15,
+    observant: 0.85,
+    riskTaker: 0.9,
+    moodSwing: 0.5,
+    speed: 0.9,
+  },
+  // Works out the odds very well, then never dares: almost never goes down early.
+  coward: {
+    memory: 0.7,
+    calculating: 0.9,
+    tunnelVision: 0.2,
+    observant: 0.7,
+    riskTaker: 0.05,
+    moodSwing: 0.6,
+    speed: 1.3,
+  },
+  // Average skills, but wins and losses throw it completely: brilliant when confident, reckless when behind.
+  tilter: {
+    memory: 0.65,
+    calculating: 0.65,
+    tunnelVision: 0.35,
+    observant: 0.65,
+    riskTaker: 0.5,
+    moodSwing: 1,
+    speed: 0.9,
+  },
+  // Reasons about the odds very well but forgets what was discarded.
+  amnesiac: {
+    memory: 0.1,
+    calculating: 0.9,
+    tunnelVision: 0.2,
+    observant: 0.8,
+    riskTaker: 0.5,
+    moodSwing: 0.4,
+    speed: 1,
+  },
+  // Plays its own hand perfectly and ignores everybody else, so it goes by a rule of thumb and never reads the table.
+  savant: {
+    memory: 0.8,
+    calculating: 0.95,
+    tunnelVision: 0.9,
+    observant: 0.95,
+    riskTaker: 0.5,
+    moodSwing: 0.3,
+    speed: 1.1,
+  },
+  // Still learning: weak at everything, and slow about it.
+  rookie: {
+    memory: 0.4,
+    calculating: 0.4,
+    tunnelVision: 0.6,
+    observant: 0.4,
+    riskTaker: 0.4,
+    moodSwing: 0.5,
+    speed: 1.4,
+  },
+  // An average player: not good and not bad at anything.
+  veteran: {
+    memory: 0.65,
+    calculating: 0.65,
+    tunnelVision: 0.35,
+    observant: 0.65,
+    riskTaker: 0.5,
+    moodSwing: 0.5,
+    speed: 1,
   },
 };
 

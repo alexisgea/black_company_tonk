@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.23.0',
+    date: '2026-11-17',
+    changes: [
+      'Sleepy and The Lady have left the table, and seven new computer players have joined: Gambler, Coward, Tilter, Amnesiac, Savant, Rookie and Veteran.',
+      'The Lieutenant now almost always goes by the book and goes down at 12 or lower without working out the risk, and Goblin is more reckless (though still less than One-Eye).',
+    ],
+  },
+  {
     version: '0.22.2',
     date: '2026-11-17',
     changes: [

@@ -39,6 +39,20 @@ On top of that, every bot has a **character**: seven numbers, each one knob that
 
 Each number has its own job, so tuning one does not change what another does. Where two ideas used to overlap they were folded into one: the **tunnel vision** roll is a single "is it looking at the others this turn?" question, and everything about the others (their spreads, what they need, who is nearly out, and the risk calculation) depends on it. `calculating` only says how well it reasons once it looks.
 
+### Choosing values
+
+Each skill is rolled once per turn, so a value is the share of turns the bot gets that part right. Slips add up over a whole hand, so 0.8 is already fairly sloppy.
+
+|                                            | very bad | bad | average | good | very good |
+| ------------------------------------------ | -------- | --- | ------- | ---- | --------- |
+| `memory` / `calculating` / `observant`     | 0.2      | 0.4 | 0.65    | 0.8  | 0.95      |
+| `tunnelVision` (mirrored, lower is better) | 0.8      | 0.6 | 0.35    | 0.2  | 0.05      |
+| `riskTaker` (timid → reckless)             | 0.1      | 0.3 | 0.5     | 0.7  | 0.9       |
+| `moodSwing` (steady → volatile)            | 0.1      | 0.3 | 0.5     | 0.7  | 0.9       |
+| `speed` (lower is faster)                  | 0.6      | 0.8 | 1.0     | 1.3  | 1.7       |
+
+`riskTaker`, `moodSwing` and `speed` are personality, not skill: the columns are just steps along the scale. Keep values above 0.95 for a character that is meant to be near perfect. `LEVEL` multiplies the skills, so values near 1 get clipped if it is raised above 1.
+
 ### The level
 
 `LEVEL` in `botprofiles.js` (and the `level` argument of `profileFor(player, level)`) makes every bot easier (below 1) or harder (above 1) at once. It scales `memory`, `calculating`, `observant` and how well it watches the table (the opposite of `tunnelVision`) by the same factor, so the differences between the characters stay. `riskTaker`, `moodSwing` and `speed` are personalities, not skill, and are not scaled.
@@ -92,7 +106,7 @@ It checks these in order and stops at the first that applies:
 
 1. **Cycling:** the draw pile is reshuffled once when it runs out. When it runs out **a second time**, nobody is getting low enough, so the bot goes down regardless. This stops a table from going round in circles. It is a fixed rule, not a character trait.
 2. **Panic** _(`moodSwing`)_: if an opponent is nearly out of cards (and the bot is watching), a moody bot may panic and go down in a hurry if its total is 20 or lower, without calculating.
-3. **Rule of thumb** _(`tunnelVision`, `riskTaker`)_: if the bot is not watching the table this turn, it does not work out the risk. It goes down if its total is 12 or lower, a few points higher if it is bold and lower if it is timid. This is how a tunnel-vision bot such as One-Eye goes down at 12 or lower without a calculation four turns out of five.
+3. **Rule of thumb** _(`tunnelVision`, `riskTaker`)_: if the bot is not watching the table this turn, it does not work out the risk. It goes down if its total is 12 or lower, a few points higher if it is bold and lower if it is timid. This is how a tunnel-vision bot such as the Lieutenant goes down at 12 or lower without a calculation nineteen turns out of twenty.
 4. **Calculating**, when it is watching.
 
 **Calculating.** The bot takes all the cards it cannot account for, deals each opponent's hidden cards at random from them (using what it knows about cards they hold), and works out the payoff of going down with its own total using the real rules. It repeats this 120 times and averages. The deal leans towards **low cards**, more so the longer the hand has lasted, because opponents keep their low cards and throw away the dear ones (measured: opponents' cards average about 6.4 at the deal and about 4 after eight rounds). The lower `calculating` is, the more **noise** is added to the result, so a weak counter misjudges by a bit. It goes down when the average is worth at least 0.9 bets **per opponent** (1 would be a sure win). Why 0.9 and not just "more than 0": going down ends the hand early, and carrying on has its own chances of winning, so a small edge is not enough. There is no fixed limit on the total: a bot with 18 goes down if it calculates that the opponents are very likely to hold more, which is rare.

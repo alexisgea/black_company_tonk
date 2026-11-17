@@ -311,7 +311,7 @@ test('smart bots play whole games legally and their memory matches the real tabl
     room.join(host);
     room.addBot();
     room.addBot();
-    for (let h = 0; h < 15 && room.players.length >= T.MIN_PLAYERS; h++) {
+    for (let h = 0; h < 15 && room.players.includes(host) && room.players.length >= T.MIN_PLAYERS; h++) {
       room.startHand(host);
       for (const p of room.pendingTonkers) room.declareTonk(p);
       for (let steps = 0; room.status === 'playing'; steps++) {
