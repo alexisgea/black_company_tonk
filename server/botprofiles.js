@@ -2,7 +2,7 @@
 // The character of each computer player: seven numbers, each one knob. Edit the table below to tune a bot, or LEVEL
 // to make every bot easier or harder at once.
 //
-// All of them are 0 to 1 (0.5 is the middle where there is one), except `speed`:
+// All of them are 0 to 1 (0.5 is the middle where there is one), except `thinkTime`:
 //
 //   memory        how well it remembers the discards and who took what; forgets or half-remembers (right rank, wrong
 //                 suit) the rest. 1 = a perfect memory.
@@ -17,7 +17,7 @@
 //                 0.5 = neutral, 0 = timid, 1 = reckless.
 //   moodSwing     how much winning, losing and being behind on coins sways it, and how readily it panics when an
 //                 opponent is nearly out. 0 = steady.
-//   speed         how long it thinks: below 1 is quick, above 1 is slow. (Not part of the level.)
+//   thinkTime     how long it thinks: below 1 is quick, above 1 is slow. (Not part of the level.)
 //
 // Each knob has its own job; the logic that turns them into behaviour is in botmind.js and botsmart.js, and every
 // fixed number behind it is in bottuning.js. Profiles are keyed by the bot's id from botnames.js, not by its display
@@ -28,8 +28,8 @@ const { BOT_IDS } = require('./botnames');
 // watches the table (the opposite of tunnelVision) by this factor, so the differences between characters stay.
 const LEVEL = 1;
 
-const PARAMS = ['memory', 'calculating', 'tunnelVision', 'observant', 'riskTaker', 'moodSwing', 'speed'];
-const BASE = { memory: 0.8, calculating: 0.8, tunnelVision: 0.2, observant: 0.8, riskTaker: 0.5, moodSwing: 0.5, speed: 1 };
+const PARAMS = ['memory', 'calculating', 'tunnelVision', 'observant', 'riskTaker', 'moodSwing', 'thinkTime'];
+const BASE = { memory: 0.8, calculating: 0.8, tunnelVision: 0.2, observant: 0.8, riskTaker: 0.5, moodSwing: 0.5, thinkTime: 1 };
 
 // Croaker is written out in full: copy his entry as a template. The others override a few values like this:
 // { ...BASE, memory: 0.95, riskTaker: 0.3 }
@@ -41,7 +41,7 @@ const PROFILES = {
     observant: 0.9, //    now and then a slip with its own cards
     riskTaker: 0.6, //    neither bold nor timid
     moodSwing: 0.4, //    moderately swayed by how the game is going
-    speed: 0.8, //        sharp
+    thinkTime: 0.8, //    sharp
   },
   'one-eye': {
     memory: 0.6, //       remembers century old grudges but forget cards
@@ -50,7 +50,7 @@ const PROFILES = {
     observant: 0.2, //    plays sloppily
     riskTaker: 0.95, //   reckless gambler
     moodSwing: 0.9, //    volatile and theatrical
-    speed: 0.95, //       surprisingly fast
+    thinkTime: 0.95, //   surprisingly fast
   },
   // Reckless: dares on thin edges, panics, takes it badly when behind. Easy to bluff into trouble.
   goblin: {
@@ -60,7 +60,7 @@ const PROFILES = {
     observant: 0.7,
     riskTaker: 0.85,
     moodSwing: 0.7,
-    speed: 0.95,
+    thinkTime: 0.95,
   },
   // Scatterbrained and cheerful: misses things, forgets things, goes along with its feelings.
   elmo: {
@@ -70,7 +70,7 @@ const PROFILES = {
     observant: 0.8,
     riskTaker: 0.3,
     moodSwing: 0.3,
-    speed: 0.8,
+    thinkTime: 0.8,
   },
   // Calm and unreadable: quick, steady, hardly moved by wins or losses.
   silent: {
@@ -80,7 +80,7 @@ const PROFILES = {
     observant: 0.95,
     riskTaker: 0.1,
     moodSwing: 0.1,
-    speed: 0.9,
+    thinkTime: 0.9,
   },
   // Steady veteran: remembers, careful with what it hands over, often goes down at 12 without a calculation.
   murgen: {
@@ -90,7 +90,7 @@ const PROFILES = {
     observant: 0.8,
     riskTaker: 0.2,
     moodSwing: 0.6,
-    speed: 0.7,
+    thinkTime: 0.7,
   },
   // By the book: almost always goes down at 12 or lower without working it out, throws the dear cards, steady.
   lieutenant: {
@@ -100,7 +100,7 @@ const PROFILES = {
     observant: 0.4,
     riskTaker: 0.3,
     moodSwing: 0.3,
-    speed: 0.7,
+    thinkTime: 0.7,
   },
   // Always keeps its pairs and chases a finish; does not care what it hands the others.
   otto: {
@@ -110,7 +110,7 @@ const PROFILES = {
     observant: 0.4,
     riskTaker: 0.6,
     moodSwing: 0.2,
-    speed: 0.7,
+    thinkTime: 0.7,
   },
   // Grumpy: wary of danger, timid, and sulks for a long time after a bad hand.
   hagop: {
@@ -120,7 +120,7 @@ const PROFILES = {
     observant: 0.1,
     riskTaker: 0.2,
     moodSwing: 0.1,
-    speed: 0.8,
+    thinkTime: 0.8,
   },
   // Graceful and strong all round, with few slips.
   'willow-swan': {
@@ -130,7 +130,7 @@ const PROFILES = {
     observant: 0.6,
     riskTaker: 0.6,
     moodSwing: 0.4,
-    speed: 0.7,
+    thinkTime: 0.7,
   },
   // Sharp, but bets everything on thin edges: goes down early whenever the odds look even slightly good.
   gambler: {
@@ -140,7 +140,7 @@ const PROFILES = {
     observant: 0.85,
     riskTaker: 0.9,
     moodSwing: 0.5,
-    speed: 0.9,
+    thinkTime: 0.9,
   },
   // Works out the odds very well, then never dares: almost never goes down early.
   coward: {
@@ -150,7 +150,7 @@ const PROFILES = {
     observant: 0.7,
     riskTaker: 0.05,
     moodSwing: 0.6,
-    speed: 1.3,
+    thinkTime: 1.3,
   },
   // Average skills, but wins and losses throw it completely: brilliant when confident, reckless when behind.
   tilter: {
@@ -160,7 +160,7 @@ const PROFILES = {
     observant: 0.65,
     riskTaker: 0.5,
     moodSwing: 1,
-    speed: 0.9,
+    thinkTime: 0.9,
   },
   // Reasons about the odds very well but forgets what was discarded.
   amnesiac: {
@@ -170,7 +170,7 @@ const PROFILES = {
     observant: 0.8,
     riskTaker: 0.5,
     moodSwing: 0.4,
-    speed: 1,
+    thinkTime: 1,
   },
   // Plays its own hand perfectly and ignores everybody else, so it goes by a rule of thumb and never reads the table.
   savant: {
@@ -180,7 +180,7 @@ const PROFILES = {
     observant: 0.95,
     riskTaker: 0.5,
     moodSwing: 0.3,
-    speed: 1.1,
+    thinkTime: 1.1,
   },
   // Still learning: weak at everything, and slow about it.
   rookie: {
@@ -190,7 +190,7 @@ const PROFILES = {
     observant: 0.4,
     riskTaker: 0.4,
     moodSwing: 0.5,
-    speed: 1.4,
+    thinkTime: 1.4,
   },
   // An average player: not good and not bad at anything.
   veteran: {
@@ -200,7 +200,7 @@ const PROFILES = {
     observant: 0.65,
     riskTaker: 0.5,
     moodSwing: 0.5,
-    speed: 1,
+    thinkTime: 1,
   },
 };
 
@@ -220,7 +220,7 @@ function profileFor(player, level = LEVEL) {
     observant: clamp01(p.observant * level),
     boldness: (p.riskTaker - 0.5) * 2,
     moodSwing: p.moodSwing,
-    speed: p.speed,
+    thinkTime: p.thinkTime,
   };
 }
 
@@ -233,8 +233,8 @@ function profileProblems() {
     for (const key of Object.keys(profile)) if (!PARAMS.includes(key)) problems.push(`${id}: unknown parameter ${key}`);
     for (const key of PARAMS) {
       const value = profile[key];
-      if (key === 'speed' ? !(value > 0) : !(value >= 0 && value <= 1))
-        problems.push(`${id}: ${key} must be ${key === 'speed' ? 'above 0' : 'from 0 to 1'}`);
+      if (key === 'thinkTime' ? !(value > 0) : !(value >= 0 && value <= 1))
+        problems.push(`${id}: ${key} must be ${key === 'thinkTime' ? 'above 0' : 'from 0 to 1'}`);
     }
   }
   return problems;

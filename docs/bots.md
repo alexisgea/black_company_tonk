@@ -35,7 +35,7 @@ On top of that, every bot has a **character**: seven numbers, each one knob that
 | `observant`    | How carefully it plays its own cards. 1 = never slips.                               | Noticing a useful top discard, throwing the second-best card by mistake, and overlooking a card that fits its own spread.                                                                         |
 | `riskTaker`    | How ready it is to take a risk. 0.5 = neutral, 0 = timid, 1 = reckless.              | How thin an edge it goes down on, and how high its rule-of-thumb total is.                                                                                                                        |
 | `moodSwing`    | How much it is swayed by how the game goes. 0 = steady.                              | How much wins, losses and being behind on coins move its boldness, and how readily it panics when an opponent is nearly out.                                                                      |
-| `speed`        | How long it thinks. Below 1 is quick, above 1 is slow.                               | The pause before a move.                                                                                                                                                                          |
+| `thinkTime`    | How long it thinks. Below 1 is quick, above 1 is slow.                               | The pause before a move (the table's base delay times this).                                                                                                                                      |
 
 Each number has its own job, so tuning one does not change what another does. Where two ideas used to overlap they were folded into one: the **tunnel vision** roll is a single "is it looking at the others this turn?" question, and everything about the others (their spreads, what they need, who is nearly out, and the risk calculation) depends on it. `calculating` only says how well it reasons once it looks.
 
@@ -47,15 +47,20 @@ Each skill is rolled once per turn, so a value is the share of turns the bot get
 | ------------------------------------------ | -------- | --- | ------- | ---- | --------- |
 | `memory` / `calculating` / `observant`     | 0.2      | 0.4 | 0.65    | 0.8  | 0.95      |
 | `tunnelVision` (mirrored, lower is better) | 0.8      | 0.6 | 0.35    | 0.2  | 0.05      |
-| `riskTaker` (timid → reckless)             | 0.1      | 0.3 | 0.5     | 0.7  | 0.9       |
-| `moodSwing` (steady → volatile)            | 0.1      | 0.3 | 0.5     | 0.7  | 0.9       |
-| `speed` (lower is faster)                  | 0.6      | 0.8 | 1.0     | 1.3  | 1.7       |
 
-`riskTaker`, `moodSwing` and `speed` are personality, not skill: the columns are just steps along the scale. Keep values above 0.95 for a character that is meant to be near perfect. `LEVEL` multiplies the skills, so values near 1 get clipped if it is raised above 1.
+`riskTaker`, `moodSwing` and `thinkTime` are personality, not skill, so they have no good or bad end:
+
+|                                      | one end | next | middle | next | other end |
+| ------------------------------------ | ------- | ---- | ------ | ---- | --------- |
+| `riskTaker` (timid → reckless)       | 0.1     | 0.3  | 0.5    | 0.7  | 0.9       |
+| `moodSwing` (steady → volatile)      | 0.1     | 0.3  | 0.5    | 0.7  | 0.9       |
+| `thinkTime` (very quick → very slow) | 0.6     | 0.8  | 1.0    | 1.3  | 1.7       |
+
+Keep skill values above 0.95 for a character that is meant to be near perfect. `LEVEL` multiplies the skills, so values near 1 get clipped if it is raised above 1.
 
 ### The level
 
-`LEVEL` in `botprofiles.js` (and the `level` argument of `profileFor(player, level)`) makes every bot easier (below 1) or harder (above 1) at once. It scales `memory`, `calculating`, `observant` and how well it watches the table (the opposite of `tunnelVision`) by the same factor, so the differences between the characters stay. `riskTaker`, `moodSwing` and `speed` are personalities, not skill, and are not scaled.
+`LEVEL` in `botprofiles.js` (and the `level` argument of `profileFor(player, level)`) makes every bot easier (below 1) or harder (above 1) at once. It scales `memory`, `calculating`, `observant` and how well it watches the table (the opposite of `tunnelVision`) by the same factor, so the differences between the characters stay. `riskTaker`, `moodSwing` and `thinkTime` are personalities, not skill, and are not scaled.
 
 ## A turn, step by step
 
@@ -142,7 +147,7 @@ Both are multiplied by the character's `moodSwing`, so a steady bot (Silent, Hag
 
 ## Pace
 
-A bot waits before it moves so humans can follow the game. The wait is the table's base delay times the bot's `speed`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time. It also follows how **hard the decision was**: an obvious move (a rule of thumb, laying down a spread, discarding a king instead of a two) takes about 60% of the usual time, a close call (a go-down that is almost worth it, two discards that score about the same) takes up to 180%. This does not change how the bot plays; it makes the mistakes look like thinking.
+A bot waits before it moves so humans can follow the game. The wait is the table's base delay times the bot's `thinkTime`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time. It also follows how **hard the decision was**: an obvious move (a rule of thumb, laying down a spread, discarding a king instead of a two) takes about 60% of the usual time, a close call (a go-down that is almost worth it, two discards that score about the same) takes up to 180%. This does not change how the bot plays; it makes the mistakes look like thinking.
 
 The move is worked out once for each position: the room keeps it while the bot pauses and then plays that same move.
 
@@ -166,7 +171,7 @@ If a bug makes one of them fail, the next one plays, so a table can never freeze
 | One bot to slip more or less with its own cards                                     | Its `observant`                                                                                |
 | One bot to be bolder or more timid                                                  | Its `riskTaker`                                                                                |
 | One bot to be moodier or steadier (and panic more or less)                          | Its `moodSwing`                                                                                |
-| One bot to play faster or slower                                                    | Its `speed`                                                                                    |
+| One bot to think for a shorter or longer time                                       | Its `thinkTime` (lower is quicker)                                                             |
 | All bots to be harder or easier                                                     | `LEVEL` in `botprofiles.js`                                                                    |
 | Bots to go down more or less eagerly                                                | `GO_MARGIN` (lower is more eager) in `bottuning.js`                                            |
 | The rule-of-thumb total to move more or less with boldness                          | `THUMB_SPAN` (and `GO_DOWN_AT` for the middle)                                                 |

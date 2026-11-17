@@ -13,7 +13,7 @@ const { BOTS } = require('../server/botnames');
 
 const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 // A bot that can do nothing well but never slips: tests switch on exactly what they look at (calculating, focus, memory...).
-const PLAIN = { memory: 0, calculating: 0, focus: 0, observant: 1, boldness: 0, moodSwing: 0, speed: 1 };
+const PLAIN = { memory: 0, calculating: 0, focus: 0, observant: 1, boldness: 0, moodSwing: 0, thinkTime: 1 };
 const profile = (overrides = {}) => ({ ...PLAIN, ...overrides });
 
 function seeded(seed) {
@@ -431,7 +431,7 @@ test('every bot has a valid profile by id, and the level scales how well it play
   const normal = profileFor(bot);
   const easier = profileFor(bot, 0.5);
   for (const key of ['memory', 'calculating', 'focus', 'observant']) assert.equal(easier[key], normal[key] / 2);
-  for (const key of ['boldness', 'moodSwing', 'speed']) assert.equal(easier[key], normal[key], `${key} is a personality, not a level`);
+  for (const key of ['boldness', 'moodSwing', 'thinkTime']) assert.equal(easier[key], normal[key], `${key} is a personality, not a level`);
   const harder = profileFor(bot, 3);
   for (const key of ['memory', 'calculating', 'focus', 'observant']) assert.ok(harder[key] <= 1);
   assert.deepEqual(
@@ -439,7 +439,7 @@ test('every bot has a valid profile by id, and the level scales how well it play
     profileFor({ isBot: true, botId: 'nobody' }),
     'a human seat gets the stand-in',
   );
-  assert.equal(profileFor({ ...bot, name: 'Renamed' }).speed, normal.speed, 'the profile follows the id, not the name');
+  assert.equal(profileFor({ ...bot, name: 'Renamed' }).thinkTime, normal.thinkTime, 'the profile follows the id, not the name');
 });
 
 test('a bot added to a room has a unique id for its character, and the room uses it for its profile', () => {
@@ -516,9 +516,9 @@ test('a fault in a bot memory does not undo the move that was played', () => {
 });
 
 test('every character is written with exactly the seven knobs, and what they resolve to', () => {
-  assert.deepEqual(PARAMS, ['memory', 'calculating', 'tunnelVision', 'observant', 'riskTaker', 'moodSwing', 'speed']);
+  assert.deepEqual(PARAMS, ['memory', 'calculating', 'tunnelVision', 'observant', 'riskTaker', 'moodSwing', 'thinkTime']);
   const lieutenant = profileFor({ isBot: true, botId: 'lieutenant', name: 'The Lieutenant' });
-  assert.deepEqual(Object.keys(lieutenant).sort(), ['boldness', 'calculating', 'focus', 'memory', 'moodSwing', 'observant', 'speed']);
+  assert.deepEqual(Object.keys(lieutenant).sort(), ['boldness', 'calculating', 'focus', 'memory', 'moodSwing', 'observant', 'thinkTime']);
   assert.ok(Math.abs(lieutenant.focus - (1 - PROFILES.lieutenant.tunnelVision)) < 1e-9, 'focus is the opposite of tunnel vision');
   assert.deepEqual(profileFor({ isBot: true, botId: 'nobody' }).boldness, 0, 'a riskTaker of 0.5 is neutral');
   assert.ok(BASE.riskTaker === 0.5);
