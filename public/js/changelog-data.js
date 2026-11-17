@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.23.2',
+    date: '2026-11-17',
+    changes: [
+      'The bot character number observant is now called sloppiness and works the other way round: a higher value means a sloppier bot.',
+      'The bot character number thinkTime is now called thinkSpeed and works the other way round: a higher value means a quicker bot.',
+    ],
+  },
+  {
     version: '0.23.1',
     date: '2026-11-17',
     changes: ['The bot character number called speed is now called thinkTime, since a higher value makes a bot think for longer.'],

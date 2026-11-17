@@ -48,8 +48,8 @@ const CHASE_MAX_CARDS = 3; // it chases an empty hand when it holds, or would ke
 const CHASE_WEIGHT = 60; // discard score gained per unit of chance (0 to 1) that the hand left after the discard can be emptied next turn
 
 // --- Slips and moods (the character's numbers live in botprofiles.js) ---
-const DISCARD_NOISE = 6; // discard score noise at an observant of 0 (a sloppy bot sometimes throws the second-best card)
-const OWN_MISS_RATIO = 0.25; // the chance of overlooking a card for its own spread, as a share of the sloppiness (1 - observant)
+const DISCARD_NOISE = 6; // discard score noise at a sloppiness of 1 (a sloppy bot sometimes throws the second-best card)
+const OWN_MISS_RATIO = 0.25; // the chance of overlooking a card for its own spread, as a share of the sloppiness
 const PANIC_PER_MOOD_SWING = 0.4; // the chance of panicking when an opponent is nearly out, at a moodSwing of 1
 const PANIC_DOWN_AT = 20; // a bot that panics because an opponent is nearly out goes down with a total this low or lower
 const BLUR_SPOTS = 4; // an old fact it recalls can be misremembered as the same rank in a random one of this many suits

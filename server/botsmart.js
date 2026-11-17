@@ -1,7 +1,7 @@
 'use strict';
 // The smart computer player. It sees what a human sees (`view`, from viewRound) and what it remembers (`mind`, see
 // botmind.js), never the opponents' hands. How well it does each part comes from its profile (botprofiles.js):
-// `calculating` for working with the unseen cards, `focus` for watching the others, `observant` for its own slips.
+// `calculating` for working with the unseen cards, `focus` for watching the others, `sloppiness` for its own slips.
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('../shared/cards');
 const { findMeld, findLayoff: firstLayoff } = require('./botmelds');
 const { estimateGoDown } = require('./botrisk');
@@ -154,7 +154,7 @@ const completesSpread = (hand, card) => [...subsets([...hand, card])].some((grou
 
 function wantsDiscard(sight, top) {
   const { hand, mind } = sight;
-  if (!mind.decide('observant', 'spot')) return false;
+  if (!mind.chance('spot', 1 - mind.sloppiness)) return false;
   if (findLayoff([top], noticedMelds(sight))) return true;
   if (completesSpread(hand, top)) return true;
   return cardValue(top) <= T.POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= T.POTENTIAL_MIN_OUTS;

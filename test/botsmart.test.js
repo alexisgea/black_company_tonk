@@ -13,7 +13,7 @@ const { BOTS } = require('../server/botnames');
 
 const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 // A bot that can do nothing well but never slips: tests switch on exactly what they look at (calculating, focus, memory...).
-const PLAIN = { memory: 0, calculating: 0, focus: 0, observant: 1, boldness: 0, moodSwing: 0, thinkTime: 1 };
+const PLAIN = { memory: 0, calculating: 0, focus: 0, sloppiness: 0, boldness: 0, moodSwing: 0, thinkSpeed: 1 };
 const profile = (overrides = {}) => ({ ...PLAIN, ...overrides });
 
 function seeded(seed) {
@@ -269,10 +269,10 @@ test('going down: the estimate pays out like the real rules', () => {
   assert.equal(estimateGoDown(60, [{ count: 1, known: [c(1, 'S')] }], unseen, seeded(2)), -2, 'a known ace beats it');
 });
 
-test('observant: it takes a discard that helps, or that makes a promising pair of a cheap card', () => {
+test('sloppiness: it takes a discard that helps, or that makes a promising pair of a cheap card', () => {
   const hand = [c(8, 'C'), c(8, 'D'), c(13, 'S'), c(12, 'S'), c(2, 'H')];
   assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') })).type, 'takeDiscard');
-  assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') }, { observant: 0 })).type, 'draw', 'it does not notice');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') }, { sloppiness: 1 })).type, 'draw', 'it does not notice');
   const pair = [c(6, 'C'), c(13, 'D'), c(12, 'S'), c(11, 'H'), c(2, 'H')];
   assert.equal(act(setup({ hand: pair, phase: 'draw', top: c(6, 'S') })).type, 'takeDiscard');
   const dear = [c(13, 'C'), c(5, 'D'), c(12, 'S'), c(11, 'H'), c(2, 'H')];
@@ -430,16 +430,18 @@ test('every bot has a valid profile by id, and the level scales how well it play
   const bot = { isBot: true, botId: 'croaker', name: 'Croaker' };
   const normal = profileFor(bot);
   const easier = profileFor(bot, 0.5);
-  for (const key of ['memory', 'calculating', 'focus', 'observant']) assert.equal(easier[key], normal[key] / 2);
-  for (const key of ['boldness', 'moodSwing', 'thinkTime']) assert.equal(easier[key], normal[key], `${key} is a personality, not a level`);
+  for (const key of ['memory', 'calculating', 'focus']) assert.equal(easier[key], normal[key] / 2);
+  assert.ok(Math.abs(1 - easier.sloppiness - (1 - normal.sloppiness) / 2) < 1e-9, 'a lower level means more slips');
+  for (const key of ['boldness', 'moodSwing', 'thinkSpeed']) assert.equal(easier[key], normal[key], `${key} is a personality, not a level`);
   const harder = profileFor(bot, 3);
-  for (const key of ['memory', 'calculating', 'focus', 'observant']) assert.ok(harder[key] <= 1);
+  for (const key of ['memory', 'calculating', 'focus']) assert.ok(harder[key] <= 1);
+  assert.ok(harder.sloppiness >= 0 && harder.sloppiness < normal.sloppiness);
   assert.deepEqual(
     profileFor({ isBot: false, botId: 'croaker', name: 'Croaker' }),
     profileFor({ isBot: true, botId: 'nobody' }),
     'a human seat gets the stand-in',
   );
-  assert.equal(profileFor({ ...bot, name: 'Renamed' }).thinkTime, normal.thinkTime, 'the profile follows the id, not the name');
+  assert.equal(profileFor({ ...bot, name: 'Renamed' }).thinkSpeed, normal.thinkSpeed, 'the profile follows the id, not the name');
 });
 
 test('a bot added to a room has a unique id for its character, and the room uses it for its profile', () => {
@@ -450,10 +452,10 @@ test('a bot added to a room has a unique id for its character, and the room uses
   for (const bot of bots) assert.ok(BOTS.some((b) => b.id === bot.botId && b.name === bot.name));
 });
 
-test('observant notices a discard that completes a spread even when the hand has a bigger spread', () => {
+test('a sloppiness of 0 notices a discard that completes a spread even when the hand has a bigger spread', () => {
   const hand = [c(7, 'C'), c(7, 'D'), c(7, 'H'), c(5, 'S'), c(6, 'S')];
   assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') })).type, 'takeDiscard');
-  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') }, { observant: 0 })).type, 'draw', 'it does not notice');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') }, { sloppiness: 1 })).type, 'draw', 'it does not notice');
 });
 
 test('memory follows a seat change, and forgets a player who leaves', () => {
@@ -516,21 +518,21 @@ test('a fault in a bot memory does not undo the move that was played', () => {
 });
 
 test('every character is written with exactly the seven knobs, and what they resolve to', () => {
-  assert.deepEqual(PARAMS, ['memory', 'calculating', 'tunnelVision', 'observant', 'riskTaker', 'moodSwing', 'thinkTime']);
+  assert.deepEqual(PARAMS, ['memory', 'calculating', 'tunnelVision', 'sloppiness', 'riskTaker', 'moodSwing', 'thinkSpeed']);
   const lieutenant = profileFor({ isBot: true, botId: 'lieutenant', name: 'The Lieutenant' });
-  assert.deepEqual(Object.keys(lieutenant).sort(), ['boldness', 'calculating', 'focus', 'memory', 'moodSwing', 'observant', 'thinkTime']);
+  assert.deepEqual(Object.keys(lieutenant).sort(), ['boldness', 'calculating', 'focus', 'memory', 'moodSwing', 'sloppiness', 'thinkSpeed']);
   assert.ok(Math.abs(lieutenant.focus - (1 - PROFILES.lieutenant.tunnelVision)) < 1e-9, 'focus is the opposite of tunnel vision');
   assert.deepEqual(profileFor({ isBot: true, botId: 'nobody' }).boldness, 0, 'a riskTaker of 0.5 is neutral');
   assert.ok(BASE.riskTaker === 0.5);
 });
 
-test('observant: a sloppy bot sometimes throws a close second-best card, an attentive one never does', () => {
+test('sloppiness: a sloppy bot sometimes throws a close second-best card, a careful one never does', () => {
   const hand = [c(10, 'S'), c(9, 'D'), c(8, 'C'), c(2, 'H'), c(3, 'D')];
-  const thrown = (observant, seed) => act(setup({ hand }, { observant }, seeded(seed))).card;
+  const thrown = (sloppiness, seed) => act(setup({ hand }, { sloppiness }, seeded(seed))).card;
   const precise = new Set();
   const sloppy = new Set();
   for (let seed = 1; seed <= 60; seed++) {
-    precise.add(thrown(1, seed));
+    precise.add(thrown(0, seed));
     sloppy.add(thrown(0.5, seed));
   }
   assert.deepEqual([...precise], [c(10, 'S')]);
@@ -555,11 +557,11 @@ test('moodSwing: with an opponent nearly out a moody bot can panic and go down w
   assert.notEqual(decide({ b: 3, c: 3 }, 1), 'goDown', 'nobody is nearly out, so there is nothing to panic about');
 });
 
-test('observant: a bot can overlook that a card fits its own spread', () => {
+test('sloppiness: a bot can overlook that a card fits its own spread', () => {
   const hand = [c(9, 'D'), c(1, 'C'), c(13, 'S'), c(12, 'H'), c(2, 'H')];
   const own = { id: 1, owner: 'a', type: 'run', cards: [c(5, 'D'), c(6, 'D'), c(7, 'D'), c(8, 'D')] };
-  assert.equal(act(setup({ hand, melds: [own] }, { observant: 1 })).type, 'layoff');
-  assert.equal(act(setup({ hand, melds: [own] }, { observant: 0 }, () => 0)).type, 'discard');
+  assert.equal(act(setup({ hand, melds: [own] }, { sloppiness: 0 })).type, 'layoff');
+  assert.equal(act(setup({ hand, melds: [own] }, { sloppiness: 1 }, () => 0)).type, 'discard');
 });
 
 test('memory: an old memory that is kept can lose its suit but keeps the rank; the last round is always exact', () => {

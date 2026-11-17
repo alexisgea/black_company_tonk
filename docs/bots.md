@@ -32,10 +32,10 @@ On top of that, every bot has a **character**: seven numbers, each one knob that
 | `memory`       | How well it remembers. 1 = perfect.                                                  | Whether it still knows an old discard or who took a card, and how often a remembered card has the wrong suit (`1 - memory`).                                                                      |
 | `calculating`  | How well it works with the cards it cannot see. 1 = sharp.                           | Keeping a promising pair or run, finding a way to empty its hand, and how noisy its go-down estimate is.                                                                                          |
 | `tunnelVision` | How much it only watches its own game. 0 = always watches the table, 1 = never does. | Whether, this turn, it looks at what the others are doing: their spreads, what they need, who is nearly out, and so whether it works out the go-down risk at all or just goes by a rule of thumb. |
-| `observant`    | How carefully it plays its own cards. 1 = never slips.                               | Noticing a useful top discard, throwing the second-best card by mistake, and overlooking a card that fits its own spread.                                                                         |
+| `sloppiness`   | How carelessly it plays its own cards. 0 = never slips, 1 = always sloppy.           | Missing a useful top discard, throwing the second-best card by mistake, and overlooking a card that fits its own spread.                                                                          |
 | `riskTaker`    | How ready it is to take a risk. 0.5 = neutral, 0 = timid, 1 = reckless.              | How thin an edge it goes down on, and how high its rule-of-thumb total is.                                                                                                                        |
 | `moodSwing`    | How much it is swayed by how the game goes. 0 = steady.                              | How much wins, losses and being behind on coins move its boldness, and how readily it panics when an opponent is nearly out.                                                                      |
-| `thinkTime`    | How long it thinks. Below 1 is quick, above 1 is slow.                               | The pause before a move (the table's base delay times this).                                                                                                                                      |
+| `thinkSpeed`   | How fast it thinks. 1 = normal, above 1 is quicker, below 1 is slower.               | The pause before a move (the table's base delay divided by this).                                                                                                                                 |
 
 Each number has its own job, so tuning one does not change what another does. Where two ideas used to overlap they were folded into one: the **tunnel vision** roll is a single "is it looking at the others this turn?" question, and everything about the others (their spreads, what they need, who is nearly out, and the risk calculation) depends on it. `calculating` only says how well it reasons once it looks.
 
@@ -43,24 +43,24 @@ Each number has its own job, so tuning one does not change what another does. Wh
 
 Each skill is rolled once per turn, so a value is the share of turns the bot gets that part right. Slips add up over a whole hand, so 0.8 is already fairly sloppy.
 
-|                                            | very bad | bad | average | good | very good |
-| ------------------------------------------ | -------- | --- | ------- | ---- | --------- |
-| `memory` / `calculating` / `observant`     | 0.2      | 0.4 | 0.65    | 0.8  | 0.95      |
-| `tunnelVision` (mirrored, lower is better) | 0.8      | 0.6 | 0.35    | 0.2  | 0.05      |
+|                                                        | very bad | bad | average | good | very good |
+| ------------------------------------------------------ | -------- | --- | ------- | ---- | --------- |
+| `memory` / `calculating`                               | 0.2      | 0.4 | 0.65    | 0.8  | 0.95      |
+| `tunnelVision` / `sloppiness` (flaws, lower is better) | 0.8      | 0.6 | 0.35    | 0.2  | 0.05      |
 
-`riskTaker`, `moodSwing` and `thinkTime` are personality, not skill, so they have no good or bad end:
+`riskTaker`, `moodSwing` and `thinkSpeed` are personality, not skill, so they have no good or bad end (a higher `thinkSpeed` only means quicker):
 
-|                                      | one end | next | middle | next | other end |
-| ------------------------------------ | ------- | ---- | ------ | ---- | --------- |
-| `riskTaker` (timid → reckless)       | 0.1     | 0.3  | 0.5    | 0.7  | 0.9       |
-| `moodSwing` (steady → volatile)      | 0.1     | 0.3  | 0.5    | 0.7  | 0.9       |
-| `thinkTime` (very quick → very slow) | 0.6     | 0.8  | 1.0    | 1.3  | 1.7       |
+|                                       | one end | next | middle | next | other end |
+| ------------------------------------- | ------- | ---- | ------ | ---- | --------- |
+| `riskTaker` (timid → reckless)        | 0.1     | 0.3  | 0.5    | 0.7  | 0.9       |
+| `moodSwing` (steady → volatile)       | 0.1     | 0.3  | 0.5    | 0.7  | 0.9       |
+| `thinkSpeed` (very slow → very quick) | 0.6     | 0.8  | 1.0    | 1.25 | 1.6       |
 
 Keep skill values above 0.95 for a character that is meant to be near perfect. `LEVEL` multiplies the skills, so values near 1 get clipped if it is raised above 1.
 
 ### The level
 
-`LEVEL` in `botprofiles.js` (and the `level` argument of `profileFor(player, level)`) makes every bot easier (below 1) or harder (above 1) at once. It scales `memory`, `calculating`, `observant` and how well it watches the table (the opposite of `tunnelVision`) by the same factor, so the differences between the characters stay. `riskTaker`, `moodSwing` and `thinkTime` are personalities, not skill, and are not scaled.
+`LEVEL` in `botprofiles.js` (and the `level` argument of `profileFor(player, level)`) makes every bot easier (below 1) or harder (above 1) at once. It scales `memory`, `calculating`, how well it watches the table (the opposite of `tunnelVision`) and how carefully it plays its own cards (the opposite of `sloppiness`) by the same factor, so the differences between the characters stay. `riskTaker`, `moodSwing` and `thinkSpeed` are personalities, not skill, and are not scaled.
 
 ## A turn, step by step
 
@@ -70,13 +70,13 @@ The bot goes through these questions in order and stops at the first "yes":
 
 1. **Can I win right now by taking the top discard?** If taking it lets the bot put down every card (all but one, which it discards), it takes it. Emptying the hand pays 2 bets per opponent, so nothing beats it. _(`calculating`)_
 2. **Should I go down?** See "Going down" below.
-3. **Is the top discard worth taking?** It takes it if the card fits a spread already on the table, completes a spread with its hand, or makes a pair or a two-card run with a cheap card (7 or less) that still has enough cards left to complete it. _(`observant`)_
+3. **Is the top discard worth taking?** It takes it if the card fits a spread already on the table, completes a spread with its hand, or makes a pair or a two-card run with a cheap card (7 or less) that still has enough cards left to complete it. _(`sloppiness`)_
 4. Otherwise it **draws** from the pile. (If the draw pile is empty and only the discard pile is left, it takes the discard.)
 
 ### 2. After taking a card
 
 1. **Can I empty my hand this turn?** The bot looks for a way to put down every card except one, using sets, runs and cards added to spreads on the table, and does the first step of it. This finds combinations the simple "biggest spread first" rule misses (for example a run plus three of a kind from six cards). _(`calculating`)_
-2. **Can I add a card to a spread?** It adds cards to runs on the table. Other players' spreads are only noticed when it is watching the table (`tunnelVision`: people tend to focus on their own game). Its own spreads it nearly always sees, but with a lower `observant` it now and then overlooks one for a turn, as people do.
+2. **Can I add a card to a spread?** It adds cards to runs on the table. Other players' spreads are only noticed when it is watching the table (`tunnelVision`: people tend to focus on their own game). Its own spreads it nearly always sees, but with a higher `sloppiness` it now and then overlooks one for a turn, as people do.
 3. **Can I put down a spread?** A set or a run from its hand, the biggest one first.
 4. Otherwise it **discards** one card (see "Choosing the discard").
 
@@ -101,7 +101,7 @@ Each card in the hand gets a score, and the bot throws away the card with the **
 - **Don't help the opponents** _(`tunnelVision`)_: a card that would help an opponent loses score, so the bot keeps it and throws something else. "Helps" means: it completes a spread with two cards the bot knows an opponent holds, or it goes with one card they hold. The player sitting next after the bot counts the most, the others less. If the opponent threw away or turned down a similar card before, the worry is halved. The bot ignores this worry when the rest of its hand is not above 12 (low enough to go down with): helping the next player is fine if it lets the bot win. A bot that is not watching does not think about the opponents' cards at all.
 - **Chase an empty hand** _(`calculating`)_: when the bot would keep three cards or fewer, a card gains score if throwing it away leaves a hand that has a good chance of being emptied next turn. See "Chasing an empty hand".
 - **Danger** _(`tunnelVision`)_: if an opponent has one or two cards left (and the bot is watching), dear cards score even higher (the bot sheds them fast) and planning ahead counts less, because there is no time to build a spread.
-- **Slips** _(`observant`)_: a little random noise is added to every score. When two cards score about the same, the bot may throw the other one; when one card is clearly the right choice, the noise almost never changes it.
+- **Slips** _(`sloppiness`)_: a little random noise is added to every score. When two cards score about the same, the bot may throw the other one; when one card is clearly the right choice, the noise almost never changes it.
 
 ## Going down
 
@@ -147,7 +147,7 @@ Both are multiplied by the character's `moodSwing`, so a steady bot (Silent, Hag
 
 ## Pace
 
-A bot waits before it moves so humans can follow the game. The wait is the table's base delay times the bot's `thinkTime`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time. It also follows how **hard the decision was**: an obvious move (a rule of thumb, laying down a spread, discarding a king instead of a two) takes about 60% of the usual time, a close call (a go-down that is almost worth it, two discards that score about the same) takes up to 180%. This does not change how the bot plays; it makes the mistakes look like thinking.
+A bot waits before it moves so humans can follow the game. The wait is the table's base delay divided by the bot's `thinkSpeed`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time. It also follows how **hard the decision was**: an obvious move (a rule of thumb, laying down a spread, discarding a king instead of a two) takes about 60% of the usual time, a close call (a go-down that is almost worth it, two discards that score about the same) takes up to 180%. This does not change how the bot plays; it makes the mistakes look like thinking.
 
 The move is worked out once for each position: the room keeps it while the bot pauses and then plays that same move.
 
@@ -168,10 +168,10 @@ If a bug makes one of them fail, the next one plays, so a table can never freeze
 | One bot to remember more or less                                                    | Its `memory` in `botprofiles.js`                                                               |
 | One bot to be better or worse with odds, pairs and finishing                        | Its `calculating`                                                                              |
 | One bot to watch the table more or less (and so calculate or go by a rule of thumb) | Its `tunnelVision`                                                                             |
-| One bot to slip more or less with its own cards                                     | Its `observant`                                                                                |
+| One bot to slip more or less with its own cards                                     | Its `sloppiness`                                                                               |
 | One bot to be bolder or more timid                                                  | Its `riskTaker`                                                                                |
 | One bot to be moodier or steadier (and panic more or less)                          | Its `moodSwing`                                                                                |
-| One bot to think for a shorter or longer time                                       | Its `thinkTime` (lower is quicker)                                                             |
+| One bot to think for a shorter or longer time                                       | Its `thinkSpeed` (higher is quicker)                                                           |
 | All bots to be harder or easier                                                     | `LEVEL` in `botprofiles.js`                                                                    |
 | Bots to go down more or less eagerly                                                | `GO_MARGIN` (lower is more eager) in `bottuning.js`                                            |
 | The rule-of-thumb total to move more or less with boldness                          | `THUMB_SPAN` (and `GO_DOWN_AT` for the middle)                                                 |

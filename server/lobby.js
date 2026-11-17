@@ -42,7 +42,7 @@ const cleanDevice = (raw) => (typeof raw === 'string' && DEVICE_ID.test(raw) ? r
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
-  // botDelayMs: base pause before a bot moves (scaled by the character's thinkTime, see thinkMs). maxRooms / createsPerMinute: abuse limits.
+  // botDelayMs: base pause before a bot moves (divided by the character's thinkSpeed, see thinkMs). maxRooms / createsPerMinute: abuse limits.
   // roomIdleMs: a game nobody has touched for this long is closed (warning idleWarningMs before).
   // turnTimeoutMs: a connected player who takes longer than this on their turn is replaced by a bot (0 = never).
   // It only applies when at least two humans play; a lone human with bots is covered by roomIdleMs instead.
@@ -229,7 +229,7 @@ class Lobby {
   // longer to think about than putting cards down, a close call takes longer than an obvious move, and no two
   // moves take exactly the same time.
   thinkMs(room, seat, effort = 0.5) {
-    const pace = profileFor(seat).thinkTime * (room.round.phase === 'draw' ? THINK_DRAW : THINK_PLAY);
+    const pace = (room.round.phase === 'draw' ? THINK_DRAW : THINK_PLAY) / profileFor(seat).thinkSpeed;
     const ponder = THINK_EFFORT_MIN + effort * (THINK_EFFORT_MAX - THINK_EFFORT_MIN);
     return Math.round(this.botDelayMs * pace * ponder * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
   }

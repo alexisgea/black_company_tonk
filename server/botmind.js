@@ -9,7 +9,7 @@
 const { BLUR_SPOTS, OWN_MISS_RATIO, PANIC_PER_MOOD_SWING } = require('./bottuning');
 
 class Mind {
-  // `profile` is the character as profileFor (botprofiles.js) gives it: memory, calculating, focus, observant, boldness, moodSwing.
+  // `profile` is the character as profileFor (botprofiles.js) gives it: memory, calculating, focus, sloppiness, boldness, moodSwing.
   constructor(id, profile, rng = Math.random) {
     this.id = id;
     this.profile = profile;
@@ -20,11 +20,11 @@ class Mind {
 
   // What the character's numbers mean for one specific slip or habit:
   get sloppiness() {
-    return 1 - this.profile.observant; // noise on the discard scores
+    return this.profile.sloppiness; // noise on the discard scores
   }
 
   get ownMiss() {
-    return (1 - this.profile.observant) * OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
+    return this.profile.sloppiness * OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
   }
 
   get blur() {
