@@ -5,7 +5,7 @@ This page explains, in plain language, how a computer player decides what to do.
 | File | What is in it |
 | --- | --- |
 | `botsmart.js` | The decisions themselves (draw, go down, spread, add to a spread, discard). |
-| `botmind.js` | What a bot remembers about the current hand. |
+| `botmind.js` | What a bot remembers about the current hand (including half-remembered cards). |
 | `botrisk.js` | The "is going down a good idea?" estimate. |
 | `botprofiles.js` | The character of each bot (keyed by its id from `botnames.js`): its skills, its personality traits (habits, slips, moods) and its speed. **Edit this to make a bot better, worse or different.** |
 | `bottuning.js` | Every fixed number behind the decisions, with a comment on what it means. **Edit this to change how the logic behaves for every bot.** |
@@ -26,7 +26,22 @@ On top of that, every bot has a set of **skills**. A skill is a number from 0 to
 
 Each bot also has a **speed** (how long it thinks; below 1 is quick, above 1 is slow), and a **tag** (easy, normal, hard) that is only a label for now.
 
-A table-wide difficulty can later multiply every skill by the same factor (`profileFor(player, difficulty)`), so all bots get easier or harder while the differences between characters stay.
+A table-wide difficulty can later multiply every skill by the same factor (`profileFor(player, difficulty)`), so all bots get easier or harder while the differences between characters stay. (Personality traits are not scaled.)
+
+## The skills
+
+Each skill is the chance (0 to 1) that the bot gets that part of the game right. Every character has its own value for each, set in `botprofiles.js`; the base is 0.8.
+
+| Skill | What it does |
+| --- | --- |
+| `memory` | Remembers discards and cards others took from the pile that are older than the last full round. The last round is always remembered. |
+| `spotDiscard` | Notices that the top discard would help: it fits a spread, or makes a pair or a two-card run with a cheap card. |
+| `layoffOthers` | Notices that a card fits another player's spread. (Its own spreads it almost never misses, see `ownMiss` under "Personality".) |
+| `planAhead` | Keeps a card that is part of a promising pair or run instead of throwing it away. |
+| `denyHelp` | Avoids discarding a card that would help the opponents, the next player most of all. |
+| `goDownRisk` | Judges whether going down is safe by calculating the odds. A low skill means more guessing on gut feeling and a noisier estimate. |
+| `finishHand` | Finds a way to put down every card and win the hand, and chases an empty hand when it has few cards left. |
+| `danger` | Notices that an opponent is close to emptying their hand, so it sheds high cards and goes down sooner. |
 
 ## A turn, step by step
 
@@ -42,7 +57,7 @@ The bot goes through these questions in order and stops at the first "yes":
 ### 2. After taking a card
 
 1. **Can I empty my hand this turn?** The bot looks for a way to put down every card except one, using sets, runs and cards added to spreads on the table, and does the first step of it. This finds combinations the simple "biggest spread first" rule misses (for example a run plus three of a kind from six cards). *(skill: `finishHand`)*
-2. **Can I add a card to a spread?** It adds cards to runs on the table. It never misses spreads of its own; other players' spreads are only noticed with the `layoffOthers` skill (people tend to focus on their own game).
+2. **Can I add a card to a spread?** It adds cards to runs on the table. Other players' spreads are only noticed with the `layoffOthers` skill (people tend to focus on their own game). Its own spreads it nearly always sees, but with the `ownMiss` trait it now and then overlooks one for a turn, as people do.
 3. **Can I put down a spread?** A set or a run from its hand, the biggest one first.
 4. Otherwise it **discards** one card (see "Choosing the discard").
 
@@ -54,35 +69,41 @@ A bot builds its memory from the public log, the same one a human can read. It r
 - who took a card from the discard pile (that player probably holds it until they put it down),
 - who drew from the pile instead of taking the discard (they probably did not want it).
 
-Everything from the **last full round** (one turn per player) is remembered perfectly. Anything older is kept or forgotten by **one roll of the `memory` skill**, made the first time the bot thinks about that fact. A forgotten card stays forgotten. When the draw pile runs out and the discards are reshuffled, the bot forgets the discards, because those cards are back in the pile.
+Everything from the **last full round** (one turn per player) is remembered perfectly. Anything older is kept or forgotten by **one roll of the `memory` skill**, made the first time the bot thinks about that fact. A forgotten card stays forgotten. A card that is kept can still be **half remembered** (the `blur` trait): the bot knows a king went by, but gets the suit wrong, and it stays wrong. When the draw pile runs out and the discards are reshuffled, the bot forgets the discards, because those cards are back in the pile.
 
 The bot uses its memory to guess which cards are still out there (`seen` cards are those in its hand, on the table, in the remembered discard pile, or known to be in an opponent's hand).
 
 ## Choosing the discard
 
-Each card in the hand gets a score, and the bot throws away the card with the **highest** score.
+Each card in the hand gets a score, and the bot throws away the card with the **highest** score. Before any of that, a bot with the **`dumpHigh` habit** sometimes skips the weighing completely and just throws away its dearest card, even if that breaks a pair.
 
 - **Base:** the card's value. Dear cards (kings, queens, jacks, tens) score high, so by default the bot sheds them.
 - **Keep promising cards** *(skill: `planAhead`)*: a card loses score for every card that could still complete a spread with it and another card in the hand (a pair, or two cards in the same suit that are close together). Cards the bot has seen go by do not count: if both other kings are gone, a pair of kings is not worth keeping.
 - **Don't help the opponents** *(skill: `denyHelp`)*: a card that would help an opponent loses score, so the bot keeps it and throws something else. "Helps" means: it extends a spread on the table (anyone can use that), it completes a spread with two cards the bot knows an opponent holds, or it goes with one card they hold. The player sitting next after the bot counts the most, the others less. If the opponent threw away or turned down a similar card before, the worry is halved. The bot ignores this worry when the rest of its hand is not above 12 (low enough to go down with): helping the next player is fine if it lets the bot win.
 - **Chase an empty hand** *(skill: `finishHand`)*: when the bot would keep three cards or fewer, a card gains score if throwing it away leaves a hand that has a good chance of being emptied next turn. See "Chasing an empty hand".
 - **Danger** *(skill: `danger`)*: if an opponent has one or two cards left, dear cards score even higher (the bot sheds them fast) and planning ahead counts less, because there is no time to build a spread.
+- **Slips** *(trait: `sloppiness`)*: a little random noise is added to every score. When two cards score about the same, the bot may throw the other one; when one card is clearly the right choice, the noise almost never changes it.
 
 ## Going down
 
 Going down early wins 1 bet from each opponent if the bot has the lowest total, but costs 2 bets to each opponent with an equal or lower total if it is wrong. Ties lose. So the bot has to judge the risk.
 
-It does this in one of two ways, chosen by a roll of the `goDownRisk` skill:
+It checks these in order and stops at the first that applies:
+
+1. **Cycling:** the draw pile is reshuffled once when it runs out. When it runs out **a second time**, nobody is getting low enough, so the bot goes down regardless. This stops a table from going round in circles. It is a fixed rule, not a skill.
+2. **Panic** *(trait: `panic`)*: if an opponent is nearly out of cards (and the bot notices, see the `danger` skill), a nervous bot goes down in a hurry if its total is 20 or lower, without calculating.
+3. **Habit** *(traits: `thumbRate`, `thumbAt`)*: a bot with a fixed habit skips the calculation and goes down if its total is at or below its own limit (for example 12), and does not if it is above. This is the character's habit, not a guess: the Lieutenant does it nine times in ten.
+4. **Gut feeling** or **calculating**, chosen by a roll of the `goDownRisk` skill:
 
 **Calculating** (the more skilled the bot, the more often). The bot takes all the cards it cannot account for, deals each opponent's hidden cards at random from them (using what it knows about cards they hold), and works out the payoff of going down with its own total using the real rules. It repeats this 120 times and averages. The deal leans towards **low cards**, more so the longer the hand has lasted, because opponents keep their low cards and throw away the dear ones (measured: opponents' cards average about 6.4 at the deal and about 4 after eight rounds). The lower the skill, the more **noise** is added to the result, so an unskilled bot misjudges by a bit. It goes down when the average is worth at least 0.9 bets **per opponent** (1 would be a sure win). Why 0.9 and not just "more than 0": going down ends the hand early, and carrying on has its own chances of winning, so a small edge is not enough. There is no fixed limit on the total: a bot with 18 goes down if it calculates that the opponents are very likely to hold more, which is rare.
 
-**Gut feeling** (the less skilled the bot, the more often). It does not calculate. It goes down when its total is at or below a rule of thumb (5 plus a random 0 to 10). This is how a bot can wrongly think a hand of 15 is safe. One gut feeling in twenty is wild (5 plus a random 0 to 20), so now and then a weak bot goes down with a big hand and gets it wrong.
+**Gut feeling** (the less skilled the bot, the more often). It does not calculate. It goes down when its total is at or below a rough limit (5 plus a random 0 to 10). This is how a bot can wrongly think a hand of 15 is safe. One gut feeling in twenty is wild (5 plus a random 0 to 20), so now and then a weak bot goes down with a big hand and gets it wrong.
 
-Adjustments:
+Adjustments to the calculation:
 
 - **Danger:** if opponents are about to empty their hand, the margin shrinks and the bot goes down sooner. *(skill: `danger`)*
+- **Boldness and mood:** a bold bot (or one that is feeling confident, or is behind on coins) accepts a smaller margin; a timid or gun-shy one wants more. See "Personality".
 - **Chasing:** if the bot is close to emptying its hand, it compares going down with chasing that (see below) and only goes down if going down is worth at least as much. *(skill: `finishHand`)*
-- **Cycling:** the draw pile is reshuffled once when it runs out. When it runs out **a second time**, nobody is getting low enough, so the bot goes down regardless. This stops a table from going round in circles. It is a fixed rule, not a skill.
 
 ## Chasing an empty hand
 
@@ -134,7 +155,7 @@ Every bot move tries, in order:
 2. the original simple bot (`bot.js`: draw, put down spreads, add to spreads, discard the highest card, go down at 12 or less),
 3. a plain legal move (draw, then discard the highest card).
 
-If a bug makes one of them fail, the next one plays, so a table can never freeze. The same logic also plays for a human who is away or disconnected, using the default skill level.
+If a bug makes one of them fail, the next one plays, so a table can never freeze. The same logic also plays for a human who is away or disconnected, using the default skill level and a plain personality (no mood).
 
 ## Tuning cheat sheet
 
