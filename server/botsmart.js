@@ -154,7 +154,7 @@ const completesSpread = (hand, card) => [...subsets([...hand, card])].some((grou
 
 function wantsDiscard(sight, top) {
   const { hand, mind } = sight;
-  if (!mind.decide('counting', 'spot')) return false;
+  if (!mind.decide('attention', 'spot')) return false;
   if (findLayoff([top], noticedMelds(sight))) return true;
   if (completesSpread(hand, top)) return true;
   return cardValue(top) <= T.POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= T.POTENTIAL_MIN_OUTS;

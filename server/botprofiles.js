@@ -6,13 +6,13 @@
 //
 //   memory        how well it remembers the discards and who took what; forgets or half-remembers (right rank, wrong
 //                 suit) the rest. 1 = a perfect memory.
-//   counting      how well it works with the cards it cannot see: spotting a useful discard, keeping a promising pair
-//                 or run, finding a way to empty its hand, and judging how safe it is to go down. 1 = sharp.
+//   counting      how well it works with the cards it cannot see: keeping a promising pair or run, finding a way to
+//                 empty its hand, and judging how safe it is to go down. 1 = sharp.
 //   tunnelVision  how much it only watches its own game. A bot with tunnel vision often ignores what the others
 //                 do (their spreads, what they need, who is nearly out) and so goes down by a rule of thumb instead
 //                 of working out the risk. 0 = always watches the table, 1 = never does.
-//   attention     how carefully it plays its own cards: slips like throwing the second-best card or overlooking a
-//                 card for its own spread. 1 = never slips.
+//   attention     how carefully it plays its own cards: noticing a useful top discard, and slips like throwing the
+//                 second-best card or overlooking a card for its own spread. 1 = never slips.
 //   risk          how ready it is to take a risk: it goes down on a thinner edge (and its rule of thumb goes higher).
 //                 0.5 = neutral, 0 = timid, 1 = reckless.
 //   mood          how much winning, losing and being behind on coins sways it, and how readily it panics when an

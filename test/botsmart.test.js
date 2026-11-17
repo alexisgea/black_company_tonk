@@ -269,18 +269,14 @@ test('going down: the estimate pays out like the real rules', () => {
   assert.equal(estimateGoDown(60, [{ count: 1, known: [c(1, 'S')] }], unseen, seeded(2)), -2, 'a known ace beats it');
 });
 
-test('counting: it takes a discard that helps, or that makes a promising pair of a cheap card', () => {
+test('attention: it takes a discard that helps, or that makes a promising pair of a cheap card', () => {
   const hand = [c(8, 'C'), c(8, 'D'), c(13, 'S'), c(12, 'S'), c(2, 'H')];
-  assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') }, { counting: 1 })).type, 'takeDiscard');
-  assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') })).type, 'draw', 'it does not notice');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') })).type, 'takeDiscard');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(8, 'H') }, { attention: 0 })).type, 'draw', 'it does not notice');
   const pair = [c(6, 'C'), c(13, 'D'), c(12, 'S'), c(11, 'H'), c(2, 'H')];
-  assert.equal(act(setup({ hand: pair, phase: 'draw', top: c(6, 'S') }, { counting: 1 })).type, 'takeDiscard');
+  assert.equal(act(setup({ hand: pair, phase: 'draw', top: c(6, 'S') })).type, 'takeDiscard');
   const dear = [c(13, 'C'), c(5, 'D'), c(12, 'S'), c(11, 'H'), c(2, 'H')];
-  assert.equal(
-    act(setup({ hand: dear, phase: 'draw', top: c(13, 'S') }, { counting: 1 })).type,
-    'draw',
-    'a king is too dear to keep for a pair',
-  );
+  assert.equal(act(setup({ hand: dear, phase: 'draw', top: c(13, 'S') })).type, 'draw', 'a king is too dear to keep for a pair');
 });
 
 test('focus: it always adds to its own spreads, and to the others only when it is watching them', () => {
@@ -454,10 +450,10 @@ test('a bot added to a room has a unique id for its character, and the room uses
   for (const bot of bots) assert.ok(BOTS.some((b) => b.id === bot.botId && b.name === bot.name));
 });
 
-test('counting notices a discard that completes a spread even when the hand has a bigger spread', () => {
+test('attention notices a discard that completes a spread even when the hand has a bigger spread', () => {
   const hand = [c(7, 'C'), c(7, 'D'), c(7, 'H'), c(5, 'S'), c(6, 'S')];
-  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') }, { counting: 1 })).type, 'takeDiscard');
-  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') })).type, 'draw', 'it does not notice');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') })).type, 'takeDiscard');
+  assert.equal(act(setup({ hand, phase: 'draw', top: c(4, 'S') }, { attention: 0 })).type, 'draw', 'it does not notice');
 });
 
 test('memory follows a seat change, and forgets a player who leaves', () => {
