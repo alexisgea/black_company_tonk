@@ -3,22 +3,41 @@
 // human reads in the log) plus the starting discard, so it can never know more than a human at the table could.
 //
 // Memory works like this: everything from the last full round (one turn per player) is remembered perfectly; any
-// older fact (a discard, or a card someone took from the pile) is kept or forgotten by a single roll of the `memory`
-// skill, made the first time the bot looks at it, so a forgotten card stays forgotten.
+// older fact (a discard, or a card someone took from the pile) is kept or forgotten by a single roll of the bot's
+// memory, made the first time the bot looks at it, so a forgotten card stays forgotten.
 
-const { BLUR_SPOTS } = require('./bottuning');
-
-// A bot that has no personality: no habits, no blunders, no mood. Tests and plain use start from this.
-const NO_TRAITS = { boldness: 0, thumbRate: 0, thumbAt: 12, dumpHigh: 0, panic: 0, sloppiness: 0, ownMiss: 0, blur: 0, moodiness: 0 };
+const { BLUR_SPOTS, OWN_MISS_RATIO, PANIC_PER_MOOD } = require('./bottuning');
 
 class Mind {
-  constructor(id, skills, rng = Math.random, traits = NO_TRAITS) {
+  // `profile` is the character as profileFor (botprofiles.js) gives it: memory, counting, focus, attention, boldness, mood.
+  constructor(id, profile, rng = Math.random) {
     this.id = id;
-    this.skills = skills;
-    this.traits = traits; // the character's habits and tendencies (see botprofiles.js)
-    this.boldness = 0; // how bold it feels right now: its character plus its mood (set by the room)
+    this.profile = profile;
+    this.boldness = profile.boldness; // how bold it feels right now: its character plus its mood (set by the room)
     this.rng = rng;
     this.start({ order: [], discardTop: null });
+  }
+
+  // What the character's numbers mean for one specific slip or habit:
+  get sloppiness() {
+    return 1 - this.profile.attention; // noise on the discard scores
+  }
+
+  get ownMiss() {
+    return (1 - this.profile.attention) * OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
+  }
+
+  get blur() {
+    return 1 - this.profile.memory; // the chance that an old memory has the wrong suit
+  }
+
+  get panic() {
+    return this.profile.mood * PANIC_PER_MOOD; // the chance of panicking when an opponent is nearly out
+  }
+
+  // Is it looking at what the others are doing this turn? (A tunnel-vision bot often is not.) Rolled once per turn.
+  watching() {
+    return this.decide('focus', 'others');
   }
 
   // A new hand: forget everything. `view` is what a human sees at the deal (the starting discard counts as a discard).
@@ -117,16 +136,16 @@ class Mind {
   // Is this fact still in the bot's head? (A fact is anything with `t` and `remembered`.)
   recalls(fact) {
     if (this.turnEnds - fact.t < this.order.length) return true;
-    if (fact.remembered === undefined) fact.remembered = this.rng() < this.skills.memory;
+    if (fact.remembered === undefined) fact.remembered = this.rng() < this.profile.memory;
     return fact.remembered;
   }
 
   // What the bot thinks `fact` was. Now and then an old fact is half remembered: it knows a king went by, but gets the suit wrong.
   shown(fact) {
-    if (!this.traits.blur || this.turnEnds - fact.t < this.order.length) return fact.card;
+    if (!this.blur || this.turnEnds - fact.t < this.order.length) return fact.card;
     if (fact.blurred === undefined) {
       const suit = Math.floor(this.rng() * BLUR_SPOTS);
-      fact.blurred = this.rng() < this.traits.blur ? suit * 13 + (fact.card % 13) : null;
+      fact.blurred = this.rng() < this.blur ? suit * 13 + (fact.card % 13) : null;
     }
     return fact.blurred ?? fact.card;
   }
@@ -148,10 +167,10 @@ class Mind {
     return this.drops.filter((d) => (d.pid === pid || d.passedBy.has(pid)) && this.recalls(d)).map((d) => this.shown(d));
   }
 
-  // Rolls a skill (a probability from 0 to 1) for something, once per turn per `key`.
-  decide(skill, key = '') {
-    const k = `${skill}:${key}`;
-    if (!this.rolls.has(k)) this.rolls.set(k, this.rng() < this.skills[skill]);
+  // Rolls a profile value (a probability from 0 to 1: counting, focus...) for something, once per turn per `key`.
+  decide(quality, key = '') {
+    const k = `${quality}:${key}`;
+    if (!this.rolls.has(k)) this.rolls.set(k, this.rng() < this.profile[quality]);
     return this.rolls.get(k);
   }
 
@@ -164,4 +183,4 @@ class Mind {
   }
 }
 
-module.exports = { Mind, NO_TRAITS };
+module.exports = { Mind };

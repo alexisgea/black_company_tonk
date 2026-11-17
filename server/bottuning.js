@@ -1,6 +1,6 @@
 'use strict';
-// Every number that shapes how the smart bots behave, in one place. The skills of each character (how often a bot
-// gets something right) live in botprofiles.js; these are the fixed constants behind the decisions. docs/bots.md
+// Every number that shapes how the smart bots behave, in one place. The character of each bot (seven numbers) lives in
+// botprofiles.js; these are the fixed constants behind the decisions. docs/bots.md
 // explains what each part of the logic does.
 
 // --- Payoffs of the rules, in bets per opponent (see goDown and winByEmptyHand in tonk.js) ---
@@ -9,17 +9,13 @@ const PAY_DOWN_LOSS = 2; // a failed go-down: the goer pays this to each opponen
 const PAY_EMPTY_HAND = 2; // emptying the hand: every opponent pays this
 
 // --- Going down ---
-const GO_DOWN_AT = 12; // the simple rule of thumb: a total this low is safe enough (also used by the original bot)
+const GO_DOWN_AT = 12; // the simple rule of thumb: a total this low is safe enough (the original bot, and a bot that is not looking at the table)
 const GO_MARGIN = 0.9; // expected bets per opponent a go-down must be worth before the bot dares (1 is a sure win; carrying on is not free of risk either)
 const RISK_SAMPLES = 120; // how many random deals of the opponents' unknown cards the estimate averages over
 const LOW_BIAS_PER_ROUND = 0.04; // opponents keep low cards and throw dear ones: per round played, hidden cards are dealt leaning this much lower...
 const LOW_BIAS_MAX = 0.15; // ...up to this much (a card of value v is dealt with weight exp(-bias * (v - 1)))
-const NOISE = 0.75; // how far its estimate can be off, in bets per opponent, at a goDownRisk of 0 (shrinks as the skill rises)
-const GUT_RATE = 0.6; // chance of deciding on gut feeling instead of calculating, at a goDownRisk of 0
-const GUT_BASE = 5; // on gut feeling it goes down at this total...
-const GUT_WISHFUL = 10; // ...plus up to this much (wishful thinking)
-const GUT_WILD_RATE = 0.05; // rarely a gut feeling is wildly hopeful instead: it can send a bot down with a big hand
-const GUT_WILD = 20; // ...and then the wishful part is up to this much instead
+const NOISE = 0.75; // how far its estimate can be off, in bets per opponent, at a counting of 0 (shrinks as it rises)
+const THUMB_SPAN = 6; // with no calculation (tunnel vision) it goes down at GO_DOWN_AT, plus or minus this much at full boldness
 const RESHUFFLES_BEFORE_FORCED_DOWN = 1; // once the draw pile has run out again after this many reshuffles, it goes down
 
 // --- Danger: opponents about to empty their hand ---
@@ -36,7 +32,6 @@ const HELP_WEIGHT = 6; // discard score lost for handing the opponents a full sp
 const RELATED_RANK_GAP = 2; // same suit within this many ranks counts as "goes with" another card
 
 // How useful a discard would be to an opponent (0 to 1):
-const HELP_LAYOFF = 1; // it extends a spread on the table, which anyone can use
 const HELP_COMPLETES = 0.9; // it completes a spread with two cards the bot knows they hold
 const HELP_RELATED = 0.3; // it goes with a card the bot knows they hold
 const HELP_BASE = 0.15; // any discard is a little useful to somebody
@@ -48,12 +43,14 @@ const SEAT_WEIGHT = [0, 1, 0.5, 0.3, 0.15]; // weight of the player N seats afte
 const POTENTIAL_MAX_VALUE = 7; // it only takes a discard for its potential if the card is this cheap or cheaper
 const POTENTIAL_MIN_OUTS = 2; // ...and it makes a pair or a two-card run with at least this many cards left to complete it
 
-// --- Chasing an empty hand (part of the finishHand skill) ---
+// --- Chasing an empty hand (part of counting) ---
 const CHASE_MAX_CARDS = 3; // it chases an empty hand when it holds, or would keep after discarding, at most this many cards
 const CHASE_WEIGHT = 60; // discard score gained per unit of chance (0 to 1) that the hand left after the discard can be emptied next turn
 
-// --- Habits and blunders (the per-character traits live in botprofiles.js) ---
-const DISCARD_NOISE = 6; // discard score noise, at a sloppiness of 1 (a sloppy bot sometimes throws the second-best card)
+// --- Slips and moods (the character's numbers live in botprofiles.js) ---
+const DISCARD_NOISE = 6; // discard score noise at an attention of 0 (a sloppy bot sometimes throws the second-best card)
+const OWN_MISS_RATIO = 0.25; // the chance of overlooking a card for its own spread, as a share of the sloppiness (1 - attention)
+const PANIC_PER_MOOD = 0.4; // the chance of panicking when an opponent is nearly out, at a mood of 1
 const PANIC_DOWN_AT = 20; // a bot that panics because an opponent is nearly out goes down with a total this low or lower
 const BLUR_SPOTS = 4; // an old fact it recalls can be misremembered as the same rank in a random one of this many suits
 
@@ -86,11 +83,7 @@ module.exports = {
   LOW_BIAS_PER_ROUND,
   LOW_BIAS_MAX,
   NOISE,
-  GUT_RATE,
-  GUT_BASE,
-  GUT_WISHFUL,
-  GUT_WILD_RATE,
-  GUT_WILD,
+  THUMB_SPAN,
   RESHUFFLES_BEFORE_FORCED_DOWN,
   THREAT_ONE_CARD,
   THREAT_TWO_CARDS,
@@ -101,7 +94,6 @@ module.exports = {
   KEEP_WEIGHT,
   HELP_WEIGHT,
   RELATED_RANK_GAP,
-  HELP_LAYOFF,
   HELP_COMPLETES,
   HELP_RELATED,
   HELP_BASE,
@@ -122,6 +114,8 @@ module.exports = {
   DISCARD_CLOSE_GAP,
   THINK_EASY,
   DISCARD_NOISE,
+  OWN_MISS_RATIO,
+  PANIC_PER_MOOD,
   PANIC_DOWN_AT,
   BLUR_SPOTS,
   MOOD_WIN,

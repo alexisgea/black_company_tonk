@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.22.0',
+    date: '2026-11-17',
+    changes: [
+      'Computer players are now described by seven simple numbers (memory, counting, tunnel vision, attention, risk, mood and speed), so each one can be tuned on its own.',
+      'A bot with tunnel vision now often ignores what the others are doing: it misses their spreads, what they need and who is nearly out, and goes down by a rule of thumb instead of working out the risk.',
+      'Bots no longer have the odd habit of throwing away their dearest card without thinking; a bot that is poor at counting now simply plays by card value.',
+    ],
+  },
+  {
     version: '0.21.1',
     date: '2026-11-17',
     changes: [

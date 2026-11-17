@@ -1,6 +1,7 @@
 'use strict';
 // The smart computer player. It sees what a human sees (`view`, from viewRound) and what it remembers (`mind`, see
-// botmind.js), never the opponents' hands. Each skill in the bot's profile is the chance it gets that part right.
+// botmind.js), never the opponents' hands. How well it does each part comes from its profile (botprofiles.js):
+// `counting` for working with the unseen cards, `focus` for watching the others, `attention` for its own slips.
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('../shared/cards');
 const { findMeld, findLayoff: firstLayoff } = require('./botmelds');
 const { estimateGoDown } = require('./botrisk');
@@ -46,11 +47,9 @@ function linkOuts(card, others, sight) {
   return outs;
 }
 
-// Spreads on the table it sees this turn: its own (barring a slip, see the ownMiss trait), other players' with the layoffOthers skill.
+// Spreads on the table it sees this turn: its own (barring a slip, see Mind.ownMiss), the others' only when it is watching them.
 const noticedMelds = ({ view, id, mind }) =>
-  view.melds.filter((m) =>
-    m.owner === id ? !mind.chance(`ownMiss:${m.id}`, mind.traits.ownMiss) : mind.decide('layoffOthers', `meld${m.id}`),
-  );
+  view.melds.filter((m) => (m.owner === id ? !mind.chance(`ownMiss:${m.id}`, mind.ownMiss) : mind.watching()));
 
 // The dearest card that fits a spread (laying it off sheds the most points).
 const findLayoff = (hand, melds) => firstLayoff(byValueDesc(hand), melds);
@@ -92,9 +91,9 @@ function findFinish(hand, melds) {
   return plan(hand, melds)?.[0] ?? null;
 }
 
-// How close the opponents are to emptying their hand (0 = nobody, up to THREAT_CAP). Only if the bot pays attention.
+// How close the opponents are to emptying their hand (0 = nobody, up to THREAT_CAP). Only if it is watching them.
 function threatOf({ view, opponents, mind }) {
-  if (!mind.decide('danger')) return 0;
+  if (!mind.watching()) return 0;
   let threat = 0;
   for (const p of opponents) {
     const count = view.players[p].count;
@@ -115,10 +114,10 @@ function finishOdds(cards, melds, sight) {
 }
 
 // What chasing an empty hand is worth, in bets, compared with going down: the chance to empty it next turn times
-// what every opponent pays for that. Zero unless the bot sees the chance (finishHand) and has few cards left.
+// what every opponent pays for that. Zero unless the bot sees the chance (counting) and has few cards left.
 function chaseWorth(sight) {
   const { hand, opponents, mind } = sight;
-  if (hand.length > T.CHASE_MAX_CARDS || !mind.decide('finishHand')) return 0;
+  if (hand.length > T.CHASE_MAX_CARDS || !mind.decide('counting', 'finish')) return 0;
   return finishOdds(hand, noticedMelds(sight), sight) * T.PAY_EMPTY_HAND * opponents.length;
 }
 
@@ -127,28 +126,23 @@ function shouldGoDown(sight) {
   // The draw pile ran out again after the allowed number of reshuffles: nobody is getting low enough, so end the hand.
   if (view.deckCount === 0 && (mind.reshuffles >= T.RESHUFFLES_BEFORE_FORCED_DOWN || mind.pileSize <= 1)) return true;
   const total = handTotal(hand);
-  const skill = mind.skills.goDownRisk;
   const rng = mind.rng;
   // Panic: an opponent is nearly out, so a nervous bot goes down with whatever looks lowish without working it out.
-  if (mind.traits.panic > 0 && threatOf(sight) > 0 && mind.chance('panic', mind.traits.panic)) {
+  if (mind.panic > 0 && threatOf(sight) > 0 && mind.chance('panic', mind.panic)) {
     sight.effort = T.THINK_EASY;
     return total <= T.PANIC_DOWN_AT;
   }
-  // Habit: its character has a fixed total it goes down at, and it does not think about it.
-  if (mind.chance('thumb', mind.traits.thumbRate)) {
+  // Tunnel vision: it is not looking at what the others hold, so it cannot work out the risk and goes by a rule of
+  // thumb: down at 12 or lower, a little higher when it is bold and lower when it is timid.
+  if (!mind.watching()) {
     sight.effort = T.THINK_EASY;
-    return total <= mind.traits.thumbAt;
-  }
-  // Gut feeling: a rule of thumb that wishful thinking stretches (a 15 can feel safe, and now and then a 25).
-  if (rng() < (1 - skill) * T.GUT_RATE) {
-    sight.effort = T.THINK_EASY;
-    const wishful = rng() < T.GUT_WILD_RATE ? T.GUT_WILD : T.GUT_WISHFUL;
-    return total <= T.GUT_BASE + Math.floor(rng() * (wishful + 1));
+    return total <= T.GO_DOWN_AT + T.THUMB_SPAN * mind.boldness;
   }
   const rivals = opponents.map((p) => ({ count: view.players[p].count, known: held[p] }));
   const lowBias = Math.min(T.LOW_BIAS_MAX, (T.LOW_BIAS_PER_ROUND * mind.turnEnds) / view.order.length);
   const estimate = estimateGoDown(total, rivals, unseenCards(sight), rng, undefined, lowBias);
-  const perOpponent = estimate / opponents.length + centered(rng) * (1 - skill) * T.NOISE;
+  // The worse it counts, the further its estimate can be off.
+  const perOpponent = estimate / opponents.length + centered(rng) * (1 - mind.profile.counting) * T.NOISE;
   const margin = T.GO_MARGIN - T.BOLD_MARGIN * mind.boldness - T.THREAT_GO_DOWN_BONUS * threatOf(sight);
   sight.effort = 1 - Math.min(1, Math.abs(perOpponent - margin) / T.GO_CLOSE_RANGE); // a close call takes longer to think over
   if (perOpponent < margin) return false;
@@ -160,16 +154,16 @@ const completesSpread = (hand, card) => [...subsets([...hand, card])].some((grou
 
 function wantsDiscard(sight, top) {
   const { hand, mind } = sight;
-  if (!mind.decide('spotDiscard', 'top')) return false;
+  if (!mind.decide('counting', 'spot')) return false;
   if (findLayoff([top], noticedMelds(sight))) return true;
   if (completesSpread(hand, top)) return true;
   return cardValue(top) <= T.POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= T.POTENTIAL_MIN_OUTS;
 }
 
 // How useful `card` would be to `pid` if it landed on the discard pile: what the bot knows they hold and what they
-// have thrown away or turned down before, nothing else.
-function helpFor(card, pid, { view, held, mind }) {
-  if (view.melds.some((m) => layoffEnd(m, card))) return T.HELP_LAYOFF;
+// have thrown away or turned down before, nothing else. (A card that fits a spread on the table never gets here: it
+// would have been laid off first.)
+function helpFor(card, pid, { held, mind }) {
   const cards = held[pid];
   let score = T.HELP_BASE;
   for (const a of cards) {
@@ -198,15 +192,10 @@ function helpOf(card, sight) {
 function chooseDiscard(sight) {
   const { hand, mind } = sight;
   if (hand.length === 1) return hand[0];
-  // Habit: it simply throws away its dearest card, without weighing anything else.
-  if (mind.chance('dumpHigh', mind.traits.dumpHigh)) {
-    sight.effort = T.THINK_EASY;
-    return byValueDesc(hand)[0];
-  }
   const threat = threatOf(sight);
-  const planAhead = mind.decide('planAhead');
-  const denyHelp = mind.decide('denyHelp');
-  const chase = hand.length - 1 <= T.CHASE_MAX_CARDS && mind.decide('finishHand');
+  const planAhead = mind.decide('counting', 'plan');
+  const denyHelp = mind.watching();
+  const chase = hand.length - 1 <= T.CHASE_MAX_CARDS && mind.decide('counting', 'finish');
   const melds = chase ? noticedMelds(sight) : [];
   const total = handTotal(hand);
   const scored = hand.map((card) => {
@@ -217,7 +206,7 @@ function chooseDiscard(sight) {
     // Helping the next player is accepted when it leaves a hand low enough to go down with.
     if (denyHelp && total - cardValue(card) > T.GO_DOWN_AT) score -= T.HELP_WEIGHT * helpOf(card, sight);
     // A sloppy bot misjudges the scores a little, so a close second can win.
-    if (mind.traits.sloppiness > 0) score += centered(mind.rng) * T.DISCARD_NOISE * mind.traits.sloppiness;
+    if (mind.sloppiness > 0) score += centered(mind.rng) * T.DISCARD_NOISE * mind.sloppiness;
     return { card, score };
   });
   scored.sort((a, b) => b.score - a.score);
@@ -229,7 +218,7 @@ function drawPhase(sight) {
   const { hand, view, mind } = sight;
   const top = view.discardTop;
   // The discard would let it empty its hand this very turn: nothing beats that.
-  if (top !== null && mind.decide('finishHand') && findFinish([...hand, top], noticedMelds(sight))) {
+  if (top !== null && mind.decide('counting', 'finish') && findFinish([...hand, top], noticedMelds(sight))) {
     sight.effort = T.THINK_EASY;
     return { type: 'takeDiscard' };
   }
@@ -243,7 +232,7 @@ function playPhase(sight) {
   const { hand, mind } = sight;
   const melds = noticedMelds(sight);
   sight.effort = T.THINK_EASY; // putting cards down is rarely a hard decision
-  if (hand.length > 1 && mind.decide('finishHand')) {
+  if (hand.length > 1 && mind.decide('counting', 'finish')) {
     const step = findFinish(hand, melds);
     if (step) return step;
   }

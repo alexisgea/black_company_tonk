@@ -221,7 +221,7 @@ class Room {
     let mind = this.minds.get(user.id);
     if (!mind) {
       const profile = profileFor(user);
-      mind = new Mind(user.id, profile.skills, this.rng, profile.traits);
+      mind = new Mind(user.id, profile, this.rng);
       mind.boldness = this.boldnessOf(user, profile);
       mind.start(tonk.viewRound(this.round, user.id));
       this.minds.set(user.id, mind);
@@ -233,12 +233,12 @@ class Room {
   // went) and how far behind the others it is on coins (it gets reckless), both scaled by how moody it is.
   boldnessOf(user, profile) {
     if (!user.isBot) return 0;
-    const swing = profile.traits.moodiness * 2;
+    const swing = profile.mood * 2;
     const confidence = this.moods.get(user.id)?.confidence ?? 0;
     const others = this.players.filter((p) => p !== user).map((p) => this.coins[p.id]);
     const average = others.length ? others.reduce((sum, c) => sum + c, 0) / others.length : 0;
     const behind = average > 0 ? Math.min(1, Math.max(0, (average - this.coins[user.id]) / average)) : 0;
-    return profile.traits.boldness + swing * (confidence + T.DESPERATION_WEIGHT * behind);
+    return profile.boldness + swing * (confidence + T.DESPERATION_WEIGHT * behind);
   }
 
   // After a hand: a win makes a bot more confident, a loss less so, and a failed go-down of its own much less (it
@@ -372,9 +372,7 @@ class Room {
     if (mind) {
       for (const m of this.minds.values()) m.rename(bot.id, user.id);
       this.minds.delete(bot.id);
-      const profile = profileFor(user);
-      mind.skills = profile.skills; // if they go away, a stand-in plays their seat, not the bot's character
-      mind.traits = profile.traits;
+      mind.profile = profileFor(user); // if they go away, a stand-in plays their seat, not the bot's character
       mind.boldness = 0;
       this.minds.set(user.id, mind);
     }
