@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const { Room, validatePassword } = require('./room');
 const { GameError } = require('./tonk');
 const { legacyAction, fallbackAction } = require('./bot');
-const { smartAction, smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
 const { THINK_DRAW, THINK_PLAY, THINK_JITTER_MIN, THINK_JITTER_SPREAD, THINK_EFFORT_MIN, THINK_EFFORT_MAX } = require('./bottuning');
 const { isReservedName } = require('./botnames');
@@ -217,12 +216,10 @@ class Lobby {
   }
 
   // How hard the seat's coming move is to decide (0 = obvious, 1 = a close call), so a bot ponders a marginal go-down
-  // and fires off an obvious draw. The move is worked out again when the pause is over; skill rolls are kept for the
-  // turn, so it comes out the same.
+  // and fires off an obvious draw. The move itself is kept (see Room.botThink) and played when the pause is over.
   thinkEffort(room, seat) {
     try {
-      const { view, mind } = room.botSight(seat);
-      return smartThink(view, seat.id, mind).effort;
+      return room.botThink(seat).effort;
     } catch {
       return 0.5; // the move itself is worked out (and its failure handled) when the pause is over
     }
@@ -240,14 +237,7 @@ class Lobby {
   // Plays one move for an auto-played seat: the smart player first, then the original simple one, then a plain
   // legal move, so a bug in the bot logic never freezes the table. Returns false only if all of them fail.
   botMove(room, bot) {
-    const attempts = [
-      () => {
-        const { view, mind } = room.botSight(bot);
-        return smartAction(view, bot.id, mind);
-      },
-      () => legacyAction(room.round, bot.id),
-      () => fallbackAction(room.round, bot.id),
-    ];
+    const attempts = [() => room.botThink(bot).action, () => legacyAction(room.round, bot.id), () => fallbackAction(room.round, bot.id)];
     for (const choose of attempts) {
       try {
         room.act(bot, choose());

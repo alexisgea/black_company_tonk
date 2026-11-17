@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../server/tonk');
+const TUNING = require('../server/bottuning');
 const { Room } = require('../server/room');
 const { Lobby } = require('../server/lobby');
 const { Mind, NO_TRAITS } = require('../server/botmind');
@@ -335,6 +336,97 @@ test('smart bots play whole games legally and their memory matches the real tabl
   }
   assert.ok(hands > 20);
   assert.ok(goDowns > 0, 'bots go down');
+});
+
+// Re-decides every discard of some full games with one scoring term of chooseDiscard switched off (all skills 1, no
+// traits, same random numbers) and counts how often the choice changes. No term may decide nearly everything or nothing.
+test('no discard scoring term dominates or does nothing', () => {
+  const original = { ...TUNING };
+  const off = {
+    keep: { KEEP_WEIGHT: 0 },
+    help: { HELP_WEIGHT: 0 },
+    chase: { CHASE_WEIGHT: 0 },
+    threat: { THREAT_HIGH_CARD_BOOST: 0, THREAT_PLAN_DAMPING: 0 },
+    all: { KEEP_WEIGHT: 0, HELP_WEIGHT: 0, CHASE_WEIGHT: 0, THREAT_HIGH_CARD_BOOST: 0, THREAT_PLAN_DAMPING: 0 },
+  };
+  const full = Object.fromEntries(SKILL_KEYS.map((k) => [k, 1]));
+  const decideWith = (view, id, mind, seed, overrides) => {
+    const copy = Object.assign(Object.create(Mind.prototype), mind, {
+      skills: full,
+      traits: NO_TRAITS,
+      rolls: new Map(),
+      rng: seeded(seed),
+    });
+    Object.assign(TUNING, original, overrides);
+    try {
+      return smartAction(view, id, copy);
+    } finally {
+      Object.assign(TUNING, original);
+    }
+  };
+  const changed = Object.fromEntries(Object.keys(off).map((k) => [k, 0]));
+  let decisions = 0;
+  let chaseHands = 0;
+  let threatHands = 0;
+  let chaseChanged = 0;
+  let threatChanged = 0;
+  for (let seed = 1; seed <= 10; seed++) {
+    const room = new Room('R', 'Test', seeded(seed), { settings: { startingCoins: 100, bet: 5 } });
+    const host = { id: 'h', name: 'Ann', conn: {}, room: null };
+    room.join(host);
+    for (let i = 0; i < 2 + (seed % 3); i++) room.addBot();
+    for (let h = 0; h < 12 && room.players.length >= T.MIN_PLAYERS; h++) {
+      room.startHand(host);
+      for (const p of room.pendingTonkers) room.declareTonk(p);
+      for (let steps = 0; room.status === 'playing' && steps < 1000; steps++) {
+        const user = room.players.find((p) => p.id === room.round.order[room.round.turn]);
+        const { view, mind } = room.botSight(user);
+        const base = view.phase === 'play' && decideWith(view, user.id, mind, seed * 7 + steps, {});
+        if (base && base.type === 'discard') {
+          decisions++;
+          const chase = view.players[user.id].hand.length - 1 <= TUNING.CHASE_MAX_CARDS;
+          const threat = view.order.some((p) => p !== user.id && view.players[p].count <= 2);
+          chaseHands += chase;
+          threatHands += threat;
+          for (const [term, overrides] of Object.entries(off)) {
+            const pick = decideWith(view, user.id, mind, seed * 7 + steps, overrides);
+            if (pick.type === 'discard' && pick.card === base.card) continue;
+            changed[term]++;
+            if (term === 'chase' && chase) chaseChanged++;
+            if (term === 'threat' && threat) threatChanged++;
+          }
+        }
+        room.act(user, smartAction(view, user.id, mind));
+      }
+    }
+  }
+  const share = (n, of = decisions) => n / of;
+  assert.ok(decisions > 500, 'enough discards to measure');
+  assert.ok(share(changed.all) > 0.1, 'the heuristics change a real share of the choices, not only the card values');
+  assert.ok(share(changed.all) < 0.6, 'the card value still drives most choices');
+  for (const term of ['keep', 'help']) {
+    assert.ok(share(changed[term]) > 0.03, `${term} matters`);
+    assert.ok(share(changed[term]) < 0.4, `${term} does not decide most choices`);
+  }
+  assert.ok(share(chaseChanged, chaseHands) > 0.01, 'chase matters when few cards are left');
+  assert.ok(share(threatChanged, threatHands) > 0.01, 'threat matters when an opponent is nearly out');
+  assert.ok(share(changed.chase) < 0.1 && share(changed.threat) < 0.1, 'the endgame terms stay endgame terms');
+});
+
+test('a bot works its move out once per position and plays that same move', () => {
+  const room = new Room('R', 'Test', seeded(5));
+  const host = { id: 'h', name: 'Ann', conn: {}, room: null };
+  room.join(host);
+  room.addBot();
+  room.addBot();
+  room.startHand(host);
+  for (const p of room.pendingTonkers) room.declareTonk(p);
+  const user = room.players.find((p) => p.id === room.round.order[room.round.turn]);
+  const first = room.botThink(user);
+  assert.equal(room.botThink(user), first, 'asking again does not think again');
+  room.act(user, first.action);
+  const next = room.players.find((p) => p.id === room.round.order[room.round.turn]);
+  assert.notEqual(room.botThink(next), first, 'a new position gets a new plan');
 });
 
 test('every bot has a valid profile by id, and difficulty scales all skills together', () => {

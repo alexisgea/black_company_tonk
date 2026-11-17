@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.21.1',
+    date: '2026-11-17',
+    changes: [
+      'Computer players now work out their move once per turn instead of twice, so the pause before a move always matches the move they make.',
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-11-16',
     changes: [

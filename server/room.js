@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const tonk = require('./tonk');
 const { pickBot } = require('./botnames');
 const { Mind } = require('./botmind');
+const { smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
 const T = require('./bottuning');
 
@@ -203,6 +204,17 @@ class Room {
   // A computer player (or an away human's seat) decides from what a human at that seat sees plus its own memory.
   botSight(user) {
     return { view: tonk.viewRound(this.round, user.id), mind: this.mindOf(user) };
+  }
+
+  // The smart move for a seat and how hard it is to decide. Worked out once per position (every public event moves
+  // logSeq on), so the lobby can use it to time the pause and then play that same move, instead of thinking twice.
+  botThink(user) {
+    const key = `${this.logSeq}:${this.round.phase}:${user.id}`;
+    if (this.botPlan?.key !== key) {
+      const { view, mind } = this.botSight(user);
+      this.botPlan = { key, ...smartThink(view, user.id, mind) };
+    }
+    return this.botPlan;
   }
 
   mindOf(user) {

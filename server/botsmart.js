@@ -2,7 +2,7 @@
 // The smart computer player. It sees what a human sees (`view`, from viewRound) and what it remembers (`mind`, see
 // botmind.js), never the opponents' hands. Each skill in the bot's profile is the chance it gets that part right.
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('../shared/cards');
-const { findMeld } = require('./bot');
+const { findMeld, findLayoff: firstLayoff } = require('./botmelds');
 const { estimateGoDown } = require('./botrisk');
 const T = require('./bottuning');
 
@@ -52,13 +52,8 @@ const noticedMelds = ({ view, id, mind }) =>
     m.owner === id ? !mind.chance(`ownMiss:${m.id}`, mind.traits.ownMiss) : mind.decide('layoffOthers', `meld${m.id}`),
   );
 
-function findLayoff(hand, melds) {
-  for (const card of byValueDesc(hand)) {
-    const meld = melds.find((m) => layoffEnd(m, card));
-    if (meld) return { card, meldId: meld.id };
-  }
-  return null;
-}
+// The dearest card that fits a spread (laying it off sheds the most points).
+const findLayoff = (hand, melds) => firstLayoff(byValueDesc(hand), melds);
 
 function* subsets(cards) {
   for (let mask = 1; mask < 1 << cards.length; mask++) {

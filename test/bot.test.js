@@ -2,7 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../server/tonk');
-const { legacyAction, fallbackAction, findMeld } = require('../server/bot');
+const { legacyAction, fallbackAction } = require('../server/bot');
+const { findMeld } = require('../server/botmelds');
 
 const c = (rank, suit) => 'CDHS'.indexOf(suit) * 13 + rank - 1;
 
