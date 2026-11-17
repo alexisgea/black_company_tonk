@@ -6,10 +6,10 @@
 // older fact (a discard, or a card someone took from the pile) is kept or forgotten by a single roll of the bot's
 // memory, made the first time the bot looks at it, so a forgotten card stays forgotten.
 
-const { BLUR_SPOTS, OWN_MISS_RATIO, PANIC_PER_MOOD } = require('./bottuning');
+const { BLUR_SPOTS, OWN_MISS_RATIO, PANIC_PER_MOOD_SWING } = require('./bottuning');
 
 class Mind {
-  // `profile` is the character as profileFor (botprofiles.js) gives it: memory, counting, focus, attention, boldness, mood.
+  // `profile` is the character as profileFor (botprofiles.js) gives it: memory, calculating, focus, observant, boldness, moodSwing.
   constructor(id, profile, rng = Math.random) {
     this.id = id;
     this.profile = profile;
@@ -20,11 +20,11 @@ class Mind {
 
   // What the character's numbers mean for one specific slip or habit:
   get sloppiness() {
-    return 1 - this.profile.attention; // noise on the discard scores
+    return 1 - this.profile.observant; // noise on the discard scores
   }
 
   get ownMiss() {
-    return (1 - this.profile.attention) * OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
+    return (1 - this.profile.observant) * OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
   }
 
   get blur() {
@@ -32,7 +32,7 @@ class Mind {
   }
 
   get panic() {
-    return this.profile.mood * PANIC_PER_MOOD; // the chance of panicking when an opponent is nearly out
+    return this.profile.moodSwing * PANIC_PER_MOOD_SWING; // the chance of panicking when an opponent is nearly out
   }
 
   // Is it looking at what the others are doing this turn? (A tunnel-vision bot often is not.) Rolled once per turn.
@@ -167,7 +167,7 @@ class Mind {
     return this.drops.filter((d) => (d.pid === pid || d.passedBy.has(pid)) && this.recalls(d)).map((d) => this.shown(d));
   }
 
-  // Rolls a profile value (a probability from 0 to 1: counting, focus...) for something, once per turn per `key`.
+  // Rolls a profile value (a probability from 0 to 1: calculating, focus...) for something, once per turn per `key`.
   decide(quality, key = '') {
     const k = `${quality}:${key}`;
     if (!this.rolls.has(k)) this.rolls.set(k, this.rng() < this.profile[quality]);

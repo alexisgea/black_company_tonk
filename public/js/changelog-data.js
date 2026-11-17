@@ -1,6 +1,19 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.22.2',
+    date: '2026-11-17',
+    changes: [
+      'The computer players are now a smaller cast of 12 characters, including The Lady; Slink, Gupta, Puddle, Corey, Buzz, Raven and Case are gone and their names are free to use.',
+      'The bot character numbers were renamed: counting is now calculating, attention is observant, risk is riskTaker and mood is moodSwing.',
+    ],
+  },
+  {
+    version: '0.22.1',
+    date: '2026-11-17',
+    changes: ['Whether a bot notices that the top discard would help it now depends on its attention instead of its counting.'],
+  },
+  {
     version: '0.22.0',
     date: '2026-11-17',
     changes: [

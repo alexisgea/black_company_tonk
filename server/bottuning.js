@@ -14,7 +14,7 @@ const GO_MARGIN = 0.9; // expected bets per opponent a go-down must be worth bef
 const RISK_SAMPLES = 120; // how many random deals of the opponents' unknown cards the estimate averages over
 const LOW_BIAS_PER_ROUND = 0.04; // opponents keep low cards and throw dear ones: per round played, hidden cards are dealt leaning this much lower...
 const LOW_BIAS_MAX = 0.15; // ...up to this much (a card of value v is dealt with weight exp(-bias * (v - 1)))
-const NOISE = 0.75; // how far its estimate can be off, in bets per opponent, at a counting of 0 (shrinks as it rises)
+const NOISE = 0.75; // how far its estimate can be off, in bets per opponent, at a calculating of 0 (shrinks as it rises)
 const THUMB_SPAN = 6; // with no calculation (tunnel vision) it goes down at GO_DOWN_AT, plus or minus this much at full boldness
 const RESHUFFLES_BEFORE_FORCED_DOWN = 1; // once the draw pile has run out again after this many reshuffles, it goes down
 
@@ -43,14 +43,14 @@ const SEAT_WEIGHT = [0, 1, 0.5, 0.3, 0.15]; // weight of the player N seats afte
 const POTENTIAL_MAX_VALUE = 7; // it only takes a discard for its potential if the card is this cheap or cheaper
 const POTENTIAL_MIN_OUTS = 2; // ...and it makes a pair or a two-card run with at least this many cards left to complete it
 
-// --- Chasing an empty hand (part of counting) ---
+// --- Chasing an empty hand (part of calculating) ---
 const CHASE_MAX_CARDS = 3; // it chases an empty hand when it holds, or would keep after discarding, at most this many cards
 const CHASE_WEIGHT = 60; // discard score gained per unit of chance (0 to 1) that the hand left after the discard can be emptied next turn
 
 // --- Slips and moods (the character's numbers live in botprofiles.js) ---
-const DISCARD_NOISE = 6; // discard score noise at an attention of 0 (a sloppy bot sometimes throws the second-best card)
-const OWN_MISS_RATIO = 0.25; // the chance of overlooking a card for its own spread, as a share of the sloppiness (1 - attention)
-const PANIC_PER_MOOD = 0.4; // the chance of panicking when an opponent is nearly out, at a mood of 1
+const DISCARD_NOISE = 6; // discard score noise at an observant of 0 (a sloppy bot sometimes throws the second-best card)
+const OWN_MISS_RATIO = 0.25; // the chance of overlooking a card for its own spread, as a share of the sloppiness (1 - observant)
+const PANIC_PER_MOOD_SWING = 0.4; // the chance of panicking when an opponent is nearly out, at a moodSwing of 1
 const PANIC_DOWN_AT = 20; // a bot that panics because an opponent is nearly out goes down with a total this low or lower
 const BLUR_SPOTS = 4; // an old fact it recalls can be misremembered as the same rank in a random one of this many suits
 
@@ -115,7 +115,7 @@ module.exports = {
   THINK_EASY,
   DISCARD_NOISE,
   OWN_MISS_RATIO,
-  PANIC_PER_MOOD,
+  PANIC_PER_MOOD_SWING,
   PANIC_DOWN_AT,
   BLUR_SPOTS,
   MOOD_WIN,

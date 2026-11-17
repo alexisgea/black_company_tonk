@@ -1,7 +1,7 @@
 'use strict';
 // The smart computer player. It sees what a human sees (`view`, from viewRound) and what it remembers (`mind`, see
 // botmind.js), never the opponents' hands. How well it does each part comes from its profile (botprofiles.js):
-// `counting` for working with the unseen cards, `focus` for watching the others, `attention` for its own slips.
+// `calculating` for working with the unseen cards, `focus` for watching the others, `observant` for its own slips.
 const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('../shared/cards');
 const { findMeld, findLayoff: firstLayoff } = require('./botmelds');
 const { estimateGoDown } = require('./botrisk');
@@ -114,10 +114,10 @@ function finishOdds(cards, melds, sight) {
 }
 
 // What chasing an empty hand is worth, in bets, compared with going down: the chance to empty it next turn times
-// what every opponent pays for that. Zero unless the bot sees the chance (counting) and has few cards left.
+// what every opponent pays for that. Zero unless the bot sees the chance (calculating) and has few cards left.
 function chaseWorth(sight) {
   const { hand, opponents, mind } = sight;
-  if (hand.length > T.CHASE_MAX_CARDS || !mind.decide('counting', 'finish')) return 0;
+  if (hand.length > T.CHASE_MAX_CARDS || !mind.decide('calculating', 'finish')) return 0;
   return finishOdds(hand, noticedMelds(sight), sight) * T.PAY_EMPTY_HAND * opponents.length;
 }
 
@@ -142,7 +142,7 @@ function shouldGoDown(sight) {
   const lowBias = Math.min(T.LOW_BIAS_MAX, (T.LOW_BIAS_PER_ROUND * mind.turnEnds) / view.order.length);
   const estimate = estimateGoDown(total, rivals, unseenCards(sight), rng, undefined, lowBias);
   // The worse it counts, the further its estimate can be off.
-  const perOpponent = estimate / opponents.length + centered(rng) * (1 - mind.profile.counting) * T.NOISE;
+  const perOpponent = estimate / opponents.length + centered(rng) * (1 - mind.profile.calculating) * T.NOISE;
   const margin = T.GO_MARGIN - T.BOLD_MARGIN * mind.boldness - T.THREAT_GO_DOWN_BONUS * threatOf(sight);
   sight.effort = 1 - Math.min(1, Math.abs(perOpponent - margin) / T.GO_CLOSE_RANGE); // a close call takes longer to think over
   if (perOpponent < margin) return false;
@@ -154,7 +154,7 @@ const completesSpread = (hand, card) => [...subsets([...hand, card])].some((grou
 
 function wantsDiscard(sight, top) {
   const { hand, mind } = sight;
-  if (!mind.decide('attention', 'spot')) return false;
+  if (!mind.decide('observant', 'spot')) return false;
   if (findLayoff([top], noticedMelds(sight))) return true;
   if (completesSpread(hand, top)) return true;
   return cardValue(top) <= T.POTENTIAL_MAX_VALUE && linkOuts(top, hand, sight) >= T.POTENTIAL_MIN_OUTS;
@@ -193,9 +193,9 @@ function chooseDiscard(sight) {
   const { hand, mind } = sight;
   if (hand.length === 1) return hand[0];
   const threat = threatOf(sight);
-  const planAhead = mind.decide('counting', 'plan');
+  const planAhead = mind.decide('calculating', 'plan');
   const denyHelp = mind.watching();
-  const chase = hand.length - 1 <= T.CHASE_MAX_CARDS && mind.decide('counting', 'finish');
+  const chase = hand.length - 1 <= T.CHASE_MAX_CARDS && mind.decide('calculating', 'finish');
   const melds = chase ? noticedMelds(sight) : [];
   const total = handTotal(hand);
   const scored = hand.map((card) => {
@@ -218,7 +218,7 @@ function drawPhase(sight) {
   const { hand, view, mind } = sight;
   const top = view.discardTop;
   // The discard would let it empty its hand this very turn: nothing beats that.
-  if (top !== null && mind.decide('counting', 'finish') && findFinish([...hand, top], noticedMelds(sight))) {
+  if (top !== null && mind.decide('calculating', 'finish') && findFinish([...hand, top], noticedMelds(sight))) {
     sight.effort = T.THINK_EASY;
     return { type: 'takeDiscard' };
   }
@@ -232,7 +232,7 @@ function playPhase(sight) {
   const { hand, mind } = sight;
   const melds = noticedMelds(sight);
   sight.effort = T.THINK_EASY; // putting cards down is rarely a hard decision
-  if (hand.length > 1 && mind.decide('counting', 'finish')) {
+  if (hand.length > 1 && mind.decide('calculating', 'finish')) {
     const step = findFinish(hand, melds);
     if (step) return step;
   }

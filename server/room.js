@@ -233,7 +233,7 @@ class Room {
   // went) and how far behind the others it is on coins (it gets reckless), both scaled by how moody it is.
   boldnessOf(user, profile) {
     if (!user.isBot) return 0;
-    const swing = profile.mood * 2;
+    const swing = profile.moodSwing * 2;
     const confidence = this.moods.get(user.id)?.confidence ?? 0;
     const others = this.players.filter((p) => p !== user).map((p) => this.coins[p.id]);
     const average = others.length ? others.reduce((sum, c) => sum + c, 0) / others.length : 0;
