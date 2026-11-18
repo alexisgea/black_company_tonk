@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.27.3',
+    date: '2026-11-18',
+    changes: [
+      'Otto is a little stronger and Hagop a little weaker (and less sloppy), Croaker plays better, and The Lieutenant is now a quick, chatty guesser, so the strength levels from rookie to expert are clearer.',
+    ],
+  },
+  {
     version: '0.27.2',
     date: '2026-11-18',
     changes: [

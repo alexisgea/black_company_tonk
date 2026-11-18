@@ -111,10 +111,10 @@ const PROFILES = {
   // Veteran: An above average player: good but beatable.
   otto: {
     rank: 'veteran',
-    memory: 0.7,
-    calculating: 0.7,
+    memory: 0.75,
+    calculating: 0.72,
     tunnelVision: 0.3,
-    sloppiness: 0.4,
+    sloppiness: 0.35,
     riskTaker: 0.5,
     moodSwing: 0.25,
     thinkSpeed: 1,
@@ -130,27 +130,28 @@ const PROFILES = {
     moodSwing: 0.1,
     thinkSpeed: 1.2,
   },
-  // Stoic: Steady, average fundamentals with zero emotional reaction: wins and losses never rattle it.
+  // Stoic: Steady, slightly below average fundamentals with zero emotional reaction: wins and losses never rattle it.
   hagop: {
     rank: 'regular',
-    memory: 0.55,
-    calculating: 0.55,
-    tunnelVision: 0.35,
-    sloppiness: 0.7,
+    memory: 0.48,
+    calculating: 0.48,
+    tunnelVision: 0.45,
+    sloppiness: 0.5,
     riskTaker: 0.5,
     moodSwing: 0,
     thinkSpeed: 0.85,
   },
-  // Guesser: Remembers every discard and watches the table closely, but struggles with card math and relies on guesswork.
+  // Guesser: A poor player who is only here for the company: he chats with everybody and notices who does what, but
+  // has no head for the odds, forgets the discards and just guesses, often on a whim.
   'the-lieutenant': {
     rank: 'rookie',
-    memory: 0.7,
+    memory: 0.6,
     calculating: 0.05,
-    tunnelVision: 0.4,
+    tunnelVision: 0.3,
     sloppiness: 0.7,
     riskTaker: 0.5,
     moodSwing: 0.5,
-    thinkSpeed: 0.85,
+    thinkSpeed: 1.25,
   },
   // Sloppy: Sharp memory and strong card math, but constantly undermines itself with careless, sloppy plays.
   goblin: {
@@ -166,10 +167,10 @@ const PROFILES = {
   // Annalist: Whines about every hand while quietly counting every discard: conservative, observant, and dangerous over long sessions.
   croaker: {
     rank: 'expert',
-    memory: 0.75,
-    calculating: 0.7,
-    tunnelVision: 0.2,
-    sloppiness: 0.12,
+    memory: 0.9,
+    calculating: 0.85,
+    tunnelVision: 0.1,
+    sloppiness: 0.08,
     riskTaker: 0.3,
     moodSwing: 0.28,
     thinkSpeed: 1.05,
