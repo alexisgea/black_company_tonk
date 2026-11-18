@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.27.0',
+    date: '2026-11-18',
+    changes: [
+      'Every computer player now has a rank (rookie, regular, veteran or expert) that follows how well it does against the others: Expert are The Lady, Croaker and Silent, Veteran are Otto, Willow Swan and Bomanz, Regular are Hagop, Goblin and Case, and Rookie are One-Eye, The Lieutenant and Cordy.',
+      'Silent now keeps up with Croaker, Bomanz is stronger, and Willow Swan and Hagop sit closer together.',
+    ],
+  },
+  {
     version: '0.26.1',
     date: '2026-11-18',
     changes: [

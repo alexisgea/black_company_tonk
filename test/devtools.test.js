@@ -33,8 +33,8 @@ test('a seeded session plays the same twice, and different seeds play differentl
 test('a tuning number given to one seat changes only that seat, and is put back afterwards', () => {
   const seat = (tuning) => seats.map((s, i) => (i === 0 ? { ...s, profile: { tunnelVision: 0 }, tuning } : s));
   // A margin nobody can miss against one nobody can reach: it goes down at the first chance, or never (barring forced ends).
-  const eager = playSession({ seats: seat({ GO_MARGIN: -100 }), seed: 5, maxHands: 60 });
-  const shy = playSession({ seats: seat({ GO_MARGIN: 100 }), seed: 5, maxHands: 60 });
+  const eager = playSession({ seats: seat({ GO_MARGIN: -100 }), seed: 5, maxHands: 60, coins: 1000 });
+  const shy = playSession({ seats: seat({ GO_MARGIN: 100 }), seed: 5, maxHands: 60, coins: 1000 });
   assert.ok(eager.seats[0].downs > shy.seats[0].downs + 3, 'the changed seat goes down more');
   assert.deepEqual({ ...TUNING }, { ...BASE_TUNING }, 'the shared numbers are back to normal');
 });

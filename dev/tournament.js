@@ -6,6 +6,7 @@ const { parseArgs, fail } = require('./args');
 const { table, signed, percent } = require('./format');
 const { seeded, botName, aggregate, summarize } = require('./sim');
 const { playSessions } = require('./pool');
+const { rankOfEach, writeRanks } = require('./ranks');
 const { sessionOptions, checkSessionOptions, gameOptions, sessionSeed, progress, reportFallbacks } = require('./common');
 
 const opts = parseArgs(
@@ -13,12 +14,14 @@ const opts = parseArgs(
   {
     bots: { type: 'list', default: [], help: 'character ids to include (default: every character in botprofiles.js)' },
     ...sessionOptions,
+    noRanks: { type: 'boolean', default: false, help: 'do not write the ranks (rookie ... expert) into botprofiles.js' },
   },
   {
     usage: 'npm run dev:tournament -- [options]',
     about:
       'Seats the bots at random tables (everybody plays the same number of tables) and ranks them by coins won per hand.\n' +
-      'Hands are played with the real rules, bets, moods and bot logic; the table stops when somebody is broke.',
+      'Hands are played with the real rules, bets, moods and bot logic; the table stops when somebody is broke.\n' +
+      'When every character plays (no --bots), the ranking also sets the `rank` of each one in botprofiles.js.',
   },
 );
 checkSessionOptions(opts);
@@ -56,8 +59,10 @@ async function main() {
     .map(([id, totals]) => ({ id, ...summarize(totals) }))
     .sort((a, b) => b.coinsPerHand - a.coinsPerHand);
   const hands = records.reduce((n, r) => n + r.hands, 0);
+  const ranksNote = updateRanks(rows);
   if (opts.json) {
     console.log(JSON.stringify({ options: opts, hands, ranking: rows }, null, 2));
+    if (ranksNote) console.error(ranksNote);
     return;
   }
   console.log(
@@ -81,6 +86,16 @@ async function main() {
     '\nCoins/hand is the average coins won (+) or lost (-) in a hand; "+-" is one standard error, so bots closer than about two of those cannot be told apart yet (play more tables).',
   );
   reportFallbacks(records);
+  if (ranksNote) console.log(`\n${ranksNote}`);
+}
+
+// A partial roster cannot tell who is the best of everybody, so only a full tournament sets the ranks.
+function updateRanks(rows) {
+  if (opts.noRanks || opts.bots.length || rows.some((r) => !PROFILES[r.id])) return '';
+  const ranks = rankOfEach(rows.map((r) => r.id));
+  const changed = writeRanks(ranks);
+  const list = rows.map((r) => `${botName(r.id)}: ${ranks[r.id]}`).join(', ');
+  return `Ranks in botprofiles.js (${changed.length ? `changed: ${changed.join(', ')}` : 'unchanged'}) - ${list}`;
 }
 
 main().catch((err) => {

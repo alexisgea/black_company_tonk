@@ -21,6 +21,10 @@
 //   thinkSpeed    how fast it thinks: 1 is the table's normal pace, above 1 is quicker, below 1 is slower. (Not part of
 //                 the level.)
 //
+// Each entry also has a `rank` (rookie, regular, veteran or expert): how strong the character turns out to be compared
+// with the others. It is not a knob and changes nothing in the game; `npm run dev:tournament` rewrites it here from
+// the ranking it measures (the best quarter are experts, the worst quarter rookies), so do not edit it by hand.
+//
 // Each knob has its own job; the logic that turns them into behaviour is in botmind.js and botsmart.js, and every
 // fixed number behind it is in bottuning.js. Profiles are keyed by the bot's id from botnames.js, not by its display
 // name, so a bot can be renamed or translated.
@@ -31,22 +35,27 @@ const { BOT_IDS } = require('./botnames');
 // between characters stay.
 const LEVEL = 1;
 
+// From the weakest to the strongest.
+const RANKS = ['rookie', 'regular', 'veteran', 'expert'];
+
 const PARAMS = ['memory', 'calculating', 'tunnelVision', 'sloppiness', 'riskTaker', 'moodSwing', 'thinkSpeed'];
 const BASE = { memory: 0.8, calculating: 0.8, tunnelVision: 0.2, sloppiness: 0.2, riskTaker: 0.5, moodSwing: 0.5, thinkSpeed: 1 };
 
 const PROFILES = {
   // Gambler: Sharp, but bets everything on thin edges: goes down early whenever the odds look even slightly good.
   'willow-swan': {
+    rank: 'veteran',
     memory: 0.85,
     calculating: 0.85,
     tunnelVision: 0.15,
-    sloppiness: 0.3,
+    sloppiness: 0.25,
     riskTaker: 0.9,
     moodSwing: 0.5,
     thinkSpeed: 1.1,
   },
   // Coward: Works out the odds very well, then never dares: almost never goes down early.
   case: {
+    rank: 'regular',
     memory: 0.7,
     calculating: 0.9,
     tunnelVision: 0.2,
@@ -57,6 +66,7 @@ const PROFILES = {
   },
   // Tilter: Average skills, but wins and losses throw it completely: brilliant when confident, reckless when behind.
   'one-eye': {
+    rank: 'rookie',
     memory: 0.65,
     calculating: 0.65,
     tunnelVision: 0.35,
@@ -67,26 +77,29 @@ const PROFILES = {
   },
   // Amnesiac: Reasons about the odds very well but forgets what was discarded.
   bomanz: {
-    memory: 0.1,
+    rank: 'veteran',
+    memory: 0.35,
     calculating: 0.9,
-    tunnelVision: 0.2,
-    sloppiness: 0.2,
-    riskTaker: 0.5,
+    tunnelVision: 0.1,
+    sloppiness: 0.1,
+    riskTaker: 0.35,
     moodSwing: 0.4,
     thinkSpeed: 0.8,
   },
   // Savant: Plays its own hand perfectly and ignores everybody else, so it goes by a rule of thumb and never reads the table.
   silent: {
+    rank: 'expert',
     memory: 0.95,
     calculating: 0.95,
-    tunnelVision: 0.7,
+    tunnelVision: 0.45,
     sloppiness: 0.05,
     riskTaker: 0.5,
-    moodSwing: 0.1,
+    moodSwing: 0,
     thinkSpeed: 0.9,
   },
   // Rookie: Still learning: weak at everything, and slow about it.
   cordy: {
+    rank: 'rookie',
     memory: 0.3,
     calculating: 0.3,
     tunnelVision: 0.6,
@@ -97,16 +110,18 @@ const PROFILES = {
   },
   // Veteran: An average player: not good and not bad at anything.
   otto: {
+    rank: 'veteran',
     memory: 0.8,
     calculating: 0.8,
     tunnelVision: 0.3,
-    sloppiness: 0.25,
+    sloppiness: 0.3,
     riskTaker: 0.5,
     moodSwing: 0.2,
     thinkSpeed: 1,
   },
   // Expert: Near-flawless memory, math, and table awareness: reads every move at lightning speed and rarely makes a mistake.
   'the-lady': {
+    rank: 'expert',
     memory: 0.95,
     calculating: 0.95,
     tunnelVision: 0.05,
@@ -117,16 +132,18 @@ const PROFILES = {
   },
   // Stoic: Steady, average fundamentals with zero emotional reaction: wins and losses never rattle it.
   hagop: {
+    rank: 'regular',
     memory: 0.65,
     calculating: 0.65,
     tunnelVision: 0.35,
-    sloppiness: 0.45,
+    sloppiness: 0.6,
     riskTaker: 0.5,
     moodSwing: 0,
     thinkSpeed: 0.85,
   },
   // Guesser: Remembers every discard and watches the table closely, but struggles with card math and relies on guesswork.
   'the-lieutenant': {
+    rank: 'rookie',
     memory: 0.5,
     calculating: 0.15,
     tunnelVision: 0.6,
@@ -137,6 +154,7 @@ const PROFILES = {
   },
   // Sloppy: Sharp memory and strong card math, but constantly undermines itself with careless, sloppy plays.
   goblin: {
+    rank: 'regular',
     memory: 0.95,
     calculating: 0.95,
     tunnelVision: 0.1,
@@ -147,12 +165,13 @@ const PROFILES = {
   },
   // Annalist: Whines about every hand while quietly counting every discard: conservative, observant, and dangerous over long sessions.
   croaker: {
+    rank: 'expert',
     memory: 0.9,
     calculating: 0.85,
     tunnelVision: 0.15,
-    sloppiness: 0.08,
+    sloppiness: 0.05,
     riskTaker: 0.3,
-    moodSwing: 0.25,
+    moodSwing: 0.15,
     thinkSpeed: 1.05,
   },
 };
@@ -183,7 +202,8 @@ function profileProblems() {
   for (const id of BOT_IDS) if (!PROFILES[id]) problems.push(`${id} has no profile`);
   for (const [id, profile] of Object.entries({ ...PROFILES, SUBSTITUTE })) {
     if (id !== 'SUBSTITUTE' && !BOT_IDS.includes(id)) problems.push(`${id} is not a bot id`);
-    for (const key of Object.keys(profile)) if (!PARAMS.includes(key)) problems.push(`${id}: unknown parameter ${key}`);
+    for (const key of Object.keys(profile)) if (key !== 'rank' && !PARAMS.includes(key)) problems.push(`${id}: unknown parameter ${key}`);
+    if (id !== 'SUBSTITUTE' && !RANKS.includes(profile.rank)) problems.push(`${id}: rank must be one of ${RANKS.join(', ')}`);
     for (const key of PARAMS) {
       const value = profile[key];
       if (key === 'thinkSpeed' ? !(value > 0) : !(value >= 0 && value <= 1))
@@ -193,4 +213,4 @@ function profileProblems() {
   return problems;
 }
 
-module.exports = { PROFILES, PARAMS, BASE, LEVEL, profileFor, profileProblems };
+module.exports = { PROFILES, PARAMS, RANKS, BASE, LEVEL, profileFor, profileProblems };
