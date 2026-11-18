@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.27.2',
+    date: '2026-11-18',
+    changes: [
+      'Willow Swan is a little weaker, closer to Otto and Bomanz, and Croaker a little stronger, so the gap between veterans and experts is clearer.',
+    ],
+  },
+  {
     version: '0.27.1',
     date: '2026-11-18',
     changes: [

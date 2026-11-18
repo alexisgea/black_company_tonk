@@ -50,7 +50,7 @@ const PROFILES = {
     tunnelVision: 0.15,
     sloppiness: 0.3,
     riskTaker: 0.9,
-    moodSwing: 0.5,
+    moodSwing: 0.58,
     thinkSpeed: 1.1,
   },
   // Coward: Works out the odds very well, then never dares: almost never goes down early.
@@ -168,10 +168,10 @@ const PROFILES = {
     rank: 'expert',
     memory: 0.75,
     calculating: 0.7,
-    tunnelVision: 0.25,
+    tunnelVision: 0.2,
     sloppiness: 0.12,
     riskTaker: 0.3,
-    moodSwing: 0.3,
+    moodSwing: 0.28,
     thinkSpeed: 1.05,
   },
 };
