@@ -161,6 +161,10 @@ Every bot move tries, in order:
 
 If a bug makes one of them fail, the next one plays, so a table can never freeze. The same logic also plays for a human who is away or disconnected, using the default character and no mood.
 
+## Measuring a change
+
+Do not guess what a number does: `npm run dev:tournament` plays the bots against each other and ranks them by coins won per hand, and `npm run dev:sensitivity` shows how much each knob and each constant in `bottuning.js` moves that figure. `npm run dev:table` lets you watch one table a move at a time, with every hand face up and the bot's reasoning for each move. See "Developer tools for the bots" in the README.
+
 ## Tuning cheat sheet
 
 | I want...                                                                           | Change                                                                                         |

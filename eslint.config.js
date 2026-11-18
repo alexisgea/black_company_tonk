@@ -15,6 +15,11 @@ module.exports = [
     languageOptions: { sourceType: 'module', globals: globals.browser },
   },
   {
+    // The page of the dev table is a plain browser script.
+    files: ['dev/table/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
+  },
+  {
     files: ['shared/cards.js'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },

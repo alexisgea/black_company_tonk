@@ -3,19 +3,19 @@
 // account for, many times over, and scores each deal with the real go-down payoff. Everything it uses comes from the
 // view a human gets and from its own memory.
 const { handTotal } = require('../shared/cards');
-const { PAY_DOWN_WIN, PAY_DOWN_LOSS, RISK_SAMPLES } = require('./bottuning');
+const T = require('./bottuning'); // read when used, not copied, so the developer tools can try other numbers
 
 // Payoff, in bets, for the player going down with `mine` against these opponent totals (see goDown in tonk.js).
 function goDownPayoff(mine, totals) {
-  if (totals.every((t) => t > mine)) return PAY_DOWN_WIN * totals.length;
-  return -PAY_DOWN_LOSS * totals.filter((t) => t <= mine).length;
+  if (totals.every((t) => t > mine)) return T.PAY_DOWN_WIN * totals.length;
+  return -T.PAY_DOWN_LOSS * totals.filter((t) => t <= mine).length;
 }
 
 // opponents: [{ count, known }]: how many cards they hold and which of those the bot knows about.
 // unseen: the cards that could be in an opponent's hand (the bot's best guess).
 // lowBias: opponents keep their low cards and throw the dear ones away, so the longer a hand has lasted the more their
 // hidden cards lean low. A card of value v is dealt with weight exp(-lowBias * (v - 1)); 0 deals them uniformly.
-function estimateGoDown(mine, opponents, unseen, rng, samples = RISK_SAMPLES, lowBias = 0) {
+function estimateGoDown(mine, opponents, unseen, rng, samples = T.RISK_SAMPLES, lowBias = 0) {
   const knownTotals = opponents.map((o) => handTotal(o.known));
   const unknownCounts = opponents.map((o) => Math.max(0, o.count - o.known.length));
   const values = unseen.map((card) => handTotal([card]));

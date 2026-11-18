@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "dev:tournament": "node dev/tournament.js",
+    "dev:sensitivity": "node dev/sensitivity.js",
+    "dev:table": "node dev/table.js",
     "test": "node --test",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{js,json}\"",

@@ -6,7 +6,7 @@
 // older fact (a discard, or a card someone took from the pile) is kept or forgotten by a single roll of the bot's
 // memory, made the first time the bot looks at it, so a forgotten card stays forgotten.
 
-const { BLUR_SPOTS, OWN_MISS_RATIO, PANIC_PER_MOOD_SWING } = require('./bottuning');
+const T = require('./bottuning'); // read when used, not copied, so the developer tools can try other numbers
 
 class Mind {
   // `profile` is the character as profileFor (botprofiles.js) gives it: memory, calculating, focus, sloppiness, boldness, moodSwing.
@@ -24,7 +24,7 @@ class Mind {
   }
 
   get ownMiss() {
-    return this.profile.sloppiness * OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
+    return this.profile.sloppiness * T.OWN_MISS_RATIO; // the chance of overlooking a card for its own spread
   }
 
   get blur() {
@@ -32,7 +32,7 @@ class Mind {
   }
 
   get panic() {
-    return this.profile.moodSwing * PANIC_PER_MOOD_SWING; // the chance of panicking when an opponent is nearly out
+    return this.profile.moodSwing * T.PANIC_PER_MOOD_SWING; // the chance of panicking when an opponent is nearly out
   }
 
   // Is it looking at what the others are doing this turn? (A tunnel-vision bot often is not.) Rolled once per turn.
@@ -144,7 +144,7 @@ class Mind {
   shown(fact) {
     if (!this.blur || this.turnEnds - fact.t < this.order.length) return fact.card;
     if (fact.blurred === undefined) {
-      const suit = Math.floor(this.rng() * BLUR_SPOTS);
+      const suit = Math.floor(this.rng() * T.BLUR_SPOTS);
       fact.blurred = this.rng() < this.blur ? suit * 13 + (fact.card % 13) : null;
     }
     return fact.blurred ?? fact.card;
