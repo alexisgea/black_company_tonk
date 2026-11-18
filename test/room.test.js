@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Room } = require('../server/room');
+const { Room, DYNAMIC_LINES } = require('../server/room');
 const { GameError, MIN_PLAYERS, MAX_PLAYERS } = require('../server/tonk');
 const { BOT_NAMES, isReservedName } = require('../server/botnames');
 
@@ -137,7 +137,7 @@ test('the host can change the settings only before the game starts, with limits'
   const users = namesFor(MIN_PLAYERS).map(human);
   users.forEach((u) => room.join(u));
   room.updateSettings(users[0], { startingCoins: 100, bet: 5 });
-  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5 });
+  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5, dynamicTable: false });
   assert.ok(Object.values(room.coins).every((c) => c === 100));
   assert.throws(() => room.updateSettings(users[0], { startingCoins: 5, bet: 1 }), /Starting coins/);
   assert.throws(() => room.updateSettings(users[0], { startingCoins: 100, bet: 1.5 }), /Bet/);
@@ -187,6 +187,73 @@ test('losing the last coin turns a human into a guest and removes a bot', () => 
   assert.ok(room.players.every((p) => room.coins[p.id] > 0));
   assert.ok(room.log.some((e) => e.type === 'broke'));
   assert.ok(room.round.result.broke.length === broke.length);
+});
+
+test('the host can seat a chosen bot, but not an unknown one or one that is already at the table', () => {
+  const room = new Room('R', 'Test');
+  room.join(human('Ann'));
+  const bot = room.addBot('goblin');
+  assert.equal(bot.botId, 'goblin');
+  assert.equal(bot.name, 'Goblin');
+  assert.throws(() => room.addBot('goblin'), /already at the table/);
+  assert.throws(() => room.addBot('nobody'), /No such bot/);
+  assert.throws(() => room.addBot({}), /No such bot/);
+  assert.notEqual(room.addBot().botId, 'goblin');
+});
+
+test('dynamic table setting must be a boolean', () => {
+  const room = new Room('R', 'Test');
+  const a = human('Ann');
+  room.join(a);
+  room.updateSettings(a, { startingCoins: 50, bet: 5, dynamicTable: true });
+  assert.equal(room.settings.dynamicTable, true);
+  room.updateSettings(a, { startingCoins: 50, bet: 5 });
+  assert.equal(room.settings.dynamicTable, false);
+  assert.throws(() => room.updateSettings(a, { startingCoins: 50, bet: 5, dynamicTable: 'yes' }), /Bad settings/);
+});
+
+test('dynamic table: broke bots are replaced by new faces, and now and then a bot swaps out with a log line', () => {
+  let roll = 0.99; // above the chance: nobody leaves of their own accord
+  const room = new Room('R', 'Test', () => roll, { settings: { startingCoins: 50, bet: 5, dynamicTable: true } });
+  room.join(human('Ann'));
+  const [first, second] = [room.addBot('goblin'), room.addBot('otto')];
+  room.status = 'between';
+  room.handNo = 1;
+
+  room.sendBroke(first);
+  room.rotateBots([first]);
+  assert.equal(room.players.length, 3);
+  assert.ok(!room.players.some((p) => p.botId === 'goblin'), 'the bot that went broke does not come straight back');
+  assert.equal(room.log.at(-1).type, 'dynJoin');
+  assert.ok(room.log.at(-1).variant < DYNAMIC_LINES);
+
+  roll = 0; // under the chance: the first bot leaves
+  const bots = room.players.filter((p) => p.isBot);
+  room.rotateBots([]);
+  const left = room.log.findLast((e) => e.type === 'dynLeave');
+  assert.equal(left.botId, bots[0].botId);
+  assert.equal(room.players.length, 3);
+  assert.ok(!room.players.some((p) => p.botId === bots[0].botId));
+  assert.ok(room.players.includes(second) === (bots[0] !== second));
+  assert.equal(room.log.at(-1).type, 'dynJoin');
+  assert.ok(room.humans.length === 1);
+});
+
+test('without the dynamic table setting nobody is replaced', () => {
+  const room = new Room('R', 'Test', seeded(7), { settings: { startingCoins: 10, bet: 10 } });
+  const users = namesFor(MIN_PLAYERS).map(human);
+  users.forEach((u) => room.join(u));
+  room.addBot();
+  room.startHand(users[0]);
+  for (const p of [...room.pendingTonkers]) room.declareTonk(p);
+  if (room.status === 'playing')
+    room.act(
+      room.players.find((p) => p.id === room.round.order[room.round.turn]),
+      { type: 'goDown' },
+    );
+  assert.equal(room.status, 'between');
+  assert.ok(!room.log.some((e) => e.type === 'dynJoin' || e.type === 'dynLeave'));
+  assert.equal(room.players.length + room.takeBroke().length, MIN_PLAYERS + 1);
 });
 
 test('acting without a hand in progress is an error', () => {

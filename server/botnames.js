@@ -18,6 +18,22 @@ const BOT_IDS = [
   'goblin',
   'croaker',
 ];
+// The word that sums up how a bot plays (its text is "tag.<word>" in the locale files), or null when the bot's rank
+// already says it all (a rookie, a veteran or an expert). Its one-sentence profile is "bot.<id>.bio".
+const BOT_TAGS = {
+  'willow-swan': 'gambler',
+  case: 'coward',
+  'one-eye': 'tilter',
+  bomanz: 'amnesiac',
+  silent: 'savant',
+  cordy: null,
+  otto: null,
+  'the-lady': null,
+  hagop: 'stoic',
+  'the-lieutenant': 'guesser',
+  goblin: 'sloppy',
+  croaker: 'annalist',
+};
 const BOTS = BOT_IDS.map((id) => ({ id, name: text(`bot.${id}`) }));
 const BOT_NAMES = BOTS.map((b) => b.name);
 
@@ -42,4 +58,4 @@ function pickBot(taken, rng = Math.random) {
   return pool[Math.floor(rng() * pool.length)];
 }
 
-module.exports = { BOTS, BOT_IDS, BOT_NAMES, isReservedName, pickBot };
+module.exports = { BOTS, BOT_IDS, BOT_NAMES, BOT_TAGS, isReservedName, pickBot };

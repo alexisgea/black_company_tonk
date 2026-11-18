@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.28.0',
+    date: '2026-11-18',
+    changes: [
+      'The host now picks bots in the waiting room: the table shows its five seats and a grid of every bot with its tag and rank (for example "stoic regular"), plus a Random card. Click a bot to seat it, click a bot in a seat to clear it, and press the i on a card for a short profile of the bot.',
+      'Seats and bots have an empty frame ready for profile pictures.',
+      'New table rule "Dynamic table": bots that lose their last coin are replaced by new ones, and now and then a bot leaves and another sits down, with a short line in the log.',
+    ],
+  },
+  {
     version: '0.27.3',
     date: '2026-11-18',
     changes: [

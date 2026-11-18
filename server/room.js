@@ -1,7 +1,7 @@
 'use strict';
 const crypto = require('crypto');
 const tonk = require('./tonk');
-const { pickBot } = require('./botnames');
+const { pickBot, BOTS } = require('./botnames');
 const { Mind } = require('./botmind');
 const { smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
@@ -22,6 +22,8 @@ const PUBLIC_LOG_FIELDS = {
   layoff: ['pid', 'card', 'meldId'],
   goDown: ['pid', 'total'],
   broke: ['pid', 'name', 'botId', 'bot'],
+  dynLeave: ['pid', 'name', 'botId', 'variant'], // a bot left a dynamic table; `variant` picks one of the in-lore lines
+  dynJoin: ['pid', 'name', 'botId', 'variant'],
   timeout: ['pid', 'name'], // took too long: a bot plays their turns until they come back
   back: ['pid', 'name'],
   pause: ['pid', 'name'],
@@ -30,8 +32,13 @@ const PUBLIC_LOG_FIELDS = {
   reshuffle: [],
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
-// (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2). The labels are in the locale files.
-const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5 };
+// (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2). `dynamicTable` makes bots come and go
+// during play. The labels are in the locale files.
+const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5, dynamicTable: false };
+// Dynamic table: the chance that after a hand one bot gets tired of the table and a new one takes its seat, and how
+// many in-lore lines there are for it ("log.dynLeave.<n>" and "log.dynJoin.<n>" in the locale files).
+const DYNAMIC_LEAVE_CHANCE = 0.15;
+const DYNAMIC_LINES = 4;
 const SETTING_LIMITS = {
   startingCoins: { min: 10, max: 10000, error: 'startingCoinsRange' },
   bet: { min: 1, max: 1000, error: 'betRange' },
@@ -64,6 +71,8 @@ function validateSettings(raw) {
     settings[key] = value;
   }
   if (settings.bet > settings.startingCoins) throw new tonk.GameError('betTooHigh');
+  if (raw.dynamicTable !== undefined && typeof raw.dynamicTable !== 'boolean') throw new tonk.GameError('badSettings');
+  settings.dynamicTable = raw.dynamicTable === true;
   return settings;
 }
 
@@ -162,19 +171,45 @@ class Room {
     if (!this.players.includes(user)) throw new tonk.GameError('spectatorsCannot');
   }
 
-  // Adds a computer player. It has no connection; the lobby plays its turns.
-  addBot() {
-    const { id: botId, name } = pickBot(new Set(this.players.map((p) => p.botId)), this.rng);
+  // Adds a computer player: the character `wanted` (a bot id) or, without one, a random character that is not at the
+  // table (nor in `avoid`). It has no connection; the lobby plays its turns. `entrance` is the log event for its arrival.
+  addBot(wanted = null, { avoid = [], entrance = { type: 'join' } } = {}) {
+    const taken = new Set(this.players.map((p) => p.botId));
+    let pick;
+    if (wanted === null || wanted === undefined) {
+      pick = pickBot(new Set([...taken, ...avoid]), this.rng);
+    } else {
+      pick = typeof wanted === 'string' ? BOTS.find((b) => b.id === wanted) : null;
+      if (!pick) throw new tonk.GameError('unknownBot');
+      if (taken.has(wanted)) throw new tonk.GameError('botAtTable');
+    }
     const bot = {
       id: crypto.randomBytes(4).toString('hex'), // the seat's id at this table; botId says which character it is
-      botId,
-      name,
+      botId: pick.id,
+      name: pick.name,
       isBot: true,
       conn: null,
       room: null,
     };
-    this.join(bot);
+    this.join(bot, entrance);
     return bot;
+  }
+
+  // Dynamic table: bots that lost every coin are replaced, and now and then a bot gets tired of the table and leaves
+  // too. Newcomers are new faces, so the table never fills with the same bots coming back.
+  rotateBots(brokeBots) {
+    const avoid = brokeBots.map((b) => b.botId);
+    let arrivals = brokeBots.length;
+    const bots = this.players.filter((p) => p.isBot);
+    if (this.humans.length > 0 && bots.length > 0 && this.rng() < DYNAMIC_LEAVE_CHANCE) {
+      const leaving = bots[Math.floor(this.rng() * bots.length)];
+      this.leave(leaving, 'dynLeave', { variant: Math.floor(this.rng() * DYNAMIC_LINES) });
+      avoid.push(leaving.botId);
+      arrivals++;
+    }
+    for (; arrivals > 0 && this.joinable; arrivals--) {
+      this.addBot(null, { avoid, entrance: { type: 'dynJoin', variant: Math.floor(this.rng() * DYNAMIC_LINES) } });
+    }
   }
 
   // Only between hands (or before the first one), so a hand is never cut short or changed under the players.
@@ -310,7 +345,7 @@ class Room {
     return Math.max(this.settings.bet, average);
   }
 
-  join(user) {
+  join(user, entrance = { type: 'join' }) {
     if (this.isBanned(user)) throw new tonk.GameError('banned');
     if (!this.joinable) throw new tonk.GameError('cannotJoin');
     this.claimName(user);
@@ -318,7 +353,7 @@ class Room {
     this.players.push(user);
     if (!this.hostId) this.hostId = user.id;
     user.room = this;
-    this.addLog({ type: 'join', ...whoIs(user) });
+    this.addLog({ ...entrance, ...whoIs(user) });
   }
 
   watch(user) {
@@ -329,8 +364,8 @@ class Room {
     user.room = this;
   }
 
-  // `reason` is the log event type: 'leave' normally, 'kick' when the host removes a player.
-  leave(user, reason = 'leave') {
+  // `reason` is the log event type: 'leave' normally, 'kick' when the host removes a player; `extra` adds fields to it.
+  leave(user, reason = 'leave', extra = {}) {
     const spectatorIdx = this.spectators.indexOf(user);
     if (spectatorIdx !== -1) {
       this.spectators.splice(spectatorIdx, 1);
@@ -340,7 +375,7 @@ class Room {
     }
     const idx = this.players.indexOf(user);
     if (idx === -1) return;
-    this.addLog({ type: reason, ...whoIs(user) });
+    this.addLog({ type: reason, ...whoIs(user), ...extra });
     this.players.splice(idx, 1);
     delete this.coins[user.id];
     this.moods.delete(user.id);
@@ -562,6 +597,7 @@ class Room {
     this.tonkLeftMs = null;
     this.turnResume = null;
     for (const user of broke) this.sendBroke(user);
+    if (this.settings.dynamicTable) this.rotateBots(broke.filter((p) => p.isBot));
     this.newlyBroke.push(...broke);
   }
 
@@ -648,4 +684,4 @@ class Room {
   }
 }
 
-module.exports = { Room, DEFAULT_SETTINGS, SETTING_LIMITS, validateSettings, validatePassword };
+module.exports = { Room, DEFAULT_SETTINGS, SETTING_LIMITS, DYNAMIC_LINES, validateSettings, validatePassword };

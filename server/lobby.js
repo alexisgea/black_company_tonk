@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { Room, validatePassword } = require('./room');
 const { GameError } = require('./tonk');
 const { legacyAction, fallbackAction } = require('./bot');
-const { profileFor } = require('./botprofiles');
+const { profileFor, botCatalog } = require('./botprofiles');
 const { THINK_DRAW, THINK_PLAY, THINK_JITTER_MIN, THINK_JITTER_SPREAD, THINK_EFFORT_MIN, THINK_EFFORT_MAX } = require('./bottuning');
 const { isReservedName } = require('./botnames');
 const { describe } = require('./i18n');
@@ -518,7 +518,7 @@ class Lobby {
     if (!user.room) user.name = name;
     user.conn = conn;
     conn.user = user;
-    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name });
+    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name, bots: botCatalog() });
     if (user.room) this.broadcastRoom(user.room);
     this.broadcastLobby(); // also tells everyone else in the lobby about the new head count
   }
@@ -666,7 +666,7 @@ class Lobby {
       }
       case 'addBot': {
         requireHost(room, user, 'hostOnlyAddBot');
-        room.addBot();
+        room.addBot(msg.botId);
         this.broadcastAll(room);
         break;
       }

@@ -197,6 +197,20 @@ test('chat: delivered to everyone in the room, stored in history, sanitised and 
   assert.match(alice.last('error').message, /too fast/i);
 });
 
+test('bots: the host can seat a chosen bot, and clients get the bot catalog when they connect', () => {
+  const lobby = new Lobby();
+  const host = connect(lobby, 'Host');
+  const catalog = host.last('welcome').bots;
+  assert.ok(catalog.length > 0 && catalog.every((b) => b.id && ['rookie', 'regular', 'veteran', 'expert'].includes(b.rank)));
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, host, { t: 'addBot', botId: 'hagop' });
+  assert.equal(host.last('room').room.players[1].botId, 'hagop');
+  say(lobby, host, { t: 'addBot', botId: 'hagop' });
+  assert.equal(host.last('error').code, 'botAtTable');
+  say(lobby, host, { t: 'addBot', botId: 'nobody' });
+  assert.equal(host.last('error').code, 'unknownBot');
+});
+
 test('bots: only the host can add or remove them', () => {
   const lobby = new Lobby();
   const host = connect(lobby, 'Host');
@@ -794,7 +808,7 @@ test('only the host can change the table settings, and everyone sees them', () =
   assert.match(guest.last('error').message, /Only the host/);
   say(lobby, host, { t: 'updateSettings', settings: { startingCoins: 20, bet: 2 } });
   const room = guest.last('room').room;
-  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2 });
+  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2, dynamicTable: false });
   assert.ok(room.players.every((p) => p.coins === 20));
 });
 

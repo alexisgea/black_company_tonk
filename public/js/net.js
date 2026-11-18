@@ -110,6 +110,7 @@ function onMessage(msg) {
       state.token = msg.token;
       state.you = msg.id;
       state.name = msg.name;
+      state.bots = msg.bots ?? [];
       sessionStorage.setItem('tonk.token', msg.token);
       localStorage.setItem('tonk.name', msg.name);
       break;

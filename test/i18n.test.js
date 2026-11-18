@@ -83,8 +83,15 @@ test('every message key the client code uses exists in English', () => {
   const { SETTING_LIMITS } = require('../server/room');
   for (const key of Object.keys(SETTING_LIMITS))
     assert.ok(`tableRules.${key}.label` in en && `tableRules.${key}.hint` in en, `setting ${key}`);
-  const { BOT_IDS } = require('../server/botnames');
-  for (const id of BOT_IDS) assert.ok(`bot.${id}` in en, `bot ${id}`);
+  const { BOT_IDS, BOT_TAGS } = require('../server/botnames');
+  for (const id of BOT_IDS) assert.ok(`bot.${id}` in en && `bot.${id}.bio` in en, `bot ${id}`);
+  for (const tag of Object.values(BOT_TAGS)) assert.ok(tag === null || `tag.${tag}` in en, `tag ${tag}`);
+  for (const id of BOT_IDS) assert.ok(id in BOT_TAGS, `${id} needs a tag (or null) in BOT_TAGS`);
+  const { RANKS } = require('../server/botprofiles');
+  for (const rank of RANKS) assert.ok(`rank.${rank}` in en, `rank ${rank}`);
+  const { DYNAMIC_LINES } = require('../server/room');
+  for (let i = 0; i < DYNAMIC_LINES; i++) assert.ok(`log.dynJoin.${i}` in en && `log.dynLeave.${i}` in en, `dynamic table line ${i}`);
+  assert.ok('tableRules.dynamicTable.label' in en && 'tableRules.dynamicTable.hint' in en);
 });
 
 test('every error and notice code the server can send has an English message', () => {

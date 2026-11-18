@@ -28,7 +28,7 @@
 // Each knob has its own job; the logic that turns them into behaviour is in botmind.js and botsmart.js, and every
 // fixed number behind it is in bottuning.js. Profiles are keyed by the bot's id from botnames.js, not by its display
 // name, so a bot can be renamed or translated.
-const { BOT_IDS } = require('./botnames');
+const { BOT_IDS, BOT_TAGS } = require('./botnames');
 
 // Makes every bot easier (below 1) or harder (above 1): it scales memory, calculating and how well it watches the table
 // (the opposite of tunnelVision) and its own cards (the opposite of sloppiness) by this factor, so the differences
@@ -197,6 +197,10 @@ function profileFor(player, level = LEVEL) {
   };
 }
 
+// What the room creator sees when picking a bot: who it is, how strong it is and what sets it apart (null: nothing
+// beyond its rank). The texts are in the locale files.
+const botCatalog = () => BOT_IDS.map((id) => ({ id, rank: PROFILES[id].rank, tag: BOT_TAGS[id] ?? null }));
+
 // Problems in the table above (empty when it is fine); a test keeps it honest after manual edits.
 function profileProblems() {
   const problems = [];
@@ -214,4 +218,4 @@ function profileProblems() {
   return problems;
 }
 
-module.exports = { PROFILES, PARAMS, RANKS, BASE, LEVEL, profileFor, profileProblems };
+module.exports = { PROFILES, PARAMS, RANKS, BASE, LEVEL, profileFor, profileProblems, botCatalog };

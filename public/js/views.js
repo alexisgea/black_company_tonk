@@ -5,6 +5,8 @@ import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { nameTag } from './name-tag.js';
+import { avatar } from './avatar.js';
+import { botGrid, botLabel } from './bot-picker.js';
 import { rulesButton } from './rules-dialog.js';
 import { settingsButton } from './settings-dialog.js';
 import { fullscreenButton } from './fullscreen.js';
@@ -215,25 +217,13 @@ function renderRoom() {
         'div',
         { class: 'panel' },
         h('h3', { style: 'margin-top:0' }, t('room.players')),
-        room.players.map((p) =>
-          h(
-            'div',
-            { class: 'row' },
-            h(
-              'span',
-              null,
-              playerTag(p),
-              p.id === state.you ? ` ${t('player.you')}` : '',
-              p.connected ? '' : ` \u2013 ${t('player.disconnected')}`,
-              p.away ? ` \u2013 ${t('player.botPlaying')}` : '',
-            ),
-            isHost && p.isBot
-              ? h('button', { class: 'secondary small-btn', onClick: () => send({ t: 'removeBot', id: p.id }) }, t('room.remove'))
-              : kickControls(p),
-            takeOverButton(p),
-          ),
+        h(
+          'div',
+          { class: 'seats' },
+          Array.from({ length: room.maxPlayers }, (_, i) => (room.players[i] ? seat(room.players[i], isHost) : emptySeat())),
         ),
       ),
+      isHost ? botGrid() : null,
       spectatorsPanel(),
       settingsPanel(isHost),
       h('div', { class: 'panel' }, invitePanel(isHost)),
@@ -242,7 +232,6 @@ function renderRoom() {
         'div',
         { class: 'row', style: 'margin-bottom:14px' },
         spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, t('room.startGame')),
-        addBotButton(),
         leave,
         rulesButton(),
         h('span', { class: 'muted' }, isHost ? (canStart ? '' : t('room.needMorePlayers')) : t('room.waitingForHost')),
@@ -252,6 +241,42 @@ function renderRoom() {
     );
   }
   return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave));
+}
+
+// A seat at the table in the waiting room. The host clears a bot's seat by clicking it.
+function seat(p, isHost) {
+  const body = [
+    avatar(),
+    h(
+      'span',
+      { class: 'seat-text' },
+      h(
+        'span',
+        { class: 'seat-name' },
+        playerTag(p),
+        p.id === state.you ? ` ${t('player.you')}` : '',
+        p.connected ? '' : ` \u2013 ${t('player.disconnected')}`,
+        p.away ? ` \u2013 ${t('player.botPlaying')}` : '',
+      ),
+      p.isBot ? h('span', { class: 'seat-sub muted' }, botLabel(p.botId)) : null,
+    ),
+  ];
+  if (isHost && p.isBot) {
+    return h(
+      'button',
+      {
+        class: 'secondary seat seat-bot',
+        title: t('room.removeFromTable', { name: playerName(p) }),
+        onClick: () => send({ t: 'removeBot', id: p.id }),
+      },
+      body,
+    );
+  }
+  return h('div', { class: 'seat' }, body, kickControls(p), takeOverButton(p));
+}
+
+function emptySeat() {
+  return h('div', { class: 'seat empty' }, avatar({ empty: true }), h('span', { class: 'seat-text muted' }, t('room.emptySeat')));
 }
 
 // Shown to a player whose seat is being played by a bot because they took too long.
@@ -893,8 +918,29 @@ function settingsPanel(isHost) {
     h('h3', { style: 'margin-top:0' }, t('tableRules.title')),
     field('startingCoins'),
     field('bet'),
+    dynamicTableField(isHost, settings),
     h('div', { class: 'muted' }, t('tableRules.outOfCoins')),
   );
+}
+
+function dynamicTableField(isHost, settings) {
+  const label = t('tableRules.dynamicTable.label');
+  const hint = t('tableRules.dynamicTable.hint');
+  if (!isHost) {
+    return h(
+      'div',
+      null,
+      `${label}: `,
+      h('strong', null, t(settings.dynamicTable ? 'common.on' : 'common.off')),
+      h('span', { class: 'muted' }, ` ${hint}`),
+    );
+  }
+  const input = h('input', {
+    type: 'checkbox',
+    checked: settings.dynamicTable,
+    onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, dynamicTable: e.currentTarget.checked } }),
+  });
+  return h('label', { class: 'row' }, input, h('span', null, label), h('span', { class: 'muted' }, hint));
 }
 
 function formatEvent(e) {
@@ -906,6 +952,9 @@ function formatEvent(e) {
       return t('log.join', { who });
     case 'leave':
       return t('log.leave', { who });
+    case 'dynLeave':
+    case 'dynJoin':
+      return t(`log.${e.type}.${e.variant}`, { who });
     case 'kick':
       return t('log.kick', { who });
     case 'takeover':
