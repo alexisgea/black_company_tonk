@@ -212,10 +212,14 @@ class Lobby {
           this.scheduleBot(room);
           return;
         }
+        const turnNo = room.round.turnNo;
         if (!this.botMove(room, bot)) {
           this.closeRoom(room, 'closedServerError');
           return;
         }
+        // A bot only talks once its turn is over, and at most once per turn.
+        const said = room.status === 'playing' && room.round.turnNo !== turnNo ? room.banter(bot) : null;
+        if (said) for (const p of room.audience) this.send(p.conn, { t: 'chat', message: said });
         this.broadcastRoom(room);
         if (room.status !== 'playing') this.broadcastLobby();
       }),

@@ -92,6 +92,15 @@ test('every message key the client code uses exists in English', () => {
   const { DYNAMIC_LINES } = require('../server/room');
   for (let i = 0; i < DYNAMIC_LINES; i++) assert.ok(`log.dynJoin.${i}` in en && `log.dynLeave.${i}` in en, `dynamic table line ${i}`);
   assert.ok('tableRules.dynamicTable.label' in en && 'tableRules.dynamicTable.hint' in en);
+  const { BANTER_TONE, TONES, SITUATIONS } = require('../server/botbanter');
+  for (const id of BOT_IDS) assert.ok(id in BANTER_TONE, `${id} needs a tone (or null) in BANTER_TONE`);
+  for (const tone of Object.values(BANTER_TONE)) assert.ok(tone === null || TONES.includes(tone), `unknown tone ${tone}`);
+  for (const tone of TONES)
+    for (const situation of SITUATIONS) {
+      const key = `banter.${tone}.${situation}`;
+      assert.ok(Array.isArray(en[key]) && en[key].length >= 3, `${key} needs a few lines`);
+      for (const line of en[key]) assert.ok(Array.from(line).length <= 80, `"${line}" is too long for a speech bubble`);
+    }
 });
 
 test('every error and notice code the server can send has an English message', () => {

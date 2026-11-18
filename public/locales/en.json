@@ -178,6 +178,127 @@
   "chat.title": "Chat",
   "chat.tonk": "TONK!",
 
+  "banter.grumbling.turn": [
+    "Another turn, another ache in my back.",
+    "Mark it in the Annals: dealt rubbish again.",
+    "Your turn. Try not to take all night.",
+    "Cursed cards. Cursed table. Cursed wind.",
+    "I've seen better hands on a gibbet.",
+    "Go on, then. It won't help you."
+  ],
+  "banter.grumbling.ahead": [
+    "Don't get used to it. Luck is a whore.",
+    "Winning, and still I'm not happy.",
+    "The coin's mine for now. The Annals will call it luck.",
+    "Fine. A good run. It won't last.",
+    "I'll take it, though I don't trust it.",
+    "Even a blind crow finds a corpse."
+  ],
+  "banter.grumbling.behind": [
+    "Why do I always get a bad hand?",
+    "My purse weeps and so do I.",
+    "Years in the Company and still this luck.",
+    "The cards hate me. Everybody hates me.",
+    "I'd be better off selling my boots.",
+    "Somebody's cheating. I just can't prove it yet."
+  ],
+  "banter.jovial.turn": [
+    "Your turn, friend. Make it a good one!",
+    "Ha! Fine company and fine cards tonight.",
+    "Plenty of night left and plenty of coin to lose!",
+    "Go on, then. I'll wait. I'm in no hurry.",
+    "A merry table, this. I'm glad of it.",
+    "Whatever comes, we're alive and sitting."
+  ],
+  "banter.jovial.ahead": [
+    "Ha ha! The cards love me tonight!",
+    "Pour another round! I'm feeling lucky.",
+    "Don't worry, I'll leave you your boots.",
+    "What a fine day to be a mercenary!",
+    "I told you it would go my way!",
+    "Cheer up, lads. It's only coin."
+  ],
+  "banter.jovial.behind": [
+    "Ha! Lose some, lose more. Still, good company.",
+    "Bad luck is only luck that hasn't changed its mind.",
+    "The coins will come back. They always do... mostly.",
+    "It's only money, friends. I've lost worse.",
+    "Never mind. Better cards next hand, I can feel it!",
+    "Ha! Take my coin, I'll take your wine."
+  ],
+  "banter.sly.turn": [
+    "Hehehe.",
+    "Your turn. Think hard, now.",
+    "Oh, I've a lovely little plan.",
+    "Heh. You'll see.",
+    "Take your time. It won't save you.",
+    "Something smells like an easy purse."
+  ],
+  "banter.sly.ahead": [
+    "Hehehehe! Mine, all mine!",
+    "I'm going to win this.",
+    "Such pretty coins. Come to me.",
+    "Do keep playing. You're doing so well, for me.",
+    "Luck? No, no. Skill. Mostly.",
+    "Your purse is looking thin, friend."
+  ],
+  "banter.sly.behind": [
+    "Heh. Let them think they're winning.",
+    "A small loss. A very small loss.",
+    "The cards owe me. They'll pay.",
+    "Laugh now. I'll be laughing last.",
+    "I let you win that one. Honest.",
+    "Cheaters never prosper. Pity I'm not one. Yet."
+  ],
+  "banter.nervous.turn": [
+    "Oh. Is it my turn? Already?",
+    "Do you think this is a good hand? Be honest.",
+    "I don't like how quiet it's got.",
+    "Please, nobody stare at me.",
+    "Your turn. Please be gentle.",
+    "I keep thinking of the Taken. Pass the lamp."
+  ],
+  "banter.nervous.ahead": [
+    "Is... is this really happening? I'm winning?",
+    "It's a trap. It has to be a trap.",
+    "Don't look at my coins. Please.",
+    "Luck like this always costs something.",
+    "Maybe I should stop while I'm ahead.",
+    "Nobody tell the Captain I'm winning."
+  ],
+  "banter.nervous.behind": [
+    "I knew it. I knew this would happen.",
+    "Oh no. Oh no, no, no.",
+    "That's the last of my luck, I swear.",
+    "My pay is spoken for. Truly it is.",
+    "I should have stayed on watch.",
+    "Next hand. Next hand it turns, surely."
+  ],
+  "banter.cold.turn": [
+    "Your move. Make it count.",
+    "I have seen this hand before. It did not end well for you.",
+    "Do be quick. The dead have all the time they need.",
+    "Hmm. Interesting.",
+    "Choose carefully.",
+    "The night is long. Your purse is not."
+  ],
+  "banter.cold.ahead": [
+    "As expected.",
+    "This will be over soon.",
+    "You play like a man who hopes for mercy.",
+    "Everything proceeds as I foresaw.",
+    "Fortune favours those who count.",
+    "Don't be ashamed. Few last this long against me."
+  ],
+  "banter.cold.behind": [
+    "A small setback. Nothing more.",
+    "Savour it. It will not be repeated.",
+    "Hm. I will remember this.",
+    "Luck is a leash. I have slipped worse.",
+    "Enjoy the coin. It is only borrowed.",
+    "Fine. I let the cards believe they matter."
+  ],
+
   "card.ranks": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
 
   "mark.bot": "Bot",

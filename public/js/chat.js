@@ -4,7 +4,7 @@ import { h, persistent } from './dom.js';
 import { state, playerName } from './state.js';
 import { send } from './net.js';
 import { nameTag } from './name-tag.js';
-import { t, tNodes } from './i18n.js';
+import { t, tList, tNodes } from './i18n.js';
 
 const MAX_CHAT_KEPT = 50;
 export const chat = { messages: [], el: null, logEl: null, input: null };
@@ -31,8 +31,13 @@ function buildChat() {
   persistent.set('chat', chat.el);
 }
 
-// Messages the game speaks for a player (see Room.pushChat) are worded here, in the reader's language.
-export const chatText = (m) => (m.kind === 'tonk' ? t('chat.tonk') : m.text);
+// Messages the game speaks for a player (see Room.pushChat) are worded here, in the reader's language. A bot's
+// banter is picked by its place in a list of lines, and the English text it came with covers a list that is missing.
+export const chatText = (m) => {
+  if (m.kind === 'tonk') return t('chat.tonk');
+  if (m.kind === 'banter') return tList(`banter.${m.tone}.${m.situation}`)[m.line] ?? m.text;
+  return m.text;
+};
 
 export function fillChatLog() {
   chat.logEl.replaceChildren(

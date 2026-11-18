@@ -19,6 +19,8 @@ The host of a table can fill empty seats with computer players. In the waiting r
 
 **Dynamic table** (a table rule the host can switch on in the waiting room): after each hand a bot that lost its last coin is replaced by a new one, and now and then (`DYNAMIC_LEAVE_CHANCE` in `server/room.js`) another bot leaves and a new one sits down, each with a short in-lore line in the log (`log.dynLeave.<n>` and `log.dynJoin.<n>` in the locale files). Bots are only ever replaced, never added, so the host decides how many bots play.
 
+**Banter:** at the end of a turn a bot has a `BANTER_CHANCE` (20%) of saying one short line, which shows in the chat and as a bubble on its seat; never more than one per turn, and never the same line twice in a row. Each bot has a tone in `BANTER_TONE` (`server/botbanter.js`: grumbling, jovial, sly, nervous or cold; Silent has none and never speaks), and which list it draws from also depends on how its luck is going (ahead, behind, or neither, from the same confidence that drives its mood). The lines are in the locale files as `banter.<tone>.<situation>` lists, at most 80 characters each so a bubble does not cut them short. A human who is away or disconnected never banters.
+
 Server code changes need a server restart (automatic with `npm run dev`); page changes only need a refresh.
 
 ### How the bots play
@@ -60,7 +62,7 @@ A guest can sit down: **Take over** next to any bot on the scoreboard (also in t
 
 ### Localisation
 
-Every piece of text the player can read lives in `public/locales/<language>.json`, a flat `"dotted.key": "text"` map; English (`en.json`) is the reference and the fallback for anything another language leaves out. It is also the one place to review all the wording of the game. The sections are `common`, `lobby`, `room`, `table`, `status`, `action`, `result`, `log`, `chat`, `rules` (the whole rules dialog, as lists of paragraphs), `bot` (character names), `notice` and `err` (what the server reports). The changelog entries (`public/js/changelog-data.js`) stay in English on purpose.
+Every piece of text the player can read lives in `public/locales/<language>.json`, a flat `"dotted.key": "text"` map; English (`en.json`) is the reference and the fallback for anything another language leaves out. It is also the one place to review all the wording of the game. The sections are `common`, `lobby`, `room`, `table`, `status`, `action`, `result`, `log`, `chat` (and the bots' `banter` lines), `rules` (the whole rules dialog, as lists of paragraphs), `bot` (character names), `notice` and `err` (what the server reports). The changelog entries (`public/js/changelog-data.js`) stay in English on purpose.
 
 - Code uses `t('key', { name })` from `public/js/i18n.js`. Text may hold `{placeholders}`; a key with a `count` parameter picks the plural form from `key.one`, `key.other`, ... (CLDR categories, via `Intl.PluralRules`). `tNodes` is the same but lets a placeholder be a DOM node (a link, a name tag), and `tList` returns a list such as the rules paragraphs or the card rank letters.
 - The language is the saved choice (`localStorage`, key `tonk.lang`), then the browser's language list, then English. A language picker appears in Settings once there is more than one; changing it reloads the page.

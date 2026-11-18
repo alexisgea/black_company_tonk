@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.31.0',
+    date: '2026-11-18',
+    changes: [
+      'Bots now talk now and then: at the end of a turn a bot may say a short line, in the chat and in a bubble on its seat. Each character has its own voice (Croaker grumbles, the Lieutenant is cheerful, Goblin gloats, Case frets, the Lady is cold), and what it says depends on whether it is winning or losing.',
+      'Silent stays silent.',
+    ],
+  },
+  {
     version: '0.30.0',
     date: '2026-11-18',
     changes: [

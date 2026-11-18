@@ -5,6 +5,7 @@ const { pickBot, BOTS } = require('./botnames');
 const { Mind } = require('./botmind');
 const { smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
+const { pickBanter } = require('./botbanter');
 const T = require('./bottuning');
 
 // Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
@@ -110,6 +111,7 @@ class Room {
     this.round = null;
     this.minds = new Map(); // player id -> what that seat's computer player remembers of the hand (see botmind.js)
     this.moods = new Map(); // bot id -> { confidence } how its last hands went; carries over between hands (see updateMoods)
+    this.lastBanter = new Map(); // bot id -> what it last said, so it does not repeat itself (see banter)
     this.handNo = 0;
     this.dealerIdx = 0;
     this.coins = {}; // player id -> coins left
@@ -538,10 +540,12 @@ class Room {
     return this.pushChat(user, text);
   }
 
-  // `kind` marks messages the game speaks for a player (like shouting TONK!), which each client words in its own language.
-  pushChat(user, text, kind = null) {
+  // `kind` marks messages the game speaks for a player (like shouting TONK!), which each client words in its own language;
+  // `extra` is whatever more the client needs for that (see banter).
+  pushChat(user, text, kind = null, extra = null) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
     if (kind) message.kind = kind;
+    if (extra) Object.assign(message, extra);
     if (this.spectators.includes(user)) message.spectator = true;
     if (user.isBot) {
       message.bot = true;
@@ -550,6 +554,16 @@ class Room {
     this.chat.push(message);
     if (this.chat.length > MAX_CHAT) this.chat.shift();
     return message;
+  }
+
+  // Now and then a bot says something at the end of its turn (see botbanter.js). Returns the chat message, or null when
+  // it keeps quiet.
+  banter(bot, rng = Math.random) {
+    if (!bot.isBot) return null;
+    const pick = pickBanter(bot.botId, this.moods.get(bot.id)?.confidence ?? 0, rng, this.lastBanter.get(bot.id));
+    if (!pick) return null;
+    this.lastBanter.set(bot.id, pick.id);
+    return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
   }
 
   reorder(user, cards) {

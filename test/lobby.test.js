@@ -265,6 +265,51 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   assert.equal(lobby.rooms.size, 0);
 });
 
+test('bots: now and then say a line when their turn is over, which everyone gets as chat', async () => {
+  const lobby = new Lobby({ botDelayMs: 5 });
+  const host = connect(lobby, 'Host');
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, host, { t: 'addBot', botId: 'croaker' });
+  for (let i = 2; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
+  const botIds = host
+    .last('room')
+    .room.players.filter((p) => p.isBot)
+    .map((p) => p.id);
+  say(lobby, host, { t: 'startGame' });
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const state = () => host.last('room').room;
+  const realRandom = Math.random;
+  Math.random = () => 0; // every chance comes up
+  try {
+    if (state().status === 'playing' && state().round.phase !== 'tonk') {
+      for (let i = 0; i < 3 && state().status === 'playing'; i++) {
+        const me = host.last('room').you;
+        for (let w = 0; w < 100 && state().status === 'playing' && state().round.turn !== me; w++) await wait(10);
+        if (state().status !== 'playing') break;
+        say(lobby, host, { t: 'action', action: { type: 'draw' } });
+        const hand = state().round.players[me].hand;
+        say(lobby, host, { t: 'action', action: { type: 'discard', card: hand[hand.length - 1] } });
+      }
+      await wait(50);
+    }
+  } finally {
+    Math.random = realRandom;
+  }
+  const spoken = host.inbox.filter((m) => m.t === 'chat' && m.message.kind === 'banter').map((m) => m.message);
+  if (state().log.some((e) => e.type === 'discard' && botIds.includes(e.pid))) {
+    assert.ok(spoken.length > 0, 'a bot spoke');
+    for (const m of spoken) {
+      assert.ok(botIds.includes(m.pid) && m.bot && m.text && m.tone && m.situation);
+      assert.ok(
+        state().chat.some((c) => c.id === m.id),
+        'it is in the chat history too',
+      );
+    }
+  }
+  say(lobby, host, { t: 'leaveGame' });
+});
+
 test('bots: can be removed before and between hands, but not mid-hand', () => {
   const lobby = new Lobby({ botDelayMs: 100000 });
   const host = connect(lobby, 'Host');

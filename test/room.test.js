@@ -287,6 +287,43 @@ test('chat is cleaned, capped and limited to members', () => {
   assert.equal(room.chat.at(-1).text, 'm59');
 });
 
+test('a bot sometimes says a line of its tone, never twice in a row, and Silent and humans never speak', () => {
+  const room = new Room('R', 'Test');
+  const ann = human('Ann');
+  room.join(ann);
+  const croaker = room.addBot('croaker');
+  const silent = room.addBot('silent');
+
+  assert.equal(
+    room.banter(croaker, () => 0.99),
+    null,
+    'the chance did not come up',
+  );
+  assert.equal(
+    room.banter(silent, () => 0),
+    null,
+  );
+  assert.equal(
+    room.banter(ann, () => 0),
+    null,
+  );
+  assert.deepEqual(room.chat, []);
+
+  const first = room.banter(croaker, () => 0);
+  assert.equal(first.kind, 'banter');
+  assert.equal(first.bot, true);
+  assert.equal(first.pid, croaker.id);
+  assert.equal(first.tone, 'grumbling');
+  assert.equal(first.situation, 'turn');
+  assert.equal(first.text, require('../server/i18n').lines('banter.grumbling.turn')[first.line]);
+  assert.notEqual(room.banter(croaker, () => 0).line, first.line);
+
+  room.moods.set(croaker.id, { confidence: -0.5 });
+  assert.equal(room.banter(croaker, () => 0).situation, 'behind');
+  room.moods.set(croaker.id, { confidence: 0.5 });
+  assert.equal(room.banter(croaker, () => 0).situation, 'ahead');
+});
+
 test('a Tonk on the deal waits until it is declared, then shouts TONK! in the chat', () => {
   let checked = 0;
   for (let seed = 1; seed < 300 && checked < 5; seed++) {

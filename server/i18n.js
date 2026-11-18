@@ -15,6 +15,9 @@ function format(template, params) {
 // The English text for `key` (the key itself if it is missing, which the tests catch).
 const text = (key, params) => (typeof en[key] === 'string' ? format(en[key], params) : key);
 
+// The English list of texts for `key` (empty if there is none, which the tests catch).
+const lines = (key) => (Array.isArray(en[key]) ? en[key] : []);
+
 // What goes over the wire for an error or notice: a code the client translates, its parameters,
 // and the English text as a fallback for clients that do not know the code.
 function describe(prefix, code, params) {
@@ -34,4 +37,4 @@ function allTranslations(key) {
   return found;
 }
 
-module.exports = { text, describe, allTranslations };
+module.exports = { text, lines, describe, allTranslations };
