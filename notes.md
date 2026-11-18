@@ -1,16 +1,13 @@
 Todo next
-- add small soldier (maybe a helmet like in dwarf fortress) icon instead of star next to bot name, at star next to room creator
 - add sounds
+- change helmet icon a bit
+- add coin icon
 
 To test
-- turn count down
-- test the kick button
-- check and improve how adding to a spread works
-- test guests -> allow guest to jump in as player
+- check and improve how adding to a suite works
 
 Presentation
 - make the animation pause shorter when drawing -> make a config file for me to tune these values?
-- add players around the table rather than all at the top (maybe)
 - improve the indication of who is playing first? Are the card distributed by a specific player as well? Perhaps to improve the feeling do a small animation of the deck being split, shuffuled and distributed in fron to the palyer doing this.
 - the remove bot button touches the line above
 
@@ -27,16 +24,13 @@ Art
 - add popup borders
 - add BC flag art
 - add card art
-- add table art
+- add table art 
 - add player portrait
 
-Bot banter
-- add bot chat (response when pinged, random chat as they play?)
-- add bot randomly joining and leaving during a game and giving reasons
+
 
 Bot Ai
-- improve bot: keeping pairs and near-runs, remembering discards, and estimating when to go down, not discarding what would help the player. Perhaps tie the behavior to difficulty as well.
-- create bot personalities and randomness in the way they play
+- add bot randomly joining and leaving during a game and giving reasons
 - add cheating somehow -> one eye is bad but cheatscheats but is bad -> also abitlity to accuse the cheater, get cash if right , give cash if false
   
 Features Todo

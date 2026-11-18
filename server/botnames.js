@@ -16,7 +16,7 @@ const BOT_IDS = [
   'hagop',
   'the-lieutenant',
   'goblin',
-  'croacker',
+  'croaker',
 ];
 const BOTS = BOT_IDS.map((id) => ({ id, name: text(`bot.${id}`) }));
 const BOT_NAMES = BOTS.map((b) => b.name);

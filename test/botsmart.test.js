@@ -444,7 +444,7 @@ test('a bot works its move out once per position and plays that same move', () =
 
 test('every bot has a valid profile by id, and the level scales how well it plays but not who it is', () => {
   assert.deepEqual(profileProblems(), []);
-  const bot = { isBot: true, botId: 'croacker', name: 'Croaker' };
+  const bot = { isBot: true, botId: 'croaker', name: 'Croaker' };
   const normal = profileFor(bot);
   const easier = profileFor(bot, 0.5);
   for (const key of ['memory', 'calculating', 'focus']) assert.equal(easier[key], normal[key] / 2);
@@ -454,7 +454,7 @@ test('every bot has a valid profile by id, and the level scales how well it play
   for (const key of ['memory', 'calculating', 'focus']) assert.ok(harder[key] <= 1);
   assert.ok(harder.sloppiness >= 0 && harder.sloppiness < normal.sloppiness);
   assert.deepEqual(
-    profileFor({ isBot: false, botId: 'croacker', name: 'Croaker' }),
+    profileFor({ isBot: false, botId: 'croaker', name: 'Croaker' }),
     profileFor({ isBot: true, botId: 'nobody' }),
     'a human seat gets the stand-in',
   );
@@ -644,6 +644,6 @@ test('think time follows the difficulty of the move: a close call takes longer t
 
   const lobby = new Lobby({ botDelayMs: 1000 });
   const room = { round: { phase: 'draw' } };
-  const seat = { isBot: true, botId: 'croacker' };
+  const seat = { isBot: true, botId: 'croaker' };
   for (let i = 0; i < 20; i++) assert.ok(lobby.thinkMs(room, seat, 0) < lobby.thinkMs(room, seat, 1));
 });
