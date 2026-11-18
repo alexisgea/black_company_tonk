@@ -670,7 +670,8 @@ class Lobby {
       }
       case 'addBot': {
         requireHost(room, user, 'hostOnlyAddBot');
-        room.addBot(msg.botId);
+        if (msg.botId === undefined || msg.botId === null) room.addRandomBot();
+        else room.addBot(msg.botId);
         this.broadcastAll(room);
         break;
       }

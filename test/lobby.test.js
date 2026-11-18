@@ -211,6 +211,33 @@ test('bots: the host can seat a chosen bot, and clients get the bot catalog when
   assert.equal(host.last('error').code, 'unknownBot');
 });
 
+test('bots: a random pick only reserves a seat until the table starts', () => {
+  const lobby = new Lobby();
+  const host = connect(lobby, 'Host');
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, host, { t: 'addBot', botId: 'hagop' });
+  say(lobby, host, { t: 'addBot' });
+  say(lobby, host, { t: 'addBot' });
+  const waiting = host.last('room').room.players;
+  assert.deepEqual(
+    waiting.slice(2).map((p) => [p.isBot, p.botId]),
+    [
+      [true, 'random'],
+      [true, 'random'],
+    ],
+  );
+  say(lobby, host, { t: 'startGame' });
+  const started = host.last('room').room.players;
+  assert.deepEqual(
+    started.map((p) => p.id),
+    waiting.map((p) => p.id),
+  );
+  const ids = started.slice(1).map((p) => p.botId);
+  assert.ok(ids.every((id) => id && id !== 'random') && new Set(ids).size === 3, 'distinct real characters, hagop kept');
+  assert.equal(started[1].botId, 'hagop');
+  say(lobby, host, { t: 'leaveGame' });
+});
+
 test('bots: only the host can add or remove them', () => {
   const lobby = new Lobby();
   const host = connect(lobby, 'Host');

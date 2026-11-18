@@ -53,6 +53,7 @@ const MAX_SPECTATORS = 20;
 const DEFAULT_TONK_TIMEOUT_MS = 15000;
 const ORDINALS = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
 const MAX_PASSWORD = 32;
+const RANDOM_SEAT = { id: 'random', name: 'Random' }; // stands in for a bot until the table starts
 const nameKey = (name) => name.normalize('NFKC').toLowerCase();
 const digest = (text) => crypto.createHash('sha256').update(text).digest();
 // Who a log event is about. A bot also carries its id, so each client can show its name in the player's language.
@@ -175,10 +176,12 @@ class Room {
 
   // Adds a computer player: the character `wanted` (a bot id) or, without one, a random character that is not at the
   // table (nor in `avoid`). It has no connection; the lobby plays its turns. `entrance` is the log event for its arrival.
-  addBot(wanted = null, { avoid = [], entrance = { type: 'join' } } = {}) {
+  addBot(wanted = null, { avoid = [], entrance = { type: 'join' }, random = false } = {}) {
     const taken = new Set(this.players.map((p) => p.botId));
     let pick;
-    if (wanted === null || wanted === undefined) {
+    if (random) {
+      pick = RANDOM_SEAT;
+    } else if (wanted === null || wanted === undefined) {
       pick = pickBot(new Set([...taken, ...avoid]), this.rng);
     } else {
       pick = typeof wanted === 'string' ? BOTS.find((b) => b.id === wanted) : null;
@@ -193,8 +196,26 @@ class Room {
       conn: null,
       room: null,
     };
+    if (random) bot.randomPick = true;
     this.join(bot, entrance);
     return bot;
+  }
+
+  // The host's "Random" pick. Before the first hand it only reserves a seat (shown as "Random") and the character is
+  // chosen when the table starts (see resolveRandomBots), so the host cannot reroll by clearing and clicking again.
+  addRandomBot() {
+    if (this.status !== 'waiting') return this.addBot();
+    return this.addBot(null, { random: true });
+  }
+
+  // Turns every reserved random seat into a real character that is not at the table.
+  resolveRandomBots() {
+    for (const bot of this.players.filter((p) => p.randomPick)) {
+      const pick = pickBot(new Set(this.players.map((p) => p.botId)), this.rng);
+      bot.botId = pick.id;
+      bot.name = pick.name;
+      delete bot.randomPick;
+    }
   }
 
   // Dynamic table: bots that lost every coin are replaced, and now and then a bot gets tired of the table and leaves
@@ -436,6 +457,7 @@ class Room {
       throw new tonk.GameError('onlyHostStarts');
     }
     if (this.players.length < tonk.MIN_PLAYERS) throw new tonk.GameError('notEnoughPlayers', { min: tonk.MIN_PLAYERS });
+    this.resolveRandomBots();
     const n = this.players.length;
     this.dealerIdx = this.handNo === 0 ? Math.floor(this.rng() * n) : (this.dealerIdx + 1) % n;
     this.handNo++;
