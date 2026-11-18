@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.32.0',
+    date: '2026-11-18',
+    changes: [
+      'On phones, opponents now sit two side by side, so a table of five fits as a square.',
+      'The card count and hand total next to opponents\u2019 names are gone; the end-of-hand summary shows the totals.',
+      'Spreads and hands of more than five cards now overlap slightly, like cards on a real table.',
+    ],
+  },
+  {
     version: '0.31.0',
     date: '2026-11-18',
     changes: [

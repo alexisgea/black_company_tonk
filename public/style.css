@@ -180,6 +180,8 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .meld { background: #0003; border-radius: 8px; padding: 6px; }
 .meld.target { outline: 2px solid var(--accent); cursor: pointer; }
 .meld .cards { display: flex; gap: 3px; }
+.meld .cards.tight, .opp .cards.tight { gap: 0; }
+.cards.tight > .card + .card { margin-left: calc(var(--card-w) * -0.45); }
 .meld .label { font-size: 0.75rem; margin-bottom: 4px; }
 
 .me-panel { background: var(--panel); border-radius: 10px; padding: 12px; text-align: center; }
@@ -279,7 +281,6 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .slider-label { width: 6.5rem; }
 .slider-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
 .slider-value { width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
-.broke-line { margin: 4px 0; color: #c4776b; font-style: italic; }
 .log { font-size: 0.8125rem; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
 
 .chat-log { height: 150px; overflow-y: auto; font-size: 0.875rem; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
@@ -353,8 +354,18 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   /* The playable area fills the visible screen; the side panels start below it. */
   .table { gap: 8px; min-height: calc(100vh - 16px); min-height: calc(100dvh - 16px); }
   .center { padding: 0; }
-  .opponents { gap: 8px; }
-  .opp { padding: 6px 10px; }
+  .opponents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .opp { padding: 6px 8px; min-width: 0; }
+  .opp-id { overflow-wrap: anywhere; font-size: 0.875rem; }
+  .opp .card.mini { --card-w: calc(28px * var(--card-scale)); --card-h: calc(39px * var(--card-scale)); font-size: calc(11px * var(--card-scale)); }
+  .opp .cards { gap: 1px; }
+  .opp .melds { gap: 4px; margin-top: 6px; }
+  .opp .meld { padding: 4px; }
+  .opp .meld .cards { gap: 1px; }
+  .opp:nth-child(odd) .bot-pop { left: 0; right: auto; }
+  .opp:nth-child(even) .bot-pop { left: auto; right: 0; }
+  .opp:nth-child(odd) .bubble { left: 8px; right: auto; }
+  .opp:nth-child(even) .bubble { left: auto; right: 8px; }
   .me-panel { padding: 8px; }
   .status { font-size: 1rem; }
   .hand { padding: 14px 0 4px; }

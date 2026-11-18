@@ -20,6 +20,8 @@ const app = document.getElementById('app');
 const chatSlot = () => h('div', { 'data-persist': 'chat' });
 const secondsLeft = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 const URGENT_SECONDS = 15;
+// Rows of more than this many cards overlap slightly, like a real spread.
+const TIGHT_FROM = 5;
 const FEEDBACK_EMAIL = 'alexis@geaxle.com';
 const title = () => h('h1', null, t('app.title'));
 
@@ -385,7 +387,7 @@ function renderTable() {
   const oppEls = opponents.map((id) => {
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
-    const cards = h('div', { class: 'cards' });
+    const cards = h('div', { class: 'cards' + (p.count > TIGHT_FROM ? ' tight' : '') });
     if (p.hand) p.hand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
     else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
     return h(
@@ -406,12 +408,6 @@ function renderTable() {
           'div',
           { class: 'opp-id' },
           h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ` (${t('player.botPlaying')})` : ''),
-          h(
-            'span',
-            { class: 'muted' },
-            ` \u2022 ${t('table.cards', { count: p.count })}`,
-            p.total !== null ? ` \u2022 ${t('table.total', { total: p.total })}` : '',
-          ),
         ),
         botInfo(info, 'opp'),
       ),
@@ -439,7 +435,7 @@ function renderTable() {
           h('div', { class: 'label' }, m.type === 'set' ? t('table.set') : t('table.run')),
           h(
             'div',
-            { class: 'cards' },
+            { class: 'cards' + (m.cards.length > TIGHT_FROM ? ' tight' : '') },
             m.cards.map((c) => cardEl(c, { size: 'mini', zone: 'meld' })),
           ),
         );
@@ -588,7 +584,7 @@ function renderTable() {
   );
 }
 
-// The lore lines the log gets (a bot walking in or out), announced on the table where nobody can miss them.
+// The lore lines the log gets (a bot walking in or out, a player going broke), announced on the table where nobody can miss them.
 function flavorBanner() {
   const lines = flavorEvents().map(formatEvent).filter(Boolean);
   if (!lines.length) return null;
@@ -689,14 +685,12 @@ function renderResult(round) {
       ),
     ),
   );
-  const brokeLines = (r.broke ?? []).map((b) => h('div', { class: 'broke-line' }, brokeText(nameFor(b.id), b.bot)));
   const canDeal = room.players.length >= room.minPlayers;
   return h(
     'div',
     { class: 'panel result' },
     h('strong', null, headline),
     h('div', { class: 'hands' }, rows),
-    brokeLines,
     state.restartDeadline !== null
       ? h(
           'div',
@@ -912,11 +906,6 @@ function addBotButton() {
     { class: 'secondary', disabled: room.players.length >= room.maxPlayers, onClick: () => send({ t: 'addBot' }) },
     t('room.addBot'),
   );
-}
-
-// The Company's reaction to a player losing their last coin.
-function brokeText(name, bot) {
-  return t(bot ? 'broke.bot' : 'broke.human', { name });
 }
 
 // Table rules: the host edits them in the waiting room, everyone else just sees them.

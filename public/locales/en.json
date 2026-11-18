@@ -71,14 +71,11 @@
   "room.watching": "Watching",
 
   "table.botTakesOver": "Bot takes over in {seconds}s",
-  "table.cards.one": "{count} card",
-  "table.cards.other": "{count} cards",
   "table.discard": "Discard",
   "table.discardHere": "Discard here",
   "table.draw": "Draw ({count})",
   "table.run": "run",
   "table.set": "set",
-  "table.total": "total {total}",
 
   "status.handValue": "Hand value: {total}",
   "status.joinNextHand": "Join the next hand when this one ends.",
@@ -117,9 +114,6 @@
   "result.tonk": "{name} has TONK and everyone pays double!",
   "result.tonkDraw": "More than one player has TONK – the hand is a draw and no coins change hands.",
   "result.waitingForPlayers": "Waiting for players…",
-
-  "broke.bot": "{name} lost every last coin and left the table.",
-  "broke.human": "{name} lost every last coin and is out of the game. They watch from the shadows as a guest now.",
 
   "password.locked": "{name} is locked.",
   "password.placeholder": "Table password",
@@ -201,6 +195,36 @@
     "The cards hate me. Everybody hates me.",
     "I'd be better off selling my boots.",
     "Somebody's cheating. I just can't prove it yet."
+  ],
+  "banter.grumbling.nudge": [
+    "Well? What are you waiting for?",
+    "I'm getting old over here.",
+    "Any day now. Any year.",
+    "Did you fall asleep on your cards?"
+  ],
+  "banter.jovial.nudge": [
+    "Ha! Is it the cards or the wine slowing you?",
+    "Come on, friend, the night's not getting younger!",
+    "What are you waiting for? Christmas?",
+    "Take your time! ...Or, you know, don't."
+  ],
+  "banter.sly.nudge": [
+    "Hehe. Having trouble, are we?",
+    "Don't mind us. We'll just wait. Forever.",
+    "What are you waiting for?",
+    "Thinking so hard. It won't help."
+  ],
+  "banter.nervous.nudge": [
+    "Um... is it still your turn?",
+    "What are you waiting for? Please say it's nothing.",
+    "The silence is worse than the cards.",
+    "Are you stuck? Should we worry?"
+  ],
+  "banter.cold.nudge": [
+    "Time passes. Do not waste it.",
+    "What are you waiting for?",
+    "Hesitation has buried better players.",
+    "I grow tired of waiting."
   ],
   "banter.jovial.turn": [
     "Your turn, friend. Make it a good one!",
