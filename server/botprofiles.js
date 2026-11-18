@@ -21,9 +21,9 @@
 //   thinkSpeed    how fast it thinks: 1 is the table's normal pace, above 1 is quicker, below 1 is slower. (Not part of
 //                 the level.)
 //
-// Each entry also has a `rank` (rookie, regular, veteran or expert): how strong the character turns out to be compared
-// with the others. It is not a knob and changes nothing in the game; `npm run dev:tournament` rewrites it here from
-// the ranking it measures (the best quarter are experts, the worst quarter rookies), so do not edit it by hand.
+// Each entry also has a `rank` (rookie, regular, veteran or expert): a label for how strong the character is compared
+// with the others. It is not a knob and changes nothing in the game. Set it by hand, and keep it in line with the
+// strongest-first order of `BOT_IDS` in botnames.js (a quarter of the roster each, best to worst).
 //
 // Each knob has its own job; the logic that turns them into behaviour is in botmind.js and botsmart.js, and every
 // fixed number behind it is in bottuning.js. Profiles are keyed by the bot's id from botnames.js, not by its display
@@ -164,15 +164,15 @@ const PROFILES = {
     moodSwing: 0.3,
     thinkSpeed: 1.15,
   },
-  // Annalist: Whines about every hand while quietly counting every discard: conservative, observant, and dangerous over long sessions.
+  // Annalist: Whines about every hand while quietly counting every discard: observant, and dangerous over long sessions.
   croaker: {
     rank: 'expert',
     memory: 0.9,
-    calculating: 0.85,
+    calculating: 0.9,
     tunnelVision: 0.1,
-    sloppiness: 0.08,
-    riskTaker: 0.3,
-    moodSwing: 0.28,
+    sloppiness: 0.1,
+    riskTaker: 0.5,
+    moodSwing: 0.2,
     thinkSpeed: 1.05,
   },
 };
