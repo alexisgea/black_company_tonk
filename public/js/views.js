@@ -4,6 +4,7 @@ import { send, sendAction, sendHello, connect, enterTable } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
+import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
 import { nameTag } from './name-tag.js';
 import { avatar } from './avatar.js';
@@ -361,7 +362,7 @@ function renderSide(leaveBtn) {
     ),
     spectatorsPanel(),
     chatSlot(),
-    h('div', { class: 'panel' }, h('strong', null, t('room.log')), logEl),
+    sidePanel('log', t('room.log'), logEl),
     footerActions(),
   );
 }

@@ -151,8 +151,9 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .table-head { min-width: 0; line-height: 1.25; }
 .table-name { overflow-wrap: anywhere; }
 .side .score-row { min-height: 22px; }
-.side .chat-log { height: 80px; margin: 4px 0; }
-.side .log { max-height: min(40vh, 6.5rem); }
+/* Compact by default so the sidebar fits a small window, a little taller where the window has room. */
+.side .chat-log { height: clamp(5rem, 13vh, 13rem); margin: 4px 0; }
+.side .log { max-height: clamp(6.5rem, 18vh, 16rem); margin-top: 4px; }
 .side .footer-actions { margin-bottom: 0; }
 
 /* On a desktop layout the table always fits the window; whatever is taller scrolls inside its own column. */
@@ -282,6 +283,17 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .slider-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
 .slider-value { width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
 .log { font-size: 0.8125rem; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+
+/* Foldable chat and log panels: an arrow in the heading and a handle at the bottom (see side-panels.js). */
+.panel-head { display: flex; align-items: center; gap: 4px; }
+.panel .collapse-btn { background: none; border: 0; color: inherit; padding: 6px 8px; margin: -6px 0 -6px -8px; line-height: 1; }
+.collapse-btn .arrow { display: block; width: 0; height: 0; border: 5px solid transparent; border-top: 7px solid currentColor; border-bottom: 0; transition: transform 0.15s; }
+.collapsible.collapsed .collapse-btn .arrow { transform: rotate(-90deg); }
+.collapsible.collapsed .panel-body { display: none; }
+.resize-handle { height: 10px; margin: 2px -4px -6px; cursor: ns-resize; touch-action: none; display: flex; align-items: center; justify-content: center; }
+.resize-handle::before { content: ''; width: 36px; height: 3px; border-radius: 2px; background: currentColor; opacity: 0.3; }
+.resize-handle:hover::before, .resize-handle:focus-visible::before { opacity: 0.7; }
+.resize-handle:focus-visible { outline: none; }
 
 .chat-log { height: 150px; overflow-y: auto; font-size: 0.875rem; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
 .chat-msg.mine strong { color: var(--accent); }

@@ -4,6 +4,7 @@ import { h, persistent } from './dom.js';
 import { state, playerName } from './state.js';
 import { send } from './net.js';
 import { nameTag } from './name-tag.js';
+import { sidePanel } from './side-panels.js';
 import { t, tList, tNodes } from './i18n.js';
 
 const MAX_CHAT_KEPT = 50;
@@ -27,7 +28,7 @@ function buildChat() {
     chat.input,
     h('button', { type: 'submit' }, t('chat.send')),
   );
-  chat.el = h('div', { class: 'panel chat' }, h('strong', null, t('chat.title')), chat.logEl, form);
+  chat.el = sidePanel('chat', t('chat.title'), chat.logEl, form);
   persistent.set('chat', chat.el);
 }
 

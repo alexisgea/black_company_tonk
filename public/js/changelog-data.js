@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.35.0',
+    date: '2026-11-18',
+    changes: [
+      'The chat and the log in the side panel are roomier on taller windows, and still compact on small ones.',
+      'Each of them has an arrow in its heading to fold it away, and a handle at the bottom to drag (or use the arrow keys) to the height you like; double-click the handle to go back to the default. The browser remembers your choice.',
+    ],
+  },
+  {
     version: '0.34.0',
     date: '2026-11-18',
     changes: [

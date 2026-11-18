@@ -115,6 +115,10 @@
   "result.tonkDraw": "More than one player has TONK – the hand is a draw and no coins change hands.",
   "result.waitingForPlayers": "Waiting for players…",
 
+  "panel.collapse": "Fold away",
+  "panel.expand": "Unfold",
+  "panel.resize": "Drag to resize, double-click to reset",
+
   "password.locked": "{name} is locked.",
   "password.placeholder": "Table password",
   "password.required": "Please enter the password",
