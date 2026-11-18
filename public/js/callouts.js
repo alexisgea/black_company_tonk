@@ -43,7 +43,7 @@ function scheduleBubbleSweep(onExpire) {
 export function bubbleEl(pid) {
   const b = bubbles.get(pid);
   if (!b || b.until <= Date.now()) return null;
-  return h('span', { class: 'bubble', 'data-bubble': `${pid}:${b.id}`, role: 'status' }, b.text);
+  return h('span', { class: 'bubble', 'data-bubble': `${pid}:${b.id}`, role: 'status' }, h('span', { class: 'bubble-text' }, b.text));
 }
 
 export function clearCallouts() {

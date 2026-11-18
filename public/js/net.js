@@ -127,7 +127,11 @@ function onMessage(msg) {
       clearCallouts();
       if (state.invite) followInvite();
       break;
-    case 'room':
+    case 'room': {
+      // Shouting TONK! is not sent as a chat message of its own: it arrives with the table, so its bubble is raised here.
+      const sameTable = state.room?.id === msg.room.id;
+      const lastSeen = sameTable ? (chat.messages[chat.messages.length - 1]?.id ?? -1) : Infinity;
+      for (const m of msg.room.chat) if (m.id > lastSeen && m.kind === 'tonk') showBubble(m.pid, m.id, chatText(m), render);
       state.pendingJoin = null;
       state.passwordPrompt = null;
       state.invite = null;
@@ -145,6 +149,7 @@ function onMessage(msg) {
       if (state.confirmKick && ![...msg.room.players, ...msg.room.spectators].some((p) => p.id === state.confirmKick))
         state.confirmKick = null;
       break;
+    }
     case 'chat':
       addChatMessage(msg.message);
       // Only a player at the table has a character to speak from. Everything else skips the repaint, which keeps

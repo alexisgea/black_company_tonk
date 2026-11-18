@@ -17,6 +17,7 @@ const CHAT_BURST = 5; // messages allowed per window
 const CHAT_WINDOW_MS = 5000;
 const PASSWORD_GUESSES = 5; // wrong table passwords allowed per window
 const PASSWORD_WINDOW_MS = 60000;
+const MAX_NUDGES = 3; // times the bots hurry a player along in one turn
 // eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
@@ -48,6 +49,7 @@ class Lobby {
   // It only applies when at least two humans play; a lone human with bots is covered by roomIdleMs instead.
   // turnWarningMs: only the last part of the turn timeout is shown to the player as a countdown.
   // restartMs: when the last human player goes broke, the table stays open this long so they can restart it (0 = close at once).
+  // nudgeMs: a connected human who has not moved after this long gets hurried along by a bot (0 = never).
   constructor({
     graceMs = 60000,
     rng = Math.random,
@@ -60,7 +62,9 @@ class Lobby {
     turnTimeoutMs = 120000,
     turnWarningMs = 60000,
     restartMs = 60000,
+    nudgeMs = 25000,
   } = {}) {
+    this.nudgeMs = nudgeMs;
     this.restartMs = restartMs;
     this.tonkTimeoutMs = tonkTimeoutMs;
     this.turnTimeoutMs = turnTimeoutMs;
@@ -193,6 +197,7 @@ class Lobby {
       return;
     }
     if (!this.isAuto(room, seat)) {
+      this.scheduleNudge(room, seat);
       this.scheduleTurnTimer(room, seat);
       return;
     }
@@ -267,7 +272,7 @@ class Lobby {
   // After a pause the turn carries on with the time it had left.
   scheduleTurnTimer(room, seat) {
     if (!this.turnTimerApplies(room)) {
-      this.clearTurnTimer(room);
+      this.clearCountdown(room);
       return;
     }
     const key = `${room.handNo}:${room.round.turnNo}:${seat.id}`;
@@ -295,10 +300,45 @@ class Lobby {
   }
 
   clearTurnTimer(room) {
+    this.clearCountdown(room);
+    this.clearNudge(room);
+  }
+
+  clearCountdown(room) {
     clearTimeout(room.turnTimer);
     room.turnTimer = null;
     room.turnKey = null;
     room.turnDeadline = null;
+  }
+
+  clearNudge(room) {
+    clearTimeout(room.nudgeTimer);
+    room.nudgeTimer = null;
+    room.nudgeKey = null;
+  }
+
+  // While a connected human takes their turn, the bots grow impatient: every nudgeMs one of them says so, up to
+  // MAX_NUDGES times a turn. Applies with or without the turn timer.
+  scheduleNudge(room, seat) {
+    if (!this.nudgeMs || !room.players.some((p) => p.isBot)) return;
+    const key = `${room.handNo}:${room.round.turnNo}:${seat.id}`;
+    if (room.nudgeKey === key) return;
+    clearTimeout(room.nudgeTimer);
+    room.nudgeKey = key;
+    const wait = (count) => {
+      room.nudgeTimer = setTimeout(
+        this.guarded('Nudge', () => {
+          room.nudgeTimer = null;
+          if (!this.rooms.has(room.id) || room.nudgeKey !== key || room.paused) return;
+          const said = room.nudge(this.rng);
+          if (said) for (const p of room.audience) this.send(p.conn, { t: 'chat', message: said });
+          if (count + 1 < MAX_NUDGES) wait(count + 1);
+        }),
+        this.nudgeMs,
+      );
+      room.nudgeTimer.unref?.();
+    };
+    wait(0);
   }
 
   // The player takes their seat back from the bot (by acting, or with the "take back control" button).

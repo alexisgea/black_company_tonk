@@ -1014,6 +1014,33 @@ test('turn timer: a lone human playing against bots has no turn timer', async ()
   throw new Error('no suitable deal found');
 });
 
+test('nudge: bots hurry along a player who dawdles, a few times a turn, and stop once they move', async () => {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const lobby = new Lobby({ nudgeMs: 20, turnTimeoutMs: 0, botDelayMs: 100000 });
+    const host = connect(lobby, 'Solo');
+    say(lobby, host, { t: 'createGame' });
+    say(lobby, host, { t: 'addBot', botId: 'croaker' });
+    for (let i = 2; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot', botId: 'otto' });
+    say(lobby, host, { t: 'startGame' });
+    const { room, you } = host.last('room');
+    if (room.round.phase === 'tonk' || room.round.turn !== you) continue;
+    const nudges = () => host.inbox.filter((m) => m.t === 'chat' && m.message.situation === 'nudge').map((m) => m.message);
+    await wait(150);
+    assert.equal(nudges().length, 3, 'three nudges, no more');
+    for (const m of nudges()) assert.ok(m.bot && m.kind === 'banter' && m.pid !== you && m.tone && m.text);
+    assert.ok([...lobby.rooms.values()][0].chat.some((c) => c.situation === 'nudge'));
+    say(lobby, host, { t: 'leaveGame' });
+    return;
+  }
+  throw new Error('no suitable deal found');
+});
+
+test('nudge: nothing is said when nudgeMs is 0', async () => {
+  const quiet = playingGame({ nudgeMs: 0, turnTimeoutMs: 0, botDelayMs: 100000 }, 1);
+  await wait(60);
+  assert.ok(!quiet.state().chat.some((c) => c.situation === 'nudge'));
+});
+
 test('pause: only the host can pause, nobody can move meanwhile, and the turn timer carries on afterwards', async () => {
   const { lobby, humans, state } = playingGame({ turnTimeoutMs: 400, botDelayMs: 100000 }, 1);
   const [host, bob] = humans;

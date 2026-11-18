@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.34.0',
+    date: '2026-11-18',
+    changes: [
+      'The "TONK!" shout now shows as a speech bubble on the player who declared it.',
+      'Speech bubbles have a small pointy tail towards the player who is talking, like in a comic.',
+      'When a player takes a long time on their turn, the bots at the table now hurry them along ("What are you waiting for?").',
+    ],
+  },
+  {
     version: '0.33.1',
     date: '2026-11-18',
     changes: ['The Random bot card now reserves a seat marked "Random"; the actual bot is picked when the table starts.'],

@@ -5,7 +5,7 @@ const { pickBot, BOTS } = require('./botnames');
 const { Mind } = require('./botmind');
 const { smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
-const { pickBanter } = require('./botbanter');
+const { pickBanter, pickNudge, BANTER_TONE } = require('./botbanter');
 const T = require('./bottuning');
 
 // Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
@@ -583,6 +583,17 @@ class Room {
   banter(bot, rng = Math.random) {
     if (!bot.isBot) return null;
     const pick = pickBanter(bot.botId, this.moods.get(bot.id)?.confidence ?? 0, rng, this.lastBanter.get(bot.id));
+    if (!pick) return null;
+    this.lastBanter.set(bot.id, pick.id);
+    return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
+  }
+
+  // One of the bots at the table tells the player whose turn it is to hurry up. Null when no bot has anything to say.
+  nudge(rng = Math.random) {
+    const speakers = this.players.filter((p) => p.isBot && BANTER_TONE[p.botId]);
+    const bot = speakers[Math.floor(rng() * speakers.length)];
+    if (!bot) return null;
+    const pick = pickNudge(bot.botId, rng, this.lastBanter.get(bot.id));
     if (!pick) return null;
     this.lastBanter.set(bot.id, pick.id);
     return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });

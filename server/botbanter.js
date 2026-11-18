@@ -8,7 +8,7 @@
 const { lines } = require('./i18n');
 
 const TONES = ['grumbling', 'jovial', 'sly', 'nervous', 'cold'];
-const SITUATIONS = ['turn', 'ahead', 'behind'];
+const SITUATIONS = ['turn', 'ahead', 'behind', 'nudge']; // 'nudge' is not a mood: it is what they say to a player who dawdles
 
 const BANTER_TONE = {
   'the-lady': 'cold',
@@ -38,7 +38,16 @@ const situationFor = (confidence) => (confidence >= MOOD_EDGE ? 'ahead' : confid
 function pickBanter(botId, confidence, rng = Math.random, last = null) {
   const tone = BANTER_TONE[botId];
   if (!tone || rng() >= BANTER_CHANCE) return null;
-  const situation = situationFor(confidence);
+  return pickLine(tone, situationFor(confidence), rng, last);
+}
+
+// What a bot says to hurry along the player whose turn it is (always, when it has a tone to say it in).
+const pickNudge = (botId, rng = Math.random, last = null) => {
+  const tone = BANTER_TONE[botId];
+  return tone ? pickLine(tone, 'nudge', rng, last) : null;
+};
+
+function pickLine(tone, situation, rng, last) {
   const pool = lines(`banter.${tone}.${situation}`);
   const choices = pool.map((_, i) => i).filter((i) => `${tone}.${situation}.${i}` !== last);
   if (!choices.length) return null;
@@ -46,4 +55,4 @@ function pickBanter(botId, confidence, rng = Math.random, last = null) {
   return { tone, situation, line, text: pool[line], id: `${tone}.${situation}.${line}` };
 }
 
-module.exports = { BANTER_TONE, BANTER_CHANCE, TONES, SITUATIONS, pickBanter };
+module.exports = { BANTER_TONE, BANTER_CHANCE, TONES, SITUATIONS, pickBanter, pickNudge };

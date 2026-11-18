@@ -294,12 +294,19 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   position: absolute; z-index: 6; width: max-content; max-width: min(16rem, 90vw); padding: 6px 10px; border-radius: 10px;
   background: #e8dfcb; color: #1b1c1d; border: 1px solid var(--accent); box-shadow: 0 4px 12px #0008;
   font-size: 0.9375rem; line-height: 1.25; text-align: left; overflow-wrap: anywhere; pointer-events: none;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
   animation: bubble-in 0.15s ease-out, bubble-out 0.4s ease-in 5.6s forwards;
 }
-.opp .bubble { top: calc(100% + 6px); left: 12px; }
+.bubble-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+/* The pointy part, like a comic: a square turned on its corner, edged only where it sticks out of the bubble. */
+.bubble::after {
+  content: ''; position: absolute; width: 10px; height: 10px; background: #e8dfcb; rotate: 45deg;
+  top: -6px; left: 16px; border: 1px solid var(--accent); border-right: 0; border-bottom: 0;
+}
+.opp .bubble { top: calc(100% + 8px); left: 12px; }
 .opp:last-child .bubble { left: auto; right: 12px; }
-.me-panel .bubble { bottom: calc(100% + 6px); left: 50%; translate: -50% 0; }
+.opp:last-child .bubble::after { left: auto; right: 16px; }
+.me-panel .bubble { bottom: calc(100% + 8px); left: 50%; translate: -50% 0; }
+.me-panel .bubble::after { top: auto; bottom: -6px; left: calc(50% - 5px); border: 1px solid var(--accent); border-left: 0; border-top: 0; }
 @keyframes bubble-in { from { opacity: 0; transform: translateY(4px) scale(0.95); } }
 @keyframes bubble-out { to { opacity: 0; } }
 
@@ -366,6 +373,8 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   .opp:nth-child(even) .bot-pop { left: auto; right: 0; }
   .opp:nth-child(odd) .bubble { left: 8px; right: auto; }
   .opp:nth-child(even) .bubble { left: auto; right: 8px; }
+  .opp:nth-child(odd) .bubble::after { left: 16px; right: auto; }
+  .opp:nth-child(even) .bubble::after { left: auto; right: 16px; }
   .me-panel { padding: 8px; }
   .status { font-size: 1rem; }
   .hand { padding: 14px 0 4px; }

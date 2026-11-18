@@ -324,6 +324,18 @@ test('a bot sometimes says a line of its tone, never twice in a row, and Silent 
   assert.equal(room.banter(croaker, () => 0).situation, 'ahead');
 });
 
+test('a bot can nudge a slow player, Silent never does, and it varies its lines', () => {
+  const room = new Room('R', 'Test');
+  room.join(human('Ann'));
+  assert.equal(room.nudge(), null, 'no bot at the table');
+  room.addBot('silent');
+  assert.equal(room.nudge(), null, 'Silent has nothing to say');
+  const croaker = room.addBot('croaker');
+  const first = room.nudge(() => 0);
+  assert.deepEqual([first.kind, first.pid, first.tone, first.situation], ['banter', croaker.id, 'grumbling', 'nudge']);
+  assert.notEqual(room.nudge(() => 0).line, first.line);
+});
+
 test('a Tonk on the deal waits until it is declared, then shouts TONK! in the chat', () => {
   let checked = 0;
   for (let seed = 1; seed < 300 && checked < 5; seed++) {
