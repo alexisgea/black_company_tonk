@@ -1,5 +1,6 @@
 import { state, toast, tableName } from './state.js';
-import { chat, addChatMessage } from './chat.js';
+import { chat, addChatMessage, chatText } from './chat.js';
+import { showBubble, noteFlavor, clearCallouts } from './callouts.js';
 import { render } from './views.js';
 import { t, serverText } from './i18n.js';
 
@@ -123,6 +124,7 @@ function onMessage(msg) {
       state.room = null;
       state.view = 'lobby';
       chat.messages = [];
+      clearCallouts();
       if (state.invite) followInvite();
       break;
     case 'room':
@@ -137,13 +139,20 @@ function onMessage(msg) {
       state.turnWarningMs = msg.room.turnWarningMs ?? Infinity;
       state.view = 'room';
       chat.messages = msg.room.chat;
+      noteFlavor(msg.room.log, render);
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
       if (state.confirmKick && ![...msg.room.players, ...msg.room.spectators].some((p) => p.id === state.confirmKick))
         state.confirmKick = null;
       break;
     case 'chat':
-      addChatMessage(msg.message); // no full re-render: keeps typing and drags undisturbed
+      addChatMessage(msg.message);
+      // Only a player at the table has a character to speak from. Everything else skips the repaint, which keeps
+      // typing and drags undisturbed (a drag holds the repaint back anyway).
+      if (state.room?.players.some((p) => p.id === msg.message.pid)) {
+        showBubble(msg.message.pid, msg.message.id, chatText(msg.message), render);
+        render();
+      }
       return;
     case 'kicked':
       state.confirmKick = null;

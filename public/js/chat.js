@@ -32,7 +32,7 @@ function buildChat() {
 }
 
 // Messages the game speaks for a player (see Room.pushChat) are worded here, in the reader's language.
-const chatText = (m) => (m.kind === 'tonk' ? t('chat.tonk') : m.text);
+export const chatText = (m) => (m.kind === 'tonk' ? t('chat.tonk') : m.text);
 
 export function fillChatLog() {
   chat.logEl.replaceChildren(

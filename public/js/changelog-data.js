@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.30.0',
+    date: '2026-11-18',
+    changes: [
+      'What a player says in the chat now also pops up for a few seconds in a small bubble on their seat at the table (long messages are shortened).',
+      'When a bot walks in or out of a dynamic table, the line from the log is also shown on the table for a few seconds.',
+    ],
+  },
+  {
     version: '0.29.2',
     date: '2026-11-18',
     changes: ['The rules now say that emptying your hand paying double is a house rule: the original rules pay the normal bet.'],

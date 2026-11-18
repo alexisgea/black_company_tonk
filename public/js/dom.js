@@ -46,7 +46,7 @@ export const persistent = {
 
 const FIELDS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 const USER_STATE_ATTRS = new Set(['value', 'checked']);
-const KEY_ATTRS = ['data-persist', 'data-card', 'data-player', 'data-pile', 'id'];
+const KEY_ATTRS = ['data-persist', 'data-card', 'data-player', 'data-pile', 'data-bubble', 'data-flavor', 'id'];
 
 function keyOf(node) {
   if (node.nodeType !== 1) return null;

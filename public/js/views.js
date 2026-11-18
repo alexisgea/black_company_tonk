@@ -4,6 +4,7 @@ import { send, sendAction, sendHello, connect, enterTable } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
+import { bubbleEl, flavorEvents } from './callouts.js';
 import { nameTag } from './name-tag.js';
 import { avatar } from './avatar.js';
 import { botGrid, botLabel, botInfo } from './bot-picker.js';
@@ -416,6 +417,7 @@ function renderTable() {
       ),
       cards,
       meldsOf(id),
+      bubbleEl(id),
     );
   });
 
@@ -560,6 +562,7 @@ function renderTable() {
     'div',
     { class: 'table' },
     h('div', { class: 'opponents' }, oppEls),
+    flavorBanner(),
     h('div', { class: 'center' }, h('div', { class: 'piles' }, deck, discard)),
     over ? renderResult(round) : null,
     inHand
@@ -573,13 +576,26 @@ function renderTable() {
           h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
+          bubbleEl(state.you),
         )
       : h(
           'div',
           { class: 'me-panel' },
           h('div', { class: 'status' }, isSpectator() ? status || t('status.watchingTable') : status || t('status.joinNextHand')),
           isSpectator() && !over ? h('div', { class: 'row' }, freeSeatButton()) : null,
+          bubbleEl(state.you),
         ),
+  );
+}
+
+// The lore lines the log gets (a bot walking in or out), announced on the table where nobody can miss them.
+function flavorBanner() {
+  const lines = flavorEvents().map(formatEvent).filter(Boolean);
+  if (!lines.length) return null;
+  return h(
+    'div',
+    { class: 'flavor-banner', 'data-flavor': 'banner', role: 'status' },
+    lines.map((line) => h('div', null, line)),
   );
 }
 
