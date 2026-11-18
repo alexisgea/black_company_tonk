@@ -47,6 +47,7 @@ class Lobby {
   // turnTimeoutMs: a connected player who takes longer than this on their turn is replaced by a bot (0 = never).
   // It only applies when at least two humans play; a lone human with bots is covered by roomIdleMs instead.
   // turnWarningMs: only the last part of the turn timeout is shown to the player as a countdown.
+  // restartMs: when the last human player goes broke, the table stays open this long so they can restart it (0 = close at once).
   constructor({
     graceMs = 60000,
     rng = Math.random,
@@ -58,7 +59,9 @@ class Lobby {
     tonkTimeoutMs = 15000,
     turnTimeoutMs = 120000,
     turnWarningMs = 60000,
+    restartMs = 60000,
   } = {}) {
+    this.restartMs = restartMs;
     this.tonkTimeoutMs = tonkTimeoutMs;
     this.turnTimeoutMs = turnTimeoutMs;
     this.turnWarningMs = Math.min(turnWarningMs, turnTimeoutMs);
@@ -113,17 +116,23 @@ class Lobby {
 
   broadcastRoom(room) {
     if (this.handleBroke(room)) return;
+    if (room.restartDeadline && room.humans.length > 0) this.endRestartWindow(room); // somebody sat down again
     this.scheduleBot(room); // first, so the views below already carry the new turn deadline
     for (const user of room.audience) this.send(user.conn, room.view(user));
   }
 
-  // Tells the humans who just lost their last coin that they are guests now. If no human is left
-  // playing, the table is closed. Returns true if it was closed.
+  // Tells the humans who just lost their last coin that they are guests now. If no human is left playing, the
+  // table is closed, or kept open for restartMs for the ones who just lost. Returns true if it was closed.
   handleBroke(room) {
     const broke = room.takeBroke();
     if (broke.length && room.humans.length === 0) {
-      this.closeRoom(room, 'closedAllBroke');
-      return true;
+      // The last human player is out. Whoever is still connected gets a moment to see the last hand and restart the table.
+      const staying = broke.filter((u) => !u.isBot && u.conn);
+      if (!staying.length || !this.restartMs) {
+        this.closeRoom(room, 'closedAllBroke');
+        return true;
+      }
+      this.openRestartWindow(room, staying);
     }
     for (const user of broke) {
       if (user.isBot) continue;
@@ -355,8 +364,31 @@ class Lobby {
     room.tonkBotTimer = null;
   }
 
+  // Keeps the table open for restartMs after its last human player went broke (see handleBroke).
+  openRestartWindow(room, users) {
+    room.restartIds = new Set(users.map((u) => u.id));
+    room.restartDeadline = Date.now() + this.restartMs;
+    clearTimeout(room.restartTimer);
+    room.restartTimer = setTimeout(
+      this.guarded('Restart window', () => {
+        room.restartTimer = null;
+        if (this.rooms.has(room.id) && room.restartDeadline) this.closeRoom(room, 'closedAllBroke');
+      }),
+      this.restartMs,
+    );
+    room.restartTimer.unref?.();
+  }
+
+  endRestartWindow(room) {
+    clearTimeout(room.restartTimer);
+    room.restartTimer = null;
+    room.clearRestart();
+  }
+
   deleteRoom(room) {
     clearTimeout(room.botTimer);
+    clearTimeout(room.restartTimer);
+    room.restartTimer = null;
     this.clearTonkTimer(room);
     this.clearTurnTimer(room);
     this.rooms.delete(room.id);
@@ -418,11 +450,13 @@ class Lobby {
     if (!room) return;
     room.leave(user, reason);
     user.away = false;
-    if (room.humans.length === 0 && room.spectators.length > 0) {
+    room.restartIds.delete(user.id);
+    // With nobody left who could restart the table, it is over (while someone can, the restart timer decides).
+    if (room.humans.length === 0 && room.restartIds.size === 0 && room.spectators.length > 0) {
       this.closeRoom(room, 'closedEmpty');
       return;
     }
-    if (room.humans.length === 0) this.deleteRoom(room);
+    if (room.humans.length === 0 && room.restartIds.size === 0) this.deleteRoom(room);
     else this.broadcastRoom(room);
     this.broadcastLobby();
   }
@@ -576,6 +610,14 @@ class Lobby {
       case 'startGame': {
         requireRoom(room);
         room.startHand(user);
+        this.broadcastAll(room);
+        break;
+      }
+      case 'restartTable': {
+        requireRoom(room);
+        room.restart(user);
+        this.endRestartWindow(room);
+        room.touch();
         this.broadcastAll(room);
         break;
       }

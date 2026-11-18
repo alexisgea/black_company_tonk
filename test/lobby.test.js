@@ -291,6 +291,71 @@ function playingGame(opts, moverIndex) {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// A solo human at a table with bots, in a hand that is forced to end with the human out of coins.
+function soloGoesBroke(opts) {
+  const lobby = new Lobby({ botDelayMs: 100000, ...opts });
+  const host = connect(lobby, 'Host');
+  say(lobby, host, { t: 'createGame' });
+  for (let i = 0; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot' });
+  say(lobby, host, { t: 'startGame' });
+  const room = [...lobby.rooms.values()][0];
+  const hostId = host.last('welcome').id;
+  room.coins[hostId] = 0;
+  room.round.result = { type: 'aborted', deltas: {}, hands: {}, totals: {} };
+  room.settle();
+  lobby.broadcastRoom(room);
+  return { lobby, host, room, hostId };
+}
+
+test('when the last human goes broke the table stays open for a while and they can restart it', () => {
+  const { lobby, host, room, hostId } = soloGoesBroke({ restartMs: 60000 });
+  assert.ok(lobby.rooms.has(room.id));
+  assert.equal(host.last('closed'), undefined);
+  let view = host.last('room').room;
+  assert.ok(view.restartMsLeft > 0 && view.canRestart);
+  assert.equal(view.round.result.type, 'aborted');
+
+  say(lobby, host, { t: 'restartTable' });
+  view = host.last('room').room;
+  assert.equal(view.status, 'waiting');
+  assert.equal(view.restartMsLeft, null);
+  assert.equal(view.hostId, hostId);
+  assert.ok(view.players.some((p) => p.id === hostId));
+  assert.ok(view.players.every((p) => p.coins === view.settings.startingCoins));
+  assert.equal(view.spectators.length, 0);
+  assert.equal(room.restartTimer, null);
+
+  say(lobby, host, { t: 'restartTable' });
+  assert.equal(host.last('error').code, 'cannotRestart');
+});
+
+test('a table whose last human went broke closes when nobody restarts it in time', async () => {
+  const { lobby, host, room } = soloGoesBroke({ restartMs: 20 });
+  assert.ok(lobby.rooms.has(room.id));
+  await wait(60);
+  assert.ok(!lobby.rooms.has(room.id));
+  assert.ok(host.last('closed'));
+});
+
+test('a table whose last human went broke closes at once when restarting is switched off', () => {
+  const { lobby, host, room } = soloGoesBroke({ restartMs: 0 });
+  assert.ok(!lobby.rooms.has(room.id));
+  assert.ok(host.last('closed'));
+});
+
+test('only the broke player can restart, and the table closes once they leave', () => {
+  const { lobby, host, room } = soloGoesBroke({ restartMs: 60000 });
+  const guest = connect(lobby, 'Guest');
+  say(lobby, guest, { t: 'watchGame', gameId: room.id });
+  say(lobby, guest, { t: 'restartTable' });
+  assert.equal(guest.last('error').code, 'cannotRestart');
+  say(lobby, guest, { t: 'leaveGame' });
+  assert.ok(lobby.rooms.has(room.id), 'a guest leaving does not close the table');
+  say(lobby, host, { t: 'leaveGame' });
+  assert.ok(!lobby.rooms.has(room.id));
+  assert.equal(room.restartTimer, null);
+});
+
 test('a disconnected player gets the full turn timer, then a bot plays and the seat is kept after the hand is over', async () => {
   const { lobby, humans, state } = playingGame({ graceMs: 10, botDelayMs: 5, turnTimeoutMs: 150 }, 1);
   const bob = humans[1];

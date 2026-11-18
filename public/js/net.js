@@ -131,6 +131,7 @@ function onMessage(msg) {
       state.you = msg.you;
       state.room = msg.room;
       state.tonkDeadline = Date.now() + (msg.room.tonkMsLeft ?? 0);
+      state.restartDeadline = msg.room.restartMsLeft == null ? null : Date.now() + msg.room.restartMsLeft;
       state.turnDeadline = msg.room.turnMsLeft == null ? null : Date.now() + msg.room.turnMsLeft;
       state.turnWarningMs = msg.room.turnWarningMs ?? Infinity;
       state.view = 'room';

@@ -26,6 +26,7 @@ const PUBLIC_LOG_FIELDS = {
   back: ['pid', 'name'],
   pause: ['pid', 'name'],
   unpause: ['pid', 'name'],
+  restart: ['pid', 'name'],
   reshuffle: [],
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
@@ -104,6 +105,8 @@ class Room {
     this.dealerIdx = 0;
     this.coins = {}; // player id -> coins left
     this.newlyBroke = [];
+    this.restartIds = new Set(); // humans who may restart the table after the last human player lost their last coin
+    this.restartDeadline = null; // epoch ms when that table closes if nobody restarts it
     this.log = [];
     this.logSeq = 0; // lets clients tell which events are new
     this.chat = [];
@@ -446,6 +449,35 @@ class Room {
     this.addLog({ type: 'pause', pid: user.id, name: user.name });
   }
 
+  // After the last human player went broke, they can start over with a fresh table: the waiting room, everyone
+  // who was knocked out back at the table with the starting coins. Bots were thrown out and can be added again.
+  restart(user) {
+    if (!this.restartIds.has(user.id) || !this.spectators.includes(user)) throw new tonk.GameError('cannotRestart');
+    const returning = this.spectators.filter((s) => this.restartIds.has(s.id));
+    this.spectators = this.spectators.filter((s) => !this.restartIds.has(s.id));
+    this.clearRestart();
+    this.status = 'waiting';
+    this.round = null;
+    this.handNo = 0;
+    this.dealerIdx = 0;
+    this.minds = new Map();
+    this.moods = new Map();
+    this.paused = false;
+    this.hostId = null;
+    for (const p of this.players) this.coins[p.id] = this.settings.startingCoins;
+    for (const s of returning) {
+      this.coins[s.id] = this.settings.startingCoins;
+      this.players.push(s);
+      this.hostId ??= s.id;
+    }
+    this.addLog({ type: 'restart', pid: user.id, name: user.name });
+  }
+
+  clearRestart() {
+    this.restartIds.clear();
+    this.restartDeadline = null;
+  }
+
   unpause(user) {
     this.requirePlayer(user);
     if (!this.paused) return;
@@ -604,6 +636,8 @@ class Room {
         spectators: this.spectators.map((s) => ({ id: s.id, name: s.name, connected: !!s.conn })),
         round: this.round ? tonk.viewRound(this.round, user.id) : null,
         paused: this.paused,
+        restartMsLeft: this.restartDeadline ? Math.max(0, this.restartDeadline - Date.now()) : null,
+        canRestart: this.restartIds.has(user.id),
         tonkMsLeft: this.pendingTonkers.length ? Math.max(0, this.paused ? (this.tonkLeftMs ?? 0) : this.tonkDeadline - Date.now()) : null,
         turnMsLeft: this.status === 'playing' && this.turnDeadline ? Math.max(0, this.turnDeadline - Date.now()) : null,
         turnWarningMs: this.turnWarningMs,

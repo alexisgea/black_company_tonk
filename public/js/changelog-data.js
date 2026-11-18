@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.24.0',
+    date: '2026-11-18',
+    changes: [
+      'When the last human player loses their last coin, the table no longer closes at once: you can look at the last hand and press "Restart the table" within a minute to start over with fresh coins.',
+    ],
+  },
+  {
     version: '0.23.2',
     date: '2026-11-17',
     changes: [

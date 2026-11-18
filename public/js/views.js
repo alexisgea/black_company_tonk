@@ -565,6 +565,7 @@ function tonkCountdownText() {
 }
 
 const turnTimerText = () => t('table.botTakesOver', { seconds: secondsLeft(state.turnDeadline) });
+const restartText = () => t('result.tableClosesIn', { seconds: secondsLeft(state.restartDeadline) });
 const retryText = () => t('connection.retrying', { seconds: secondsLeft(state.retryAt) });
 
 // The countdown stays hidden until the last part of the turn; the 250 ms ticker below reveals it.
@@ -586,6 +587,8 @@ setInterval(() => {
     turn.hidden = !turnTimerShown();
     turn.classList.toggle('urgent', secondsLeft(state.turnDeadline) <= URGENT_SECONDS);
   }
+  const restart = document.querySelector('.restart-timer');
+  if (restart && state.restartDeadline !== null) restart.textContent = restartText();
   const retry = document.querySelector('.retry-timer');
   if (retry) retry.textContent = retryText();
 }, 250);
@@ -632,18 +635,25 @@ function renderResult(round) {
     h('strong', null, headline),
     h('div', { class: 'hands' }, rows),
     brokeLines,
-    isSpectator()
-      ? h('div', { class: 'row' }, freeSeatButton())
-      : h(
+    state.restartDeadline !== null
+      ? h(
           'div',
           { class: 'row' },
-          h(
-            'button',
-            { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
-            canDeal ? t('result.dealNext') : t('result.waitingForPlayers'),
+          room.canRestart ? h('button', { onClick: () => send({ t: 'restartTable' }) }, t('result.restartTable')) : null,
+          h('span', { class: 'muted restart-timer' }, restartText()),
+        )
+      : isSpectator()
+        ? h('div', { class: 'row' }, freeSeatButton())
+        : h(
+            'div',
+            { class: 'row' },
+            h(
+              'button',
+              { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
+              canDeal ? t('result.dealNext') : t('result.waitingForPlayers'),
+            ),
+            addBotButton(),
           ),
-          addBotButton(),
-        ),
   );
 }
 
@@ -914,6 +924,8 @@ function formatEvent(e) {
       return t('log.pause', { who });
     case 'unpause':
       return t('log.unpause', { who });
+    case 'restart':
+      return t('log.restart', { who });
     default:
       return null;
   }
