@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.27.1',
+    date: '2026-11-18',
+    changes: [
+      'Computer players are truer to their characters: Silent ignores the table again, Bomanz has a poor memory again, The Lieutenant remembers better but guesses and slips more, Goblin is sloppier and Cordy a little less so. Their overall strength is about the same.',
+    ],
+  },
+  {
     version: '0.27.0',
     date: '2026-11-18',
     changes: [
