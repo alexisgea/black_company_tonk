@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.29.0',
+    date: '2026-11-18',
+    changes: [
+      'During a game, every player now has a small avatar frame on the left of their name, and bots have an i button that shows their profile, both on the table and in the coins list.',
+      'The bots are listed from strongest to weakest when the host picks one.',
+      'The table rules are easier to read: each rule has its explanation underneath, with a capital letter and a full stop, and the Dynamic table tick box is bigger and more tactile.',
+    ],
+  },
+  {
     version: '0.28.0',
     date: '2026-11-18',
     changes: [

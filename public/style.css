@@ -210,6 +210,33 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 /* The empty frame for profile pictures; shared by seats and the bot grid. */
 .avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 2px solid var(--accent); background: #0003; color: var(--accent); font-family: var(--font-display); font-weight: 700; overflow: hidden; }
 .avatar.empty { border-style: dashed; border-color: #d8d0bf44; background: transparent; }
+.avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
+.opp { position: relative; }
+.opp-head { display: flex; align-items: center; gap: 8px; }
+.opp-id { flex: 1; min-width: 0; }
+.score-row { position: relative; }
+
+/* The setting rows in the table rules: the control, then its explanation with room around it. */
+.setting { margin-bottom: 16px; }
+.setting-hint { margin: 4px 0 0; font-size: 0.9375rem; line-height: 1.35; }
+.tick-row { gap: 12px; cursor: pointer; }
+.tick-row:hover .tick { border-color: var(--accent); }
+.tick {
+  -webkit-appearance: none; appearance: none; flex: none; display: inline-grid; place-content: center; margin: 0;
+  width: 1.6rem; height: 1.6rem; border-radius: 6px; border: 2px solid #b59a5b99; cursor: pointer;
+  background: linear-gradient(#2a2c2d, #1b1c1d); box-shadow: inset 0 2px 4px #000a, 0 1px 0 #ffffff14;
+  transition: transform 0.08s, background 0.15s, border-color 0.15s;
+}
+.tick::after {
+  content: ''; width: 0.4rem; height: 0.8rem; margin-top: -0.12rem; border: solid #1b1c1d; border-width: 0 3px 3px 0;
+  transform: rotate(45deg) scale(0); transition: transform 0.12s ease-out;
+}
+.tick:checked { background: linear-gradient(#cdb06b, #a38848); border-color: var(--accent); box-shadow: inset 0 1px 0 #fff6, 0 1px 3px #0008; }
+.tick:checked::after { transform: rotate(45deg) scale(1); }
+.tick:hover { border-color: var(--accent); }
+.tick:active { transform: scale(0.9); }
+.tick:focus-visible { outline: none; box-shadow: 0 0 0 3px #b59a5b77; }
+.tick:checked:focus-visible { box-shadow: inset 0 1px 0 #fff6, 0 0 0 3px #b59a5b77; }
 .seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 8px; }
 .seat { display: flex; align-items: center; gap: 10px; min-height: 3.4rem; padding: 6px 10px; border-radius: 8px; background: #0003; text-align: left; font-weight: 400; letter-spacing: 0; text-transform: none; }
 .seat.empty { background: transparent; border: 1px dashed #d8d0bf44; }
@@ -229,6 +256,13 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .bot-pop .bot-label { text-transform: capitalize; }
 .bot-card:nth-child(4n + 1) .bot-pop { left: 0; transform: none; }
 .bot-card:nth-child(4n) .bot-pop { left: auto; right: 0; transform: none; }
+/* The "i" shown during a game sits inline; its popup hangs from the panel or row it is in. */
+.info-wrap { flex: none; display: inline-flex; align-items: center; }
+.info-wrap .bot-info { position: static; width: 1.4rem; height: 1.4rem; padding: 0; font-size: 0.8125rem; }
+.opp .bot-pop { top: 2.6rem; left: 0; right: auto; transform: none; width: 14rem; }
+.opp:last-child .bot-pop { left: auto; right: 0; }
+.opp:first-child .bot-pop { left: 0; right: auto; }
+.score-row .bot-pop { top: 100%; left: auto; right: 0; transform: none; }
 @media (max-width: 760px) {
   .bot-grid { grid-template-columns: repeat(3, 1fr); }
   .bot-card:nth-child(n) .bot-pop { left: 50%; right: auto; transform: translateX(-50%); }

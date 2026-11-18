@@ -6,7 +6,7 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { nameTag } from './name-tag.js';
 import { avatar } from './avatar.js';
-import { botGrid, botLabel } from './bot-picker.js';
+import { botGrid, botLabel, botInfo } from './bot-picker.js';
 import { rulesButton } from './rules-dialog.js';
 import { settingsButton } from './settings-dialog.js';
 import { fullscreenButton } from './fullscreen.js';
@@ -344,13 +344,14 @@ function renderSide(leaveBtn) {
         h(
           'div',
           { class: 'score-row' },
+          avatar({ small: true }),
           h(
             'span',
             { class: 'score-name' },
             playerTag(p),
             (p.connected ? '' : ` (${t('player.offline')})`) + (p.away ? ` (${t('player.botPlaying')})` : ''),
           ),
-          h('span', { class: 'score-actions' }, kickControls(p), takeOverButton(p)),
+          h('span', { class: 'score-actions' }, botInfo(p, 'score'), kickControls(p), takeOverButton(p)),
           h('span', { class: 'score-value' }, String(p.coins)),
         ),
       ),
@@ -396,12 +397,22 @@ function renderTable() {
           (info?.away ? ' away' : ''),
         'data-player': id,
       },
-      h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ` (${t('player.botPlaying')})` : ''),
       h(
-        'span',
-        { class: 'muted' },
-        ` \u2022 ${t('table.cards', { count: p.count })}`,
-        p.total !== null ? ` \u2022 ${t('table.total', { total: p.total })}` : '',
+        'div',
+        { class: 'opp-head' },
+        avatar({ small: true }),
+        h(
+          'div',
+          { class: 'opp-id' },
+          h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ` (${t('player.botPlaying')})` : ''),
+          h(
+            'span',
+            { class: 'muted' },
+            ` \u2022 ${t('table.cards', { count: p.count })}`,
+            p.total !== null ? ` \u2022 ${t('table.total', { total: p.total })}` : '',
+          ),
+        ),
+        botInfo(info, 'opp'),
       ),
       cards,
       meldsOf(id),
@@ -895,11 +906,13 @@ function brokeText(name, bot) {
 // Table rules: the host edits them in the waiting room, everyone else just sees them.
 function settingsPanel(isHost) {
   const { settings, settingLimits } = state.room;
+  // One rule: its control (an input for the host, the value for everyone else) with its explanation underneath.
+  const rule = (key, control) =>
+    h('div', { class: 'setting' }, control, h('p', { class: 'setting-hint muted' }, t(`tableRules.${key}.hint`)));
   const field = (key) => {
     const { min, max } = settingLimits[key];
     const label = t(`tableRules.${key}.label`);
-    const hint = t(`tableRules.${key}.hint`);
-    if (!isHost) return h('div', null, `${label}: `, h('strong', null, String(settings[key])), h('span', { class: 'muted' }, ` ${hint}`));
+    if (!isHost) return rule(key, h('div', null, `${label}: `, h('strong', null, String(settings[key]))));
     const input = h('input', {
       type: 'number',
       min,
@@ -910,7 +923,19 @@ function settingsPanel(isHost) {
       'data-sync': true,
       onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, [key]: Number(e.currentTarget.value) } }),
     });
-    return h('label', { class: 'row' }, h('span', null, `${label} `), input, h('span', { class: 'muted' }, hint));
+    return rule(key, h('label', { class: 'row' }, h('span', null, label), input));
+  };
+  const dynamicTable = () => {
+    const label = t('tableRules.dynamicTable.label');
+    if (!isHost)
+      return rule('dynamicTable', h('div', null, `${label}: `, h('strong', null, t(settings.dynamicTable ? 'common.on' : 'common.off'))));
+    const input = h('input', {
+      type: 'checkbox',
+      class: 'tick',
+      checked: settings.dynamicTable,
+      onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, dynamicTable: e.currentTarget.checked } }),
+    });
+    return rule('dynamicTable', h('label', { class: 'row tick-row' }, input, h('span', null, label)));
   };
   return h(
     'div',
@@ -918,29 +943,9 @@ function settingsPanel(isHost) {
     h('h3', { style: 'margin-top:0' }, t('tableRules.title')),
     field('startingCoins'),
     field('bet'),
-    dynamicTableField(isHost, settings),
-    h('div', { class: 'muted' }, t('tableRules.outOfCoins')),
+    dynamicTable(),
+    h('p', { class: 'setting-hint muted' }, t('tableRules.outOfCoins')),
   );
-}
-
-function dynamicTableField(isHost, settings) {
-  const label = t('tableRules.dynamicTable.label');
-  const hint = t('tableRules.dynamicTable.hint');
-  if (!isHost) {
-    return h(
-      'div',
-      null,
-      `${label}: `,
-      h('strong', null, t(settings.dynamicTable ? 'common.on' : 'common.off')),
-      h('span', { class: 'muted' }, ` ${hint}`),
-    );
-  }
-  const input = h('input', {
-    type: 'checkbox',
-    checked: settings.dynamicTable,
-    onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, dynamicTable: e.currentTarget.checked } }),
-  });
-  return h('label', { class: 'row' }, input, h('span', null, label), h('span', { class: 'muted' }, hint));
 }
 
 function formatEvent(e) {

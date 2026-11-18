@@ -35,6 +35,38 @@ function profilePopup(botId) {
   );
 }
 
+// The "i" button that opens a bot's profile. `place` says where it is on the page (the same bot can be shown in several
+// places), so only the one that was clicked opens its popup.
+function infoButton(botId, place) {
+  const name = botName(botId);
+  const key = `${place}:${botId}`;
+  return h(
+    'button',
+    {
+      class: 'secondary bot-info',
+      title: t('room.botInfo', { name }),
+      'aria-label': t('room.botInfo', { name }),
+      'aria-expanded': String(state.botInfo === key),
+      onClick: () => {
+        state.botInfo = state.botInfo === key ? null : key;
+        render();
+      },
+    },
+    'i',
+  );
+}
+
+// The "i" next to a bot's name during a game (nothing for a human), with its popup right under it.
+export function botInfo(p, place) {
+  if (!p?.botId) return null;
+  return h(
+    'span',
+    { class: 'info-wrap' },
+    infoButton(p.botId, place),
+    state.botInfo === `${place}:${p.botId}` ? profilePopup(p.botId) : null,
+  );
+}
+
 function botCard(entry, full) {
   const { id } = entry;
   const seated = state.room.players.some((p) => p.botId === id);
@@ -54,21 +86,8 @@ function botCard(entry, full) {
       h('span', { class: 'bot-name' }, name),
       h('span', { class: 'bot-label muted' }, botLabel(id)),
     ),
-    h(
-      'button',
-      {
-        class: 'secondary bot-info',
-        title: t('room.botInfo', { name }),
-        'aria-label': t('room.botInfo', { name }),
-        'aria-expanded': String(state.botInfo === id),
-        onClick: () => {
-          state.botInfo = state.botInfo === id ? null : id;
-          render();
-        },
-      },
-      'i',
-    ),
-    state.botInfo === id ? profilePopup(id) : null,
+    infoButton(id, 'grid'),
+    state.botInfo === `grid:${id}` ? profilePopup(id) : null,
   );
 }
 

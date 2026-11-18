@@ -135,11 +135,11 @@
 
   "tableRules.title": "Table rules",
   "tableRules.startingCoins.label": "Starting coins",
-  "tableRules.startingCoins.hint": "coins for each player at the start",
+  "tableRules.startingCoins.hint": "Coins for each player at the start.",
   "tableRules.bet.label": "Bet",
-  "tableRules.bet.hint": "coins per payoff unit (a plain win pays 1 bet, TONK, emptying your hand or getting caught 2)",
+  "tableRules.bet.hint": "Coins per payoff unit (a plain win pays 1 bet, TONK, emptying your hand or getting caught 2).",
   "tableRules.dynamicTable.label": "Dynamic table",
-  "tableRules.dynamicTable.hint": "bots that lose their last coin are replaced by new ones, and now and then a bot leaves and another sits down",
+  "tableRules.dynamicTable.hint": "Bots that lose their last coin are replaced by new ones, and now and then a bot leaves and another sits down.",
   "tableRules.outOfCoins": "Run out of coins and you are out of the game.",
 
   "log.back": "{who} is back at the table.",
