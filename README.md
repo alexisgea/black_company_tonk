@@ -120,7 +120,7 @@ The client reconnects with exponential backoff (1 s doubling to 30 s, ±25% jitt
 
 ## Rules as implemented
 
-Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabinet](http://www.gamecabinet.com/rules/Tonk.html) rules for the cases BSFS leaves open.
+Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabinet](http://www.gamecabinet.com/rules/Tonk.html) rules for the cases BSFS leaves open. There is one deliberate house rule that differs from both: emptying your hand pays double (see below), where the sources pay the normal bet. The rules dialog in the game says so too.
 
 - 52-card deck, 5 cards each, one card flipped to start the discard pile. Play starts left of the dealer; the dealer rotates each hand.
 - Card values: A = 1, 2-10 face value, J/Q/K = 10.
@@ -128,7 +128,7 @@ Based on the [BSFS rules](https://www.bsfs.org/bsfstonk.htm) with the [Game Cabi
 - On your turn, either **go down** (only at the start of the turn) or take the top of the draw pile or discard pile, then optionally put down spreads and add to existing ones, then discard.
   - Spread (also called a meld): a set (3-4 of a kind) or a run (3+ same-suit consecutive cards, Ace low only, no wrap-around).
   - Adding to a spread (also called laying off or hitting): you may extend any run on the table (yours or others') at either end; sets cannot be extended.
-  - Emptying your hand (by putting down spreads, adding to a spread, or discarding) wins; everyone else pays 2 (double).
+  - Emptying your hand (by putting down spreads, adding to a spread, or discarding) wins; everyone else pays 2 (double). **House rule:** BSFS and Game Cabinet pay the normal bet here.
 - **Going down:** the lowest total strictly wins and everyone pays 1. Otherwise the goer pays double to each player with an equal or lower total, and players with a higher total pay the lowest hand(s) 1 (BSFS wording). Ties therefore lose for the goer.
 - Players start with coins and every payoff unit is worth one **bet**. The host sets both ("Table rules" in the waiting room, before the first deal; defaults 50 coins and bet 5). Nobody pays more than they have: when a loser is short the winners split what could be paid. A player who loses their last coin is out of the game after that hand: a human becomes a guest (can keep watching and chatting), a bot is removed, and if no human player is left the table stays open for a minute so the last one can look at the final hand and press "Restart the table" (back to the waiting room with fresh coins); otherwise it closes.
 - If the draw pile runs out, the discard pile (minus its top card) is reshuffled.

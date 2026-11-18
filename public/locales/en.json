@@ -233,7 +233,8 @@
   ],
   "rules.emptyHand.title": "Winning by emptying your hand",
   "rules.emptyHand.items": [
-    "If you have no cards left during your turn (after putting down a spread, adding to a spread, or discarding your last card), you win. Every other player pays you double (2)."
+    "If you have no cards left during your turn (after putting down a spread, adding to a spread, or     discarding your last card), you win. Every other player pays you double (2).",
+    "House rule: in the original rules (see Credits) emptying your hand pays the normal bet (1). Here it pays double."
   ],
   "rules.words.title": "Words you may hear",
   "rules.words.items": [
@@ -246,7 +247,7 @@
   "rules.other.title": "Other",
   "rules.other.items": [
     "If the draw pile is empty, the discard pile is shuffled to make a new draw pile. The top discard card stays in place.",
-    "The coins in the side panel are what each player has left. A plain win pays 1 bet; TONK, emptying your hand or getting caught going down pays 2 bets; the host sets the starting coins and the bet before the game starts. Nobody can pay more than they have. A player who loses their last coin is out of the game: humans keep watching as guests, bots are thrown out."
+    "The coins in the side panel are what each player has left. A plain win pays 1 bet; TONK, getting caught going down or emptying your hand (a house rule) pays 2 bets; the host sets the starting coins and the bet before the game starts. Nobody can pay more than they have. A player who loses their last coin is out of the game: humans keep watching as guests, bots are thrown out."
   ],
   "rules.credits.title": "Credits",
   "rules.credits.bsfs": "BSFS – Tonk",

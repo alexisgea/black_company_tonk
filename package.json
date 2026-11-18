@@ -1,6 +1,6 @@
 {
   "name": "bc-tonk",
-  "version": "0.29.1",
+  "version": "0.29.2",
   "description": "Multiplayer web card game: Tonk (Black Company rules)",
   "private": true,
   "main": "server/index.js",
