@@ -116,7 +116,7 @@ test('bots get random distinct names from the reserved list and can be removed',
 });
 
 test('bot names are reserved', () => {
-  for (const n of ['Croaker', 'goblin', 'ONE EYE', 'One-Eye', 'the lieutenant', 'Gambler ★', 'Hagop (bot)', 'Goblín', 'Ｇoblin']) {
+  for (const n of ['Croaker', 'goblin', 'ONE EYE', 'One-Eye', 'the lieutenant', 'The Lady ★', 'Hagop (bot)', 'Goblín', 'Ｇoblin']) {
     assert.ok(isReservedName(n), n);
   }
   for (const n of ['Alice', 'Casey', 'Ravens', 'Bot']) assert.ok(!isReservedName(n), n);

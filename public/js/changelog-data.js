@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.26.0',
+    date: '2026-11-18',
+    changes: [
+      'The computer players are now twelve: Willow Swan, Case, One-Eye, Bomanz, Silent, Cordy, Otto, The Lady, Hagop, The Lieutenant, Goblin and Croaker. Elmo, Murgen, Gambler, Coward, Tilter, Amnesiac, Savant, Rookie and Veteran have left the table, and Croaker is reworked.',
+    ],
+  },
+  {
     version: '0.25.0',
     date: '2026-11-18',
     changes: [

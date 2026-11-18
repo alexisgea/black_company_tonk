@@ -34,129 +34,29 @@ const LEVEL = 1;
 const PARAMS = ['memory', 'calculating', 'tunnelVision', 'sloppiness', 'riskTaker', 'moodSwing', 'thinkSpeed'];
 const BASE = { memory: 0.8, calculating: 0.8, tunnelVision: 0.2, sloppiness: 0.2, riskTaker: 0.5, moodSwing: 0.5, thinkSpeed: 1 };
 
-// Croaker is written out in full: copy his entry as a template. The others override a few values like this:
-// { ...BASE, memory: 0.95, riskTaker: 0.3 }
 const PROFILES = {
-  croaker: {
-    memory: 0.9, //       remembers most of what went by
-    calculating: 0.9, //  usually sees what the unseen cards allow
-    tunnelVision: 0.1, // usually watches the others
-    sloppiness: 0.1, //   now and then a slip with its own cards
-    riskTaker: 0.6, //    neither bold nor timid
-    moodSwing: 0.4, //    moderately swayed by how the game is going
-    thinkSpeed: 1.25, //  sharp
-  },
-  'one-eye': {
-    memory: 0.6, //       remembers century old grudges but forget cards
-    calculating: 0.3, //  can plan god killing plans but not his hand
-    tunnelVision: 0.8, // fixated on one-upping goblin
-    sloppiness: 0.8, //   plays sloppily
-    riskTaker: 0.95, //   reckless gambler
-    moodSwing: 0.9, //    volatile and theatrical
-    thinkSpeed: 1.05, //  surprisingly fast
-  },
-  // Reckless: dares on thin edges, panics, takes it badly when behind. Easy to bluff into trouble.
-  goblin: {
-    memory: 0.7,
-    calculating: 0.7,
-    tunnelVision: 0.7,
-    sloppiness: 0.3,
-    riskTaker: 0.85,
-    moodSwing: 0.7,
-    thinkSpeed: 1.05,
-  },
-  // Scatterbrained and cheerful: misses things, forgets things, goes along with its feelings.
-  elmo: {
-    memory: 0.7,
-    calculating: 0.7,
-    tunnelVision: 0.3,
-    sloppiness: 0.2,
-    riskTaker: 0.3,
-    moodSwing: 0.3,
-    thinkSpeed: 1.25,
-  },
-  // Calm and unreadable: quick, steady, hardly moved by wins or losses.
-  silent: {
-    memory: 0.95,
-    calculating: 0.95,
-    tunnelVision: 0.1,
-    sloppiness: 0.05,
-    riskTaker: 0.1,
-    moodSwing: 0.1,
-    thinkSpeed: 1.1,
-  },
-  // Steady veteran: remembers, careful with what it hands over, often goes down at 12 without a calculation.
-  murgen: {
-    memory: 0.8,
-    calculating: 0.8,
-    tunnelVision: 0.6,
-    sloppiness: 0.2,
-    riskTaker: 0.2,
-    moodSwing: 0.6,
-    thinkSpeed: 1.4,
-  },
-  // By the book: almost always goes down at 12 or lower without working it out, throws the dear cards, steady.
-  lieutenant: {
-    memory: 0.5,
-    calculating: 0.2,
-    tunnelVision: 0.95,
-    sloppiness: 0.6,
-    riskTaker: 0.3,
-    moodSwing: 0.3,
-    thinkSpeed: 1.4,
-  },
-  // Always keeps its pairs and chases a finish; does not care what it hands the others.
-  otto: {
-    memory: 0.8,
-    calculating: 0.7,
-    tunnelVision: 0.4,
-    sloppiness: 0.6,
-    riskTaker: 0.6,
-    moodSwing: 0.2,
-    thinkSpeed: 1.4,
-  },
-  // Grumpy: wary of danger, timid, and sulks for a long time after a bad hand.
-  hagop: {
-    memory: 0.8,
-    calculating: 0.7,
-    tunnelVision: 0.3,
-    sloppiness: 0.9,
-    riskTaker: 0.2,
-    moodSwing: 0.1,
-    thinkSpeed: 1.25,
-  },
-  // Graceful and strong all round, with few slips.
+  // Gambler: Sharp, but bets everything on thin edges: goes down early whenever the odds look even slightly good.
   'willow-swan': {
-    memory: 0.7,
-    calculating: 0.8,
-    tunnelVision: 0.5,
-    sloppiness: 0.4,
-    riskTaker: 0.6,
-    moodSwing: 0.4,
-    thinkSpeed: 1.4,
-  },
-  // Sharp, but bets everything on thin edges: goes down early whenever the odds look even slightly good.
-  gambler: {
     memory: 0.85,
     calculating: 0.85,
     tunnelVision: 0.15,
-    sloppiness: 0.15,
+    sloppiness: 0.22,
     riskTaker: 0.9,
     moodSwing: 0.5,
     thinkSpeed: 1.1,
   },
-  // Works out the odds very well, then never dares: almost never goes down early.
-  coward: {
+  // Coward: Works out the odds very well, then never dares: almost never goes down early.
+  case: {
     memory: 0.7,
     calculating: 0.9,
     tunnelVision: 0.2,
-    sloppiness: 0.3,
+    sloppiness: 0.25,
     riskTaker: 0.05,
     moodSwing: 0.6,
     thinkSpeed: 0.75,
   },
-  // Average skills, but wins and losses throw it completely: brilliant when confident, reckless when behind.
-  tilter: {
+  // Tilter: Average skills, but wins and losses throw it completely: brilliant when confident, reckless when behind.
+  'one-eye': {
     memory: 0.65,
     calculating: 0.65,
     tunnelVision: 0.35,
@@ -165,45 +65,95 @@ const PROFILES = {
     moodSwing: 1,
     thinkSpeed: 1.1,
   },
-  // Reasons about the odds very well but forgets what was discarded.
-  amnesiac: {
+  // Amnesiac: Reasons about the odds very well but forgets what was discarded.
+  bomanz: {
     memory: 0.1,
     calculating: 0.9,
     tunnelVision: 0.2,
     sloppiness: 0.2,
     riskTaker: 0.5,
     moodSwing: 0.4,
-    thinkSpeed: 1,
+    thinkSpeed: 0.8,
   },
-  // Plays its own hand perfectly and ignores everybody else, so it goes by a rule of thumb and never reads the table.
-  savant: {
+  // Savant: Plays its own hand perfectly and ignores everybody else, so it goes by a rule of thumb and never reads the table.
+  silent: {
     memory: 0.8,
     calculating: 0.95,
-    tunnelVision: 0.9,
+    tunnelVision: 0.8,
     sloppiness: 0.05,
     riskTaker: 0.5,
-    moodSwing: 0.3,
+    moodSwing: 0.1,
     thinkSpeed: 0.9,
   },
-  // Still learning: weak at everything, and slow about it.
-  rookie: {
+  // Rookie: Still learning: weak at everything, and slow about it.
+  cordy: {
     memory: 0.4,
     calculating: 0.4,
     tunnelVision: 0.6,
-    sloppiness: 0.6,
+    sloppiness: 0.8,
     riskTaker: 0.4,
-    moodSwing: 0.5,
+    moodSwing: 0.6,
     thinkSpeed: 0.7,
   },
-  // An average player: not good and not bad at anything.
-  veteran: {
+  // Veteran: An average player: not good and not bad at anything.
+  otto: {
+    memory: 0.65,
+    calculating: 0.65,
+    tunnelVision: 0.35,
+    sloppiness: 0.3,
+    riskTaker: 0.5,
+    moodSwing: 0.3,
+    thinkSpeed: 1,
+  },
+  // Expert: Near-flawless memory, math, and table awareness: reads every move at lightning speed and rarely makes a mistake.
+  'the-lady': {
+    memory: 0.95,
+    calculating: 0.95,
+    tunnelVision: 0.05,
+    sloppiness: 0.05,
+    riskTaker: 0.5,
+    moodSwing: 0.3,
+    thinkSpeed: 1.2,
+  },
+  // Stoic: Steady, average fundamentals with zero emotional reaction: wins and losses never rattle it.
+  hagop: {
     memory: 0.65,
     calculating: 0.65,
     tunnelVision: 0.35,
     sloppiness: 0.35,
     riskTaker: 0.5,
-    moodSwing: 0.5,
-    thinkSpeed: 1,
+    moodSwing: 0,
+    thinkSpeed: 0.85,
+  },
+  // Guesser: Remembers every discard and watches the table closely, but struggles with card math and relies on guesswork.
+  'the-lieutenant': {
+    memory: 0.5,
+    calculating: 0.15,
+    tunnelVision: 0.6,
+    sloppiness: 0.55,
+    riskTaker: 0.5,
+    moodSwing: 0.7,
+    thinkSpeed: 0.85,
+  },
+  // Sloppy: Sharp memory and strong card math, but constantly undermines itself with careless, sloppy plays.
+  goblin: {
+    memory: 0.95,
+    calculating: 0.95,
+    tunnelVision: 0.1,
+    sloppiness: 0.7,
+    riskTaker: 0.5,
+    moodSwing: 0.3,
+    thinkSpeed: 1.15,
+  },
+  // Annalist: Whines about every hand while quietly counting every discard: conservative, observant, and dangerous over long sessions.
+  croacker: {
+    memory: 0.9,
+    calculating: 0.85,
+    tunnelVision: 0.15,
+    sloppiness: 0.06,
+    riskTaker: 0.3,
+    moodSwing: 0.25,
+    thinkSpeed: 1.05,
   },
 };
 
@@ -213,8 +163,7 @@ const SUBSTITUTE = { ...BASE };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
 // The profile for a seat, with the level applied and in the form the bot logic uses: `focus` is how well it watches
-// the table (1 - tunnelVision), a sloppiness of 1 - (1 - sloppiness) * level, and `boldness` is risk from -1 (timid)
-// to 1 (reckless).
+// the table (1 - tunnelVision) and `boldness` is risk from -1 (timid) to 1 (reckless).
 function profileFor(player, level = LEVEL) {
   const p = player.isBot ? (PROFILES[player.botId] ?? SUBSTITUTE) : SUBSTITUTE;
   return {

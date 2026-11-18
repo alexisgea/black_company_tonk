@@ -5,23 +5,18 @@ const { text, allTranslations } = require('./i18n');
 // What people see is the name under "bot.<id>" in the locale files (public/locales), one per language; the English
 // name is what the server sends along, and players cannot take a bot's name in any language.
 const BOT_IDS = [
-  'croaker',
-  'one-eye',
-  'goblin',
-  'elmo',
-  'silent',
-  'murgen',
-  'lieutenant',
-  'otto',
-  'hagop',
   'willow-swan',
-  'gambler',
-  'coward',
-  'tilter',
-  'amnesiac',
-  'savant',
-  'rookie',
-  'veteran',
+  'case',
+  'one-eye',
+  'bomanz',
+  'silent',
+  'cordy',
+  'otto',
+  'the-lady',
+  'hagop',
+  'the-lieutenant',
+  'goblin',
+  'croacker',
 ];
 const BOTS = BOT_IDS.map((id) => ({ id, name: text(`bot.${id}`) }));
 const BOT_NAMES = BOTS.map((b) => b.name);
