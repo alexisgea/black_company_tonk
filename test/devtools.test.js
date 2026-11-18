@@ -132,3 +132,27 @@ test('the sensitivity tool reports each knob and constant it was asked about', (
   assert.equal(out.parameters.find((p) => p.name === 'memory').arms.length, 5);
   assert.equal(out.parameters.find((p) => p.name === 'THREAT_CAP').arms.length, 2);
 });
+
+test('the balance tool gives the swing of each knob, with a middle value only for the personalities', () => {
+  const out = dev(
+    'balance.js',
+    '--sessions',
+    '4',
+    '--workers',
+    '1',
+    '--max-hands',
+    '20',
+    '--knobs',
+    'memory,riskTaker',
+    '--set',
+    'GO_MARGIN=0.8',
+  );
+  assert.deepEqual(
+    out.knobs.map((k) => k.name),
+    ['memory', 'riskTaker'],
+  );
+  assert.ok(out.knobs.every((k) => Number.isFinite(k.swing) && k.swing >= 0 && k.swingStdError >= 0));
+  assert.equal(out.knobs[0].at05, undefined, 'a skill is tried at both ends only');
+  assert.ok(out.knobs[1].at05, 'a personality is also tried in the middle');
+  assert.throws(() => dev('balance.js', '--sessions', '2', '--set', 'NOT_A_NUMBER=1'), /Command failed/);
+});

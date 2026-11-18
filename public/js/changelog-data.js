@@ -1,6 +1,16 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.25.0',
+    date: '2026-11-18',
+    changes: [
+      'Bots with a poor memory or weak card counting now misjudge the odds of going down much more, so memory and calculating matter as much as table awareness and careless play do.',
+      'Careless bots slip a little less: sloppiness used to outweigh every other skill.',
+      'Moody bots panic a little more when an opponent is nearly out.',
+      'New developer tool, npm run dev:balance, measures how much each bot number decides; the other tools are unchanged.',
+    ],
+  },
+  {
     version: '0.24.1',
     date: '2026-11-18',
     changes: [

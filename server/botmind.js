@@ -28,7 +28,11 @@ class Mind {
   }
 
   get blur() {
-    return 1 - this.profile.memory; // the chance that an old memory has the wrong suit
+    return 1 - this.profile.memory; // the chance that an old memory has the wrong suit, and how hazy its picture of the unseen cards is
+  }
+
+  get topMiss() {
+    return this.profile.sloppiness * T.TOP_MISS_RATIO; // the chance of not even looking at the top discard
   }
 
   get panic() {

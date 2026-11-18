@@ -226,7 +226,7 @@ test('going down: the second empty draw pile forces it, the first does not', () 
 });
 
 test('going down: a bot that watches the table weighs the risk', () => {
-  const both = { calculating: 1, focus: 1 };
+  const both = { calculating: 1, focus: 1, memory: 1 }; // a hazy memory would blur the estimate (see MEMORY_NOISE)
   assert.equal(act(setup({ hand: [c(1, 'S'), c(2, 'D'), c(3, 'C')], phase: 'draw' }, both)).type, 'goDown');
   assert.equal(act(setup({ hand: [c(13, 'S'), c(12, 'D'), c(8, 'C'), c(4, 'H')], phase: 'draw' }, both)).type, 'draw');
   // Fifteen is hopeless against opponents who have two cards left each.
@@ -245,10 +245,27 @@ test('going down: with tunnel vision it skips the risk and goes by a rule of thu
 });
 
 test('going down: heads-up a calculating bot can go down (a go-down pays one bet from one opponent)', () => {
-  const s = setup({ hand: [c(1, 'S'), c(2, 'D')], phase: 'draw', counts: { b: 5 } }, { calculating: 1, focus: 1 });
+  const s = setup({ hand: [c(1, 'S'), c(2, 'D')], phase: 'draw', counts: { b: 5 } }, { calculating: 1, focus: 1, memory: 1 });
   s.view.order = ['a', 'b'];
   delete s.view.players.c;
   assert.equal(act(s).type, 'goDown');
+});
+
+test('memory: a poor memory leaves the go-down estimate hazy, so the same hand is judged differently from one turn to the next', () => {
+  // How often the 30 bots disagree with the majority, summed over hands that run from a sure go-down to a hopeless one.
+  const disagreement = (memory) => {
+    let total = 0;
+    for (let k = 1; k <= 10; k++) {
+      let downs = 0;
+      for (let seed = 1; seed <= 30; seed++) {
+        const s = setup({ hand: [c(10, 'S'), c(k, 'D')], phase: 'draw', top: null }, { calculating: 1, focus: 1, memory }, seeded(seed));
+        if (act(s).type === 'goDown') downs++;
+      }
+      total += Math.min(downs, 30 - downs);
+    }
+    return total;
+  };
+  assert.ok(disagreement(0) > disagreement(1) + 5, `${disagreement(0)} should be well above ${disagreement(1)}`);
 });
 
 test('going down: opponents who have played a while hold lower cards than a uniform deal says', () => {
@@ -586,7 +603,7 @@ test('riskTaker: a bold bot goes down on a thinner edge than a timid one', () =>
   const downs = (boldness) => {
     let n = 0;
     for (let k = 1; k <= 10; k++) {
-      const s = setup({ hand: [c(10, 'S'), c(k, 'D')], phase: 'draw', top: null }, { calculating: 1, focus: 1 });
+      const s = setup({ hand: [c(10, 'S'), c(k, 'D')], phase: 'draw', top: null }, { calculating: 1, focus: 1, memory: 1 });
       s.mind.boldness = boldness;
       if (act(s).type === 'goDown') n++;
     }

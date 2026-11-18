@@ -157,8 +157,11 @@ function shouldGoDown(sight) {
   const rivals = opponents.map((p) => ({ count: view.players[p].count, known: held[p] }));
   const lowBias = Math.min(T.LOW_BIAS_MAX, (T.LOW_BIAS_PER_ROUND * mind.turnEnds) / view.order.length);
   const estimate = estimateGoDown(total, rivals, unseenCards(sight), rng, undefined, lowBias);
-  // The worse it counts, the further its estimate can be off.
-  const noise = centered(rng) * (1 - mind.profile.calculating) * T.NOISE;
+  // The worse it counts, the further its estimate can be off; a poor memory adds to that (it is working from a hazy picture
+  // of what is left). A perfect memory costs no roll.
+  const slip = centered(rng) * (1 - mind.profile.calculating) * T.NOISE;
+  const hazy = mind.blur > 0 ? centered(rng) * mind.blur * T.MEMORY_NOISE : 0;
+  const noise = slip + hazy;
   const perOpponent = estimate / opponents.length + noise;
   const threat = threatOf(sight);
   const margin = T.GO_MARGIN - T.BOLD_MARGIN * mind.boldness - T.THREAT_GO_DOWN_BONUS * threat;
@@ -187,7 +190,7 @@ const completesSpread = (hand, card) => [...subsets([...hand, card])].some((grou
 
 function wantsDiscard(sight, top) {
   const { hand, mind, trace } = sight;
-  if (!mind.chance('spot', 1 - mind.sloppiness)) {
+  if (!mind.chance('spot', 1 - mind.topMiss)) {
     trace?.push(`Discard ${label(top)}: not even looked at (sloppy this turn).`);
     return false;
   }

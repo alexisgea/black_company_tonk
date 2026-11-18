@@ -26,6 +26,38 @@ function checkSessionOptions(opts) {
 const gameOptions = (opts) => ({ coins: opts.coins, bet: opts.bet, maxHands: opts.maxHands });
 const sessionSeed = (opts, index) => opts.seed * 1000003 + index;
 
+// The same tables for every variant: one "subject" seat (with `patch` applied: { profile?, tuning? }) among copies of
+// opts.bot, moving round the table so no seat is favoured. `shared` (numbers from bottuning.js) goes to every seat.
+function subjectSessions(opts, patch = {}, shared = {}) {
+  const sessions = [];
+  const withShared = (seat, own) => {
+    const tuning = { ...shared, ...own };
+    return Object.keys(tuning).length ? { ...seat, tuning } : seat;
+  };
+  for (let i = 0; i < opts.sessions; i++) {
+    const subject = i % opts.seats;
+    const seats = Array.from({ length: opts.seats }, (_, j) =>
+      j === subject
+        ? withShared({ bot: opts.bot, key: 'subject', ...patch, tuning: undefined }, patch.tuning)
+        : withShared({ bot: opts.bot, key: 'field' }),
+    );
+    sessions.push({ seats, seed: sessionSeed(opts, i), ...gameOptions(opts) });
+  }
+  return sessions;
+}
+
+// "NAME=value,NAME=value" from the command line to { NAME: value }, for numbers of bottuning.js.
+function parseTuning(list, known) {
+  const out = {};
+  for (const item of list) {
+    const [name, raw] = item.split('=');
+    if (!(name in known) || Array.isArray(known[name]) || !Number.isFinite(Number(raw)))
+      fail(`--set wants NAME=number with a number from bottuning.js, not "${item}".`);
+    out[name] = Number(raw);
+  }
+  return out;
+}
+
 function progress(label) {
   if (!process.stderr.isTTY) return undefined;
   return (done, total) => process.stderr.write(`\r${label}: ${done}/${total} tables${done === total ? '\n' : ''}`);
@@ -40,4 +72,13 @@ function reportFallbacks(records) {
   }
 }
 
-module.exports = { sessionOptions, checkSessionOptions, gameOptions, sessionSeed, progress, reportFallbacks };
+module.exports = {
+  sessionOptions,
+  checkSessionOptions,
+  gameOptions,
+  sessionSeed,
+  subjectSessions,
+  parseTuning,
+  progress,
+  reportFallbacks,
+};

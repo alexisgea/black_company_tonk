@@ -11,8 +11,9 @@ const { PROFILES, PARAMS, BASE } = require('../server/botprofiles');
 const { BASE_TUNING } = require('./sim');
 const { parseArgs, fail } = require('./args');
 const { table } = require('./format');
+const { compare } = require('./compare');
 const { playSessions } = require('./pool');
-const { sessionOptions, checkSessionOptions, gameOptions, sessionSeed, progress, reportFallbacks } = require('./common');
+const { sessionOptions, checkSessionOptions, subjectSessions, progress, reportFallbacks } = require('./common');
 
 const opts = parseArgs(
   process.argv.slice(2),
@@ -97,39 +98,7 @@ function buildArms() {
 }
 
 // The same tables for every variant: the subject moves round the table so no seat is favoured.
-function sessionsFor(arm) {
-  const sessions = [];
-  for (let i = 0; i < opts.sessions; i++) {
-    const subject = i % opts.seats;
-    const seats = Array.from({ length: opts.seats }, (_, j) =>
-      j === subject ? { bot: opts.bot, key: 'subject', ...arm.patch } : { bot: opts.bot, key: 'field' },
-    );
-    sessions.push({ seats, seed: sessionSeed(opts, i), ...gameOptions(opts) });
-  }
-  return sessions;
-}
-
-const subjectOf = (record) => record.seats.find((s) => s.key === 'subject');
-const sum = (xs) => xs.reduce((a, b) => a + b, 0);
-const variance = (xs) => {
-  const mean = sum(xs) / xs.length;
-  return sum(xs.map((x) => (x - mean) ** 2)) / Math.max(1, xs.length - 1);
-};
-
-// Coins per hand of the subject, and how much it differs from the control. Both ran the same tables, so the difference is
-// worked out table by table (the ratio of coins to hands is linearised) to keep the noise of the deals out of it.
-function compare(records, control) {
-  const a = records.map(subjectOf);
-  const c = control.map(subjectOf);
-  const rate = (xs) => sum(xs.map((s) => s.coins)) / sum(xs.map((s) => s.hands));
-  const meanHands = (xs) => sum(xs.map((s) => s.hands)) / xs.length;
-  const [ra, rc, ha, hc] = [rate(a), rate(c), meanHands(a), meanHands(c)];
-  const identical = a.every((s, i) => s.coins === c[i].coins && s.hands === c[i].hands);
-  const diffs = a.map((s, i) => (s.coins - ra * s.hands) / ha - (c[i].coins - rc * c[i].hands) / hc);
-  const stdError = Math.sqrt(variance(diffs) / diffs.length);
-  const delta = ra - rc;
-  return { coinsPerHand: ra, delta, stdError, z: stdError > 0 ? delta / stdError : 0, identical };
-}
+const sessionsFor = (arm) => subjectSessions(opts, arm.patch);
 
 const fmt = (arm) =>
   `${arm.delta >= 0 ? '+' : '-'}${Math.abs(arm.delta).toFixed(2)} +-${arm.stdError.toFixed(2)}${Math.abs(arm.z) >= SIGNIFICANT ? ' *' : ''}`;
