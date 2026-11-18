@@ -40,7 +40,7 @@ const PROFILES = {
     memory: 0.85,
     calculating: 0.85,
     tunnelVision: 0.15,
-    sloppiness: 0.22,
+    sloppiness: 0.3,
     riskTaker: 0.9,
     moodSwing: 0.5,
     thinkSpeed: 1.1,
@@ -77,9 +77,9 @@ const PROFILES = {
   },
   // Savant: Plays its own hand perfectly and ignores everybody else, so it goes by a rule of thumb and never reads the table.
   silent: {
-    memory: 0.8,
+    memory: 0.95,
     calculating: 0.95,
-    tunnelVision: 0.8,
+    tunnelVision: 0.7,
     sloppiness: 0.05,
     riskTaker: 0.5,
     moodSwing: 0.1,
@@ -87,22 +87,22 @@ const PROFILES = {
   },
   // Rookie: Still learning: weak at everything, and slow about it.
   cordy: {
-    memory: 0.4,
-    calculating: 0.4,
+    memory: 0.3,
+    calculating: 0.3,
     tunnelVision: 0.6,
-    sloppiness: 0.8,
+    sloppiness: 0.9,
     riskTaker: 0.4,
     moodSwing: 0.6,
     thinkSpeed: 0.7,
   },
   // Veteran: An average player: not good and not bad at anything.
   otto: {
-    memory: 0.65,
-    calculating: 0.65,
-    tunnelVision: 0.35,
-    sloppiness: 0.3,
+    memory: 0.8,
+    calculating: 0.8,
+    tunnelVision: 0.3,
+    sloppiness: 0.25,
     riskTaker: 0.5,
-    moodSwing: 0.3,
+    moodSwing: 0.2,
     thinkSpeed: 1,
   },
   // Expert: Near-flawless memory, math, and table awareness: reads every move at lightning speed and rarely makes a mistake.
@@ -112,7 +112,7 @@ const PROFILES = {
     tunnelVision: 0.05,
     sloppiness: 0.05,
     riskTaker: 0.5,
-    moodSwing: 0.3,
+    moodSwing: 0.1,
     thinkSpeed: 1.2,
   },
   // Stoic: Steady, average fundamentals with zero emotional reaction: wins and losses never rattle it.
@@ -120,7 +120,7 @@ const PROFILES = {
     memory: 0.65,
     calculating: 0.65,
     tunnelVision: 0.35,
-    sloppiness: 0.35,
+    sloppiness: 0.45,
     riskTaker: 0.5,
     moodSwing: 0,
     thinkSpeed: 0.85,
@@ -130,9 +130,9 @@ const PROFILES = {
     memory: 0.5,
     calculating: 0.15,
     tunnelVision: 0.6,
-    sloppiness: 0.55,
+    sloppiness: 0.5,
     riskTaker: 0.5,
-    moodSwing: 0.7,
+    moodSwing: 0.6,
     thinkSpeed: 0.85,
   },
   // Sloppy: Sharp memory and strong card math, but constantly undermines itself with careless, sloppy plays.
@@ -146,11 +146,11 @@ const PROFILES = {
     thinkSpeed: 1.15,
   },
   // Annalist: Whines about every hand while quietly counting every discard: conservative, observant, and dangerous over long sessions.
-  croacker: {
+  croaker: {
     memory: 0.9,
     calculating: 0.85,
     tunnelVision: 0.15,
-    sloppiness: 0.06,
+    sloppiness: 0.08,
     riskTaker: 0.3,
     moodSwing: 0.25,
     thinkSpeed: 1.05,

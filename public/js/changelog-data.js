@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.26.1',
+    date: '2026-11-18',
+    changes: [
+      'Rebalanced the computer players: The Lady is the strongest, then Croaker, Silent and Otto, with Goblin in the middle and One-Eye, The Lieutenant and Cordy struggling at the bottom.',
+    ],
+  },
+  {
     version: '0.26.0',
     date: '2026-11-18',
     changes: [
