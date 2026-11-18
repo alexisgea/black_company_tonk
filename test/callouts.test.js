@@ -26,14 +26,19 @@ test('flavour lines are announced when they show up in the log, not when arrivin
   noteFlavor([old], () => {});
   assert.deepEqual(flavorEvents(), []);
 
-  const log = [old, { seq: 2, type: 'discard', pid: 'a' }, { seq: 3, type: 'dynLeave', pid: 'b', variant: 1 }];
+  const log = [
+    old,
+    { seq: 2, type: 'discard', pid: 'a' },
+    { seq: 3, type: 'dynLeave', pid: 'b', variant: 1 },
+    { seq: 4, type: 'broke', pid: 'c' },
+  ];
   noteFlavor(log, () => {});
   assert.deepEqual(
     flavorEvents().map((e) => e.seq),
-    [3],
+    [3, 4],
   );
 
   noteFlavor(log, () => {});
-  assert.equal(flavorEvents().length, 1, 'the same event is not announced twice');
+  assert.equal(flavorEvents().length, 2, 'the same event is not announced twice');
   clearCallouts();
 });

@@ -1,12 +1,13 @@
 // Short-lived things that put the talk and the lore of the table where the players are looking: a speech bubble on
-// the character who said something, and a banner for the flavour lines the log gets (a bot walking in or out).
+// the character who said something, and a banner for the flavour lines the log gets (a bot walking in or out, a
+// player losing their last coin).
 import { h } from './dom.js';
 
 const BUBBLE_MS = 6000; // keep in step with the bubble-out animation in style.css
 const BUBBLE_MAX_CHARS = 80;
 const FLAVOR_MS = 10000;
 const FLAVOR_MAX_LINES = 4;
-const FLAVOR_TYPES = new Set(['dynJoin', 'dynLeave']);
+const FLAVOR_TYPES = new Set(['dynJoin', 'dynLeave', 'broke']);
 
 const bubbles = new Map(); // player id -> { id, text, until }
 let bubbleTimer;
