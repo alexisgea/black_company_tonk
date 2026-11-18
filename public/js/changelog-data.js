@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.24.1',
+    date: '2026-11-18',
+    changes: [
+      'The table now always fits the window height instead of making the whole page scroll; if the side panels are too tall, only they scroll.',
+      'The side panels are more compact, so a five-player table fits a normal full-HD browser window without scrolling.',
+    ],
+  },
+  {
     version: '0.24.0',
     date: '2026-11-18',
     changes: [

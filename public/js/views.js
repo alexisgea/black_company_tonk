@@ -290,9 +290,19 @@ function renderSide(leaveBtn) {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'row' }, h('strong', null, tableName(room)), h('span', { class: 'spacer' }), rulesButton(), leaveBtn),
-      h('div', { class: 'muted' }, t('room.handNumber', { number: room.handNo }), room.paused ? ` \u2013 ${t('room.paused')}` : ''),
-      pauseButton(),
+      h(
+        'div',
+        { class: 'row' },
+        h(
+          'div',
+          { class: 'table-head' },
+          h('strong', { class: 'table-name' }, tableName(room)),
+          h('div', { class: 'muted' }, t('room.handNumber', { number: room.handNo }), room.paused ? ` \u2013 ${t('room.paused')}` : ''),
+        ),
+        h('span', { class: 'spacer' }),
+        rulesButton(),
+      ),
+      h('div', { class: 'row side-actions' }, leaveBtn, pauseButton()),
     ),
     h('div', { class: 'panel' }, invitePanel(room.hostId === state.you)),
     h(
