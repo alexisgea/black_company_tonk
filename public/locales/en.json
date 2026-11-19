@@ -77,6 +77,7 @@
   "table.run": "run",
   "table.set": "set",
 
+  "status.dealing": "{name} is dealing…",
   "status.handValue": "Hand value: {total}",
   "status.joinNextHand": "Join the next hand when this one ends.",
   "status.mustTonk": "You have TONK! Press the button to put your cards down.",
@@ -330,6 +331,10 @@
   "card.ranks": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
 
   "mark.bot": "Bot",
+  "mark.dealer": "Dealer",
+  "mark.dealerTitle": "Deals this hand",
+  "mark.first": "First player",
+  "mark.firstTitle": "Plays first this hand",
   "mark.host": "Host",
   "mark.hostTitle": "Host of this table",
 

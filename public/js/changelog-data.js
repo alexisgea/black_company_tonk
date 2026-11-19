@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.36.0',
+    date: '2026-11-19',
+    changes: [
+      'A "Dealer" chip and a "First player" chip now sit next to the players who deal and who play first this hand, and move on to the next seat every hand.',
+      'Every hand is now dealt on screen: the deck goes to the dealer, is shuffled, the cards fly out face down and yours are turned over, then the first discard is turned up and the "First player" chip slides to its seat. Nobody can move until it is over.',
+    ],
+  },
+  {
     version: '0.35.0',
     date: '2026-11-18',
     changes: [

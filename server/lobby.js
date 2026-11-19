@@ -44,6 +44,7 @@ const cleanDevice = (raw) => (typeof raw === 'string' && DEVICE_ID.test(raw) ? r
 // a "conn" only needs send(string), close() and a readyState.
 class Lobby {
   // botDelayMs: base pause before a bot moves (divided by the character's thinkSpeed, see thinkMs). maxRooms / createsPerMinute: abuse limits.
+  // dealMs: how long the clients take to show a deal (the cards fly out); bots wait for it before their first move.
   // roomIdleMs: a game nobody has touched for this long is closed (warning idleWarningMs before).
   // turnTimeoutMs: a connected player who takes longer than this on their turn is replaced by a bot (0 = never).
   // It only applies when at least two humans play; a lone human with bots is covered by roomIdleMs instead.
@@ -54,6 +55,7 @@ class Lobby {
     graceMs = 60000,
     rng = Math.random,
     botDelayMs = 1200,
+    dealMs = botDelayMs * 3,
     maxRooms = 100,
     createsPerMinute = 5,
     roomIdleMs = 30 * 60000,
@@ -72,6 +74,7 @@ class Lobby {
     this.graceMs = graceMs;
     this.rng = rng;
     this.botDelayMs = botDelayMs;
+    this.dealMs = dealMs;
     this.maxRooms = maxRooms;
     this.createsPerMinute = createsPerMinute;
     this.roomIdleMs = roomIdleMs;
@@ -228,9 +231,14 @@ class Lobby {
         this.broadcastRoom(room);
         if (room.status !== 'playing') this.broadcastLobby();
       }),
-      this.thinkMs(room, seat, this.thinkEffort(room, seat)),
+      this.dealWaitMs(room) + this.thinkMs(room, seat, this.thinkEffort(room, seat)),
     );
     room.botTimer.unref?.();
+  }
+
+  // How long the clients are still busy showing the deal.
+  dealWaitMs(room) {
+    return Math.max(0, room.dealEndsAt - Date.now());
   }
 
   // How hard the seat's coming move is to decide (0 = obvious, 1 = a close call), so a bot ponders a marginal go-down
@@ -375,7 +383,7 @@ class Lobby {
           room.tonkBotTimer = null;
           this.autoDeclare(room, auto);
         }),
-        this.botDelayMs,
+        this.dealWaitMs(room) + this.botDelayMs,
       );
       room.tonkBotTimer.unref?.();
     }
@@ -593,6 +601,7 @@ class Lobby {
         const r = new Room(this.newRoomId(), `${user.name}'s table`, this.rng, {
           tonkTimeoutMs: this.tonkTimeoutMs,
           turnWarningMs: this.turnWarningMs,
+          dealMs: this.dealMs,
           owner: user.name,
         });
         r.password = validatePassword(msg.password);

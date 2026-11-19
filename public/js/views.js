@@ -6,7 +6,7 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
-import { nameTag } from './name-tag.js';
+import { nameTag, roleMarks } from './name-tag.js';
 import { avatar } from './avatar.js';
 import { botGrid, botLabel, botInfo } from './bot-picker.js';
 import { rulesButton } from './rules-dialog.js';
@@ -14,7 +14,7 @@ import { settingsButton } from './settings-dialog.js';
 import { fullscreenButton } from './fullscreen.js';
 import { changelogButton } from './changelog-dialog.js';
 import { drag, handCardEl } from './hand.js';
-import { anim, captureCards, currentMeta, playAnimations } from './animation.js';
+import { anim, beginDeal, captureCards, captureMarks, currentMeta, isDealing, playAnimations } from './animation.js';
 import { t, tNodes, botName } from './i18n.js';
 
 const app = document.getElementById('app');
@@ -45,8 +45,10 @@ export function render() {
   const logWasAtBottom = !oldLog || oldLog.scrollTop + oldLog.clientHeight >= oldLog.scrollHeight - 24;
   const prevMeta = anim.meta;
   const prevCards = captureCards();
+  const prevMarks = captureMarks();
   anim.meta = null;
   const inRoom = !state.replaced && state.connected && state.view === 'room';
+  beginDeal(prevMeta, inRoom);
   // Reused elements must not start CSS transitions from the stale inline styles the patcher clears (drag, FLIP).
   app.classList.add('no-transition');
   try {
@@ -57,7 +59,7 @@ export function render() {
       fillChatLog();
       chat.logEl.scrollTop = wasAtBottom ? chat.logEl.scrollHeight : scrollTop;
       anim.meta = currentMeta();
-      playAnimations(prevMeta, prevCards);
+      playAnimations(prevMeta, prevCards, prevMarks, render);
       if (hadFocus && document.activeElement !== chat.input) {
         chat.input.focus();
         chat.input.setSelectionRange(caret[0], caret[1]);
@@ -376,10 +378,11 @@ function renderTable() {
   const tonkPhase = !over && round.phase === 'tonk';
   const myTurn = round.turn === state.you && !tonkPhase;
   const paused = !!room.paused && !over;
+  const dealing = isDealing();
   const selected = [...state.selected];
 
-  const canDrawPhase = myTurn && !paused && round.phase === 'draw';
-  const canPlayPhase = myTurn && !paused && round.phase === 'play';
+  const canDrawPhase = myTurn && !paused && !dealing && round.phase === 'draw';
+  const canPlayPhase = myTurn && !paused && !dealing && round.phase === 'play';
 
   // Opponents in seating order, starting from the seat after mine.
   const seats = round.order;
@@ -409,6 +412,7 @@ function renderTable() {
           'div',
           { class: 'opp-id' },
           h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ` (${t('player.botPlaying')})` : ''),
+          roleMarks(id, round),
         ),
         botInfo(info, 'opp'),
       ),
@@ -464,6 +468,7 @@ function renderTable() {
 
   let status = '';
   if (paused) status = t('status.paused');
+  else if (dealing && round.dealer) status = t('status.dealing', { name: nameOf(round.dealer) });
   else if (!over) {
     if (!inHand) status = isSpectator() ? t('status.watchingHand') : t('status.spectatingHand');
     else if (tonkPhase) status = round.mustDeclareTonk ? t('status.mustTonk') : t('status.waitingForTonk');
@@ -479,7 +484,7 @@ function renderTable() {
     { class: 'row' },
     round.mustDeclareTonk
       ? [
-          h('button', { class: 'tonk-btn', disabled: paused, onClick: () => send({ t: 'declareTonk' }) }, t('action.tonk')),
+          h('button', { class: 'tonk-btn', disabled: paused || dealing, onClick: () => send({ t: 'declareTonk' }) }, t('action.tonk')),
           h('span', { class: 'muted tonk-timer' }, tonkCountdownText()),
         ]
       : null,
@@ -557,7 +562,7 @@ function renderTable() {
 
   return h(
     'div',
-    { class: 'table' },
+    { class: 'table', 'data-deal': dealing ? anim.deal.phase : null },
     h('div', { class: 'opponents' }, oppEls),
     flavorBanner(),
     h('div', { class: 'center' }, h('div', { class: 'piles' }, deck, discard)),
@@ -566,6 +571,7 @@ function renderTable() {
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
+          roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
           turnTimerLine(myTurn),
           awayNotice(),

@@ -292,6 +292,26 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   assert.equal(lobby.rooms.size, 0);
 });
 
+test('bots: wait for the deal to be shown before their first move', async () => {
+  const lobby = new Lobby({ botDelayMs: 5, dealMs: 300, rng: () => 0 }); // the host deals, so the bot plays first
+  const host = connect(lobby, 'Host');
+  say(lobby, host, { t: 'createGame' });
+  say(lobby, host, { t: 'addBot' });
+  say(lobby, host, { t: 'startGame' });
+  const state = () => host.last('room').room;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  assert.equal(state().round.dealer, host.last('room').you);
+  assert.notEqual(state().round.first, state().round.dealer);
+  assert.equal(state().round.turn, state().round.first);
+  if (state().round.phase !== 'tonk') {
+    await wait(150);
+    assert.equal(state().round.turn, state().round.first, 'the bot has not moved yet');
+    await wait(400);
+    assert.notEqual(state().round.turn, state().round.first, 'the bot moved once the deal was over');
+  }
+  say(lobby, host, { t: 'leaveGame' });
+});
+
 test('bots: now and then say a line when their turn is over, which everyone gets as chat', async () => {
   const lobby = new Lobby({ botDelayMs: 5 });
   const host = connect(lobby, 'Host');

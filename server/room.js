@@ -91,7 +91,7 @@ class Room {
     id,
     name,
     rng = Math.random,
-    { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, turnWarningMs = null, settings = DEFAULT_SETTINGS, owner = null } = {},
+    { tonkTimeoutMs = DEFAULT_TONK_TIMEOUT_MS, turnWarningMs = null, dealMs = 0, settings = DEFAULT_SETTINGS, owner = null } = {},
   ) {
     this.id = id;
     this.name = name;
@@ -99,6 +99,8 @@ class Room {
     this.rng = rng;
     this.settings = { ...settings };
     this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
+    this.dealMs = dealMs; // how long the clients take to show a deal; nobody (bots included) moves before it is over
+    this.dealEndsAt = 0; // epoch ms
     this.turnWarningMs = turnWarningMs; // the turn countdown is only shown to the player for this long at the end of the turn
     this.tonkDeadline = null; // epoch ms, only while a hand waits for TONK!
     this.paused = false; // the host stopped the game: no moves, no bots, no turn or TONK! timers
@@ -471,7 +473,8 @@ class Room {
     this.minds = new Map();
     for (const p of this.players) this.mindOf(p);
     this.addLog({ type: 'deal', ...whoIs(this.players[this.dealerIdx]), hand: this.handNo });
-    this.tonkDeadline = this.round.phase === 'tonk' ? Date.now() + this.tonkTimeoutMs : null;
+    this.dealEndsAt = Date.now() + this.dealMs;
+    this.tonkDeadline = this.round.phase === 'tonk' ? this.dealEndsAt + this.tonkTimeoutMs : null;
   }
 
   // Players who still have to press TONK! (everyone who holds a Tonk and has not declared yet).
@@ -702,7 +705,6 @@ class Room {
         password: user.id === this.hostId ? this.password : null, // only the host can read it back (to put it in invite links)
         status: this.status,
         handNo: this.handNo,
-        dealerId: this.players[this.dealerIdx % this.players.length]?.id ?? null,
         minPlayers: tonk.MIN_PLAYERS,
         maxPlayers: tonk.MAX_PLAYERS,
         settings: { ...this.settings },

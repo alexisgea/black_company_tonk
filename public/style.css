@@ -217,6 +217,21 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .opp { position: relative; }
 .opp-head { display: flex; align-items: center; gap: 8px; }
 .opp-id { flex: 1; min-width: 0; }
+.role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.me-panel .role-marks { justify-content: center; margin: 0 0 4px; }
+.role-mark { position: relative; z-index: 3; display: inline-flex; align-items: center; gap: 0.35em; padding: 0 0.6em 0 0.45em; border: 1px solid var(--accent); border-radius: 999px; background: #0003; color: var(--accent); font-family: var(--font-display); font-size: 0.75rem; font-weight: 700; line-height: 1.6; white-space: nowrap; }
+.role-mark::before { content: ''; flex: none; }
+/* The dealer: a small deck of cards. */
+.role-mark.dealer::before { width: 0.6em; height: 0.85em; border: 1px solid #8a7a55; border-radius: 2px; background: repeating-linear-gradient(45deg, #4a3626, #4a3626 2px, #3a2a1d 2px, #3a2a1d 4px); box-shadow: 2px -1px 0 -1px #8a7a55; margin-right: 2px; }
+/* The player who goes first. */
+.role-mark.first::before { content: '\25B6'; font-size: 0.8em; }
+
+/* While a hand is being dealt (animation.js) the real cards stay hidden until the stand-in cards have arrived. */
+.table[data-deal='deal'] :is(.hand, .opp > .cards) .card,
+.table[data-deal='deal'] :is(.hand-value, .tonk-btn, .tonk-timer),
+.table:is([data-deal='deal'], [data-deal='return']) .pile[data-pile='deck'] .card,
+.table:is([data-deal='deal'], [data-deal='return'], [data-deal='discard']) .pile[data-pile='discard'] .card,
+.table:is([data-deal='deal'], [data-deal='return'], [data-deal='discard']) .role-mark.first { visibility: hidden; }
 .score-row { position: relative; }
 
 /* The setting rows in the table rules: the control, then its explanation with room around it. */

@@ -87,6 +87,8 @@ function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false
     melds: [],
     nextMeldId: 1,
     turn: (dealerIdx + 1) % playerIds.length,
+    dealer: playerIds[dealerIdx % playerIds.length], // who dealt, and who plays first: kept as ids because seats come and go
+    first: playerIds[(dealerIdx + 1) % playerIds.length],
     turnNo: 0, // counts turn changes, so a timer can tell "the same turn" from "the same player's next turn"
     // 'tonk': waiting for the tonkers to declare; 'draw': go down or take a card; 'play': spread / lay off / discard
     phase: 'draw',
@@ -299,6 +301,8 @@ function renamePlayer(round, oldId, newId) {
   round.order = swap(round.order);
   round.tonkers = swap(round.tonkers);
   round.declared = swap(round.declared);
+  if (round.dealer === oldId) round.dealer = newId;
+  if (round.first === oldId) round.first = newId;
   round.hands[newId] = round.hands[oldId];
   delete round.hands[oldId];
   for (const meld of round.melds) if (meld.owner === oldId) meld.owner = newId;
@@ -320,6 +324,8 @@ function viewRound(round, viewerId) {
   const tonkPhase = !over && round.phase === 'tonk';
   return {
     order: [...round.order],
+    dealer: round.order.includes(round.dealer) ? round.dealer : null,
+    first: round.order.includes(round.first) ? round.first : null,
     turn: over ? null : round.order[round.turn],
     phase: round.phase,
     mustDeclareTonk: tonkPhase && round.tonkers.includes(viewerId) && !round.declared.includes(viewerId),

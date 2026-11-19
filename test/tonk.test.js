@@ -303,3 +303,17 @@ test("viewRound hides opponents' hands until the hand ends", () => {
   assert.equal(v.players.b.count, 1);
   assert.equal(JSON.stringify(v).includes('"deck":['), false);
 });
+
+test('a round remembers who dealt and who plays first, even when seats change', () => {
+  const round = T.startRound(['a', 'b', 'c'], 2);
+  assert.equal(round.dealer, 'c');
+  assert.equal(round.first, 'a');
+  assert.equal(round.order[round.turn], round.first);
+
+  T.renamePlayer(round, 'c', 'z');
+  assert.equal(T.viewRound(round, 'a').dealer, 'z');
+  T.removePlayer(round, 'z');
+  const v = T.viewRound(round, 'a');
+  assert.equal(v.dealer, null);
+  assert.equal(v.first, 'a');
+});

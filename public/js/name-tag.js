@@ -11,3 +11,14 @@ export function nameTag(name, { bot = false, host = false } = {}) {
     host ? h('span', { class: 'mark host-star', role: 'img', 'aria-label': t('mark.host'), title: t('mark.hostTitle') }, '\u2605') : null,
   );
 }
+
+// The chips that show, for the current hand, who deals and who plays first. The animation (animation.js)
+// moves them from seat to seat, finding them by data-role-mark.
+export function roleMarks(id, round) {
+  const chip = (role, label, title) => h('span', { class: `role-mark ${role}`, 'data-role-mark': role, title }, label);
+  const marks = [
+    round.dealer === id ? chip('dealer', t('mark.dealer'), t('mark.dealerTitle')) : null,
+    round.first === id ? chip('first', t('mark.first'), t('mark.firstTitle')) : null,
+  ];
+  return marks.some(Boolean) ? h('div', { class: 'role-marks' }, marks) : null;
+}
