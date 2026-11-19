@@ -8,6 +8,7 @@ import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
 import { nameTag, roleMarks } from './name-tag.js';
 import { avatar } from './avatar.js';
+import { coin } from './coin.js';
 import { botGrid, botLabel, botInfo } from './bot-picker.js';
 import { rulesButton } from './rules-dialog.js';
 import { settingsButton } from './settings-dialog.js';
@@ -163,7 +164,7 @@ function renderLobby() {
               `${g.players.map((name, i) => (g.bots?.[i] ? botName(g.bots[i], name) : name)).join(', ')} (${g.players.length}/${g.max})`,
             ),
             g.spectators ? h('span', { class: 'muted' }, `\u2022 ${t('lobby.watching', { count: g.spectators })}`) : null,
-            h('span', { class: 'muted' }, `\u2022 ${t('lobby.stakes', { coins: g.startingCoins, bet: g.bet })}`),
+            h('span', { class: 'muted' }, '\u2022 ', coin(), t('lobby.stakes', { coins: g.startingCoins, bet: g.bet })),
             h('span', { class: 'spacer' }),
             h('span', { class: 'muted' }, g.status === 'playing' ? t('lobby.inProgress') : t('lobby.open')),
             h('button', { disabled: !g.joinable, onClick: () => enterTable(g, 'join') }, t('common.join')),
@@ -342,9 +343,10 @@ function renderSide(leaveBtn) {
       h(
         'div',
         { class: 'row' },
+        coin(),
         h('strong', null, t('room.coins')),
         h('span', { class: 'spacer' }),
-        h('span', { class: 'muted' }, t('room.bet', { bet: room.settings.bet })),
+        h('span', { class: 'muted' }, t('room.bet', { bet: room.settings.bet }), coin()),
       ),
       room.players.map((p) =>
         h(
@@ -358,7 +360,7 @@ function renderSide(leaveBtn) {
             (p.connected ? '' : ` (${t('player.offline')})`) + (p.away ? ` (${t('player.botPlaying')})` : ''),
           ),
           h('span', { class: 'score-actions' }, botInfo(p, 'score'), kickControls(p), takeOverButton(p)),
-          h('span', { class: 'score-value' }, String(p.coins)),
+          h('span', { class: 'score-value' }, String(p.coins), coin()),
         ),
       ),
     ),
@@ -688,6 +690,7 @@ function renderResult(round) {
       h(
         'span',
         { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') },
+        coin(),
         t('result.coins', { count: Math.abs(r.deltas[id]), amount: `${r.deltas[id] > 0 ? '+' : ''}${r.deltas[id]}` }),
       ),
     ),
@@ -929,7 +932,7 @@ function settingsPanel(isHost) {
   const field = (key) => {
     const { min, max } = settingLimits[key];
     const label = t(`tableRules.${key}.label`);
-    if (!isHost) return rule(key, h('div', null, `${label}: `, h('strong', null, String(settings[key]))));
+    if (!isHost) return rule(key, h('div', null, coin(), `${label}: `, h('strong', null, String(settings[key]))));
     const input = h('input', {
       type: 'number',
       min,
@@ -940,7 +943,7 @@ function settingsPanel(isHost) {
       'data-sync': true,
       onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, [key]: Number(e.currentTarget.value) } }),
     });
-    return rule(key, h('label', { class: 'row' }, h('span', null, label), input));
+    return rule(key, h('label', { class: 'row' }, h('span', null, coin(), label), input));
   };
   const dynamicTable = () => {
     const label = t('tableRules.dynamicTable.label');
