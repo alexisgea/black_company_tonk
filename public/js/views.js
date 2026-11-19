@@ -1,5 +1,5 @@
 import { h, patchChildren } from './dom.js';
-import { state, toast, nameOf, isSpectator, playerName, tableName } from './state.js';
+import { state, toast, nameOf, isSpectator, playerName, tableName, canAccuse } from './state.js';
 import { send, sendAction, sendHello, connect, enterTable } from './net.js';
 import { classifyMeld, layoffEnd } from './rules.js';
 import { cardEl, cardLabel } from './theme.js';
@@ -392,29 +392,12 @@ function renderTable() {
   const seats = round.order;
   const myIdx = seats.indexOf(state.you);
   const opponents = (myIdx === -1 ? seats : [...seats.slice(myIdx + 1), ...seats.slice(0, myIdx)]).filter((id) => id !== state.you);
-  const canAccuse = inHand && !over && !tonkPhase && !paused && !dealing && !!room.settings.cheating;
-  // Accusing is a gamble (a wrong one costs double the bet), so it asks first.
+  const accusing = state.accusing && canAccuse() && !dealing;
+  // Accusing is a gamble (a wrong one costs double the bet), so it asks first. It starts from the chat's quick words
+  // ("accuse someone of cheating"), then the player clicks the bot.
   function accuseControls(id, info) {
-    if (!canAccuse || !info?.isBot) return null;
+    if (!accusing || !info?.isBot || state.confirmAccuse !== id) return null;
     const name = playerName(info);
-    if (state.confirmAccuse !== id) {
-      return h(
-        'div',
-        { class: 'accuse-row' },
-        h(
-          'button',
-          {
-            class: 'secondary kick-btn',
-            title: t('accuse.tip', { name }),
-            onClick: () => {
-              state.confirmAccuse = id;
-              render();
-            },
-          },
-          t('action.accuse'),
-        ),
-      );
-    }
     const price = Math.min(room.settings.bet * 2, room.players.find((x) => x.id === state.you)?.coins ?? 0);
     return h(
       'div',
@@ -433,6 +416,7 @@ function renderTable() {
             class: 'kick-btn',
             onClick: () => {
               state.confirmAccuse = null;
+              state.accusing = false;
               send({ t: 'accuse', target: id });
             },
           },
@@ -466,8 +450,16 @@ function renderTable() {
           'opp' +
           (round.turn === id && !tonkPhase ? ' turn' : '') +
           (info && !info.connected ? ' offline' : '') +
-          (info?.away ? ' away' : ''),
+          (info?.away ? ' away' : '') +
+          (accusing && info?.isBot && state.confirmAccuse !== id ? ' accusable' : ''),
         'data-player': id,
+        onClick:
+          accusing && info?.isBot && state.confirmAccuse !== id
+            ? () => {
+                state.confirmAccuse = id;
+                render();
+              }
+            : null,
       },
       h(
         'div',
@@ -644,6 +636,24 @@ function renderTable() {
           purse(room.players.find((x) => x.id === state.you)),
           roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
+          accusing && !state.confirmAccuse
+            ? h(
+                'div',
+                { class: 'row accuse-banner' },
+                h('span', null, t('accuse.prompt')),
+                h(
+                  'button',
+                  {
+                    class: 'secondary kick-btn',
+                    onClick: () => {
+                      state.accusing = false;
+                      render();
+                    },
+                  },
+                  t('common.cancel'),
+                ),
+              )
+            : null,
           turnTimerLine(myTurn),
           awayNotice(),
           meldsOf(state.you),

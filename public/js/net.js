@@ -1,4 +1,4 @@
-import { state, toast, tableName } from './state.js';
+import { state, toast, tableName, canAccuse } from './state.js';
 import { chat, addChatMessage, chatText, setEmotes } from './chat.js';
 import { showBubble, noteFlavor, clearCallouts } from './callouts.js';
 import { render } from './views.js';
@@ -148,7 +148,10 @@ function onMessage(msg) {
       noteFlavor(msg.room.log, render);
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
-      if (msg.room.status !== 'playing' || msg.room.paused) state.confirmAccuse = null;
+      if (!canAccuse()) {
+        state.accusing = false;
+        state.confirmAccuse = null;
+      }
       if (state.confirmKick && ![...msg.room.players, ...msg.room.spectators].some((p) => p.id === state.confirmKick))
         state.confirmKick = null;
       break;

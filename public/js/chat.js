@@ -1,14 +1,15 @@
 // Chat: one persistent DOM node that the patcher keeps in place (or re-attaches), so incoming
 // game updates never clear the text being typed or the scroll position.
 import { h, persistent } from './dom.js';
-import { state, playerName } from './state.js';
+import { state, playerName, canAccuse } from './state.js';
 import { send } from './net.js';
+import { render } from './views.js';
 import { nameTag } from './name-tag.js';
 import { sidePanel } from './side-panels.js';
 import { t, tList, tNodes } from './i18n.js';
 
 const MAX_CHAT_KEPT = 50;
-export const chat = { messages: [], el: null, logEl: null, input: null, emoteBox: null, emoteToggle: null };
+export const chat = { messages: [], el: null, logEl: null, input: null, emoteBox: null, emoteToggle: null, accuseEntry: null };
 let emoteCooldownMs = 0;
 let emoteTimer;
 
@@ -55,12 +56,29 @@ function buildChat() {
 // the buttons stay greyed out for `cooldownMs`, the same wait the server enforces.
 export function setEmotes(ids, cooldownMs = 0) {
   emoteCooldownMs = cooldownMs;
+  chat.accuseEntry = h(
+    'button',
+    {
+      type: 'button',
+      class: 'accuse-entry secondary',
+      hidden: true,
+      onClick: () => {
+        state.accusing = true;
+        state.confirmAccuse = null;
+        chat.emoteBox.hidden = true;
+        chat.emoteToggle.setAttribute('aria-expanded', 'false');
+        render();
+      },
+    },
+    t('accuse.entry'),
+  );
   chat.emoteBox.replaceChildren(
     ...ids.map((id) =>
       h(
         'button',
         {
           type: 'button',
+          class: 'emote',
           onClick: () => {
             if (chat.emoteBox.classList.contains('cooling')) return;
             send({ t: 'emote', id });
@@ -72,16 +90,17 @@ export function setEmotes(ids, cooldownMs = 0) {
         t(`emote.${id}`),
       ),
     ),
+    chat.accuseEntry,
   );
 }
 
 function coolDownEmotes() {
   chat.emoteBox.classList.add('cooling');
-  for (const b of chat.emoteBox.children) b.disabled = true;
+  for (const b of chat.emoteBox.querySelectorAll('.emote')) b.disabled = true;
   clearTimeout(emoteTimer);
   emoteTimer = setTimeout(() => {
     chat.emoteBox.classList.remove('cooling');
-    for (const b of chat.emoteBox.children) b.disabled = false;
+    for (const b of chat.emoteBox.querySelectorAll('.emote')) b.disabled = false;
   }, emoteCooldownMs);
 }
 
@@ -95,6 +114,7 @@ export const chatText = (m) => {
 };
 
 export function fillChatLog() {
+  if (chat.accuseEntry) chat.accuseEntry.hidden = !canAccuse();
   chat.logEl.replaceChildren(
     ...chat.messages.map((m) => {
       const who = nameTag(playerName(m), { bot: !!m.bot, host: state.room?.hostId === m.pid });

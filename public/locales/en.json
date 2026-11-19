@@ -90,7 +90,6 @@
   "status.yourTurnDraw": "Your turn: draw, take the discard, or go down.",
   "status.yourTurnPlay": "Put down a spread or add cards to a spread, then discard one card.",
 
-  "action.accuse": "Accuse",
   "action.discard": "Discard",
   "action.goDown": "Go down",
   "action.selection": "(selection)",
@@ -124,7 +123,8 @@
   "result.waitingForPlayers": "Waiting for players…",
 
   "accuse.confirm": "Accuse {name} of cheating? If you are wrong, you pay them {price}.",
-  "accuse.tip": "Think {name} is cheating? Accuse them.",
+  "accuse.entry": "Accuse someone of cheating…",
+  "accuse.prompt": "Click the player you think is cheating.",
 
   "panel.collapse": "Fold away",
   "panel.expand": "Unfold",
@@ -479,7 +479,7 @@
   "rules.cheating.items": [
     "Some bots cheat now and then, unless the host switched cheating off. A cheat is never announced: you have to notice it, and nothing in the log says it happened.",
     "What to look for: a hand with fewer cards than it should have (5, plus every card drawn, minus every card discarded or put down); a card added to a run in another suit, or with a rank skipped (4-5-7); someone taking a card from the discard pile when the top card is still the same one afterwards (the log only says they took the top discard).",
-    "Accuse: press “Accuse” next to a player. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
+    "Accuse: open “Emotes” (next to the chat box) and pick “Accuse someone of cheating…”, then click the player you suspect and confirm. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
     "A cheat nobody caught is revealed when the hand ends, and nothing is paid for it."
   ],
   "rules.words.title": "Words you may hear",

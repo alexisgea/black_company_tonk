@@ -17,7 +17,8 @@ export const state = {
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
   confirmKick: null, // player id whose "Kick" button was clicked, waiting for confirmation
-  confirmAccuse: null, // player id whose "Accuse" button was clicked, waiting for confirmation
+  confirmAccuse: null, // player id whose accusation is waiting for confirmation
+  accusing: false, // "accuse someone of cheating" was picked in the quick words: click the bot to accuse
   tonkDeadline: 0, // local time when TONK! is pressed automatically
   restartDeadline: null, // local time when a table whose last human player went broke closes
   turnDeadline: null, // local time when a bot takes over the current human turn (null: no timer running)
@@ -72,3 +73,19 @@ export const nameOf = (id, fallback) => {
 export const tableName = (table) => (table.owner ? t('table.name', { owner: table.owner }) : table.name);
 
 export const isSpectator = () => !!state.room && !state.room.players.some((p) => p.id === state.you);
+
+// Can this player accuse a bot of cheating right now? (Playing a hand, not paused or waiting for TONK!, cheating on, a bot at the table.)
+export const canAccuse = () => {
+  const room = state.room;
+  const round = room?.round;
+  return (
+    !!round &&
+    room.status === 'playing' &&
+    !room.paused &&
+    !round.result &&
+    round.phase !== 'tonk' &&
+    !!room.settings.cheating &&
+    !!round.players[state.you] &&
+    room.players.some((p) => p.isBot)
+  );
+};

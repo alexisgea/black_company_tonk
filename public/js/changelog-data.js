@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.44.0',
+    date: '2026-11-19',
+    changes: [
+      'The "Accuse" button next to each bot is gone, so cheating stays in the background. To accuse someone, open "Emotes" and pick "Accuse someone of cheating\u2026" (the last entry, shown during a hand), then click the bot you suspect and confirm.',
+    ],
+  },
+  {
     version: '0.43.0',
     date: '2026-11-19',
     changes: [
