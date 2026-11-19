@@ -6,6 +6,8 @@ const { Mind } = require('./botmind');
 const { smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
 const { pickBanter, pickNudge, BANTER_TONE } = require('./botbanter');
+const { EMOTES } = require('./emotes');
+const { text: englishText } = require('./i18n');
 const T = require('./bottuning');
 
 // Fields of each log event that every viewer (including guests) may see. Anything else is dropped,
@@ -566,6 +568,13 @@ class Room {
   }
 
   // `kind` marks messages the game speaks for a player (like shouting TONK!), which each client words in its own language;
+  // A premade line (see emotes.js), worded by each client in its own language; `text` is the English fallback.
+  addEmote(user, id) {
+    if (!this.players.includes(user) && !this.spectators.includes(user)) throw new tonk.GameError('notAtThisTable');
+    if (!EMOTES.includes(id)) throw new tonk.GameError('unknownEmote');
+    return this.pushChat(user, englishText(`emote.${id}`), 'emote', { emote: id });
+  }
+
   // `extra` is whatever more the client needs for that (see banter).
   pushChat(user, text, kind = null, extra = null) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };

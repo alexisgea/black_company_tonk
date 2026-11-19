@@ -287,6 +287,17 @@ test('chat is cleaned, capped and limited to members', () => {
   assert.equal(room.chat.at(-1).text, 'm59');
 });
 
+test('an emote is a premade line in the chat, for members only and only from the list', () => {
+  const room = new Room('R', 'Test');
+  const a = human('Ann');
+  room.join(a);
+  const msg = room.addEmote(a, 'hello');
+  assert.deepEqual([msg.kind, msg.emote, msg.text], ['emote', 'hello', 'Well met, Company!']);
+  assert.equal(room.chat.at(-1), msg);
+  assert.throws(() => room.addEmote(a, 'nope'), /Unknown quick word/);
+  assert.throws(() => room.addEmote(human('Stranger'), 'hello'), /Not at this table/);
+});
+
 test('a bot sometimes says a line of its tone, never twice in a row, and Silent and humans never speak', () => {
   const room = new Room('R', 'Test');
   const ann = human('Ann');

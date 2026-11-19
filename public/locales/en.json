@@ -176,6 +176,22 @@
   "chat.sender": "{name}:",
   "chat.title": "Chat",
   "chat.tonk": "TONK!",
+  "chat.emotes": "Emotes",
+  "chat.emotesTitle": "Quick words",
+
+  "emote.hello": "Well met, Company!",
+  "emote.yourMove": "Your move.",
+  "emote.thinking": "Give me a moment. I'm thinking.",
+  "emote.oops": "Wrong card. Forgive me.",
+  "emote.wellPlayed": "Well played. Mark it in the Annals.",
+  "emote.goodLuck": "May fortune ride with you.",
+  "emote.badLuck": "Rotten draw. Curse these cards.",
+  "emote.surprise": "What?! How?!",
+  "emote.hehe": "Hehehe.",
+  "emote.winning": "The coin is as good as mine.",
+  "emote.losing": "I'm as good as buried.",
+  "emote.goodGame": "A good game, all of you.",
+  "emote.bye": "I'm off. Hold the line.",
 
   "banter.grumbling.turn": [
     "Another turn, another ache in my back.",
@@ -477,6 +493,7 @@
   "err.discardPileEmpty": "The discard pile is empty",
   "err.drawFirst": "Take a card first",
   "err.drawPileEmpty": "The draw pile is empty; take the discard instead",
+  "err.emoteTooFast": "Wait a moment before your next quick word",
   "err.emptyMessage": "Message is empty",
   "err.goDownTiming": "You can only go down at the start of your turn",
   "err.handInProgress": "A hand is already in progress",
@@ -526,6 +543,7 @@
   "err.tooManyTables": "You are creating tables too quickly.",
   "err.unknownAction": "Unknown action",
   "err.unknownBot": "No such bot",
+  "err.unknownEmote": "Unknown quick word",
   "err.unknownMessage": "Unknown message",
   "err.waitingForTonk": "Waiting for TONK! to be declared",
   "err.wrongPassword": "Wrong password"

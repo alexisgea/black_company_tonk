@@ -321,6 +321,10 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .bubble {
   position: absolute; z-index: 6; width: max-content; max-width: min(16rem, 90vw); padding: 6px 10px; border-radius: 10px;
   background: #e8dfcb; color: #1b1c1d; border: 1px solid var(--accent); box-shadow: 0 4px 12px #0008;
+.emote-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.emote-box[hidden] { display: none; }
+.emote-box button { font-size: 0.8125rem; padding: 3px 8px; }
+.emote-box button:disabled { opacity: 0.45; cursor: default; }
   font-size: 0.9375rem; line-height: 1.25; text-align: left; overflow-wrap: anywhere; pointer-events: none;
   animation: bubble-in 0.15s ease-out, bubble-out 0.4s ease-in 5.6s forwards;
 }

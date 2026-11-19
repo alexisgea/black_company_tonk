@@ -197,6 +197,30 @@ test('chat: delivered to everyone in the room, stored in history, sanitised and 
   assert.match(alice.last('error').message, /too fast/i);
 });
 
+test('emotes: sent to the whole room, one per cooldown, unknown ones refused, and welcome lists them', () => {
+  const lobby = new Lobby();
+  const alice = connect(lobby, 'Alice');
+  const bob = connect(lobby, 'Bob');
+  assert.ok(alice.last('welcome').emotes.includes('hello') && alice.last('welcome').emoteCooldownMs > 0);
+  say(lobby, alice, { t: 'createGame' });
+  say(lobby, bob, { t: 'joinGame', gameId: bob.last('lobby').games[0].id });
+
+  say(lobby, alice, { t: 'emote', id: 'goodGame' });
+  const got = bob.last('chat').message;
+  assert.deepEqual([got.kind, got.emote, got.name], ['emote', 'goodGame', 'Alice']);
+  assert.equal(alice.last('chat').message.id, got.id);
+
+  say(lobby, alice, { t: 'emote', id: 'bye' });
+  assert.match(alice.last('error').message, /wait a moment/i);
+  assert.equal(bob.last('chat').message.id, got.id, 'the second one never went out');
+
+  say(lobby, bob, { t: 'emote', id: 'nope' });
+  assert.match(bob.last('error').message, /unknown/i);
+  const carol = connect(lobby, 'Carol');
+  say(lobby, carol, { t: 'emote', id: 'hello' });
+  assert.match(carol.last('error').message, /table/i);
+});
+
 test('bots: the host can seat a chosen bot, and clients get the bot catalog when they connect', () => {
   const lobby = new Lobby();
   const host = connect(lobby, 'Host');

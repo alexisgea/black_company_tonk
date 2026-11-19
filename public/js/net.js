@@ -1,5 +1,5 @@
 import { state, toast, tableName } from './state.js';
-import { chat, addChatMessage, chatText } from './chat.js';
+import { chat, addChatMessage, chatText, setEmotes } from './chat.js';
 import { showBubble, noteFlavor, clearCallouts } from './callouts.js';
 import { render } from './views.js';
 import { t, serverText } from './i18n.js';
@@ -112,6 +112,7 @@ function onMessage(msg) {
       state.you = msg.id;
       state.name = msg.name;
       state.bots = msg.bots ?? [];
+      setEmotes(msg.emotes ?? [], msg.emoteCooldownMs);
       sessionStorage.setItem('tonk.token', msg.token);
       localStorage.setItem('tonk.name', msg.name);
       break;

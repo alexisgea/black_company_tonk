@@ -95,6 +95,11 @@ test('every message key the client code uses exists in English', () => {
   const { BANTER_TONE, TONES, SITUATIONS } = require('../server/botbanter');
   for (const id of BOT_IDS) assert.ok(id in BANTER_TONE, `${id} needs a tone (or null) in BANTER_TONE`);
   for (const tone of Object.values(BANTER_TONE)) assert.ok(tone === null || TONES.includes(tone), `unknown tone ${tone}`);
+  const { EMOTES } = require('../server/emotes');
+  for (const id of EMOTES) {
+    assert.ok(`emote.${id}` in en, `emote ${id}`);
+    assert.ok(Array.from(en[`emote.${id}`]).length <= 80, `"${id}" is too long for a speech bubble`);
+  }
   for (const tone of TONES)
     for (const situation of SITUATIONS) {
       const key = `banter.${tone}.${situation}`;

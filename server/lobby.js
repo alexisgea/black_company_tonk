@@ -9,6 +9,7 @@ const { isReservedName } = require('./botnames');
 const { describe } = require('./i18n');
 
 const { RateLimiter } = require('./limits');
+const { EMOTES, EMOTE_COOLDOWN_MS } = require('./emotes');
 
 const OPEN = 1; // ws.OPEN
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -561,6 +562,7 @@ class Lobby {
         room: null,
         timer: null,
         chatLimiter: new RateLimiter(CHAT_BURST, CHAT_WINDOW_MS),
+        emoteLimiter: new RateLimiter(1, EMOTE_COOLDOWN_MS),
         createLimiter: new RateLimiter(this.createsPerMinute, 60000),
         passwordLimiter: new RateLimiter(PASSWORD_GUESSES, PASSWORD_WINDOW_MS),
       };
@@ -570,7 +572,15 @@ class Lobby {
     if (!user.room) user.name = name;
     user.conn = conn;
     conn.user = user;
-    this.send(conn, { t: 'welcome', token: user.token, id: user.id, name: user.name, bots: botCatalog() });
+    this.send(conn, {
+      t: 'welcome',
+      token: user.token,
+      id: user.id,
+      name: user.name,
+      bots: botCatalog(),
+      emotes: EMOTES,
+      emoteCooldownMs: EMOTE_COOLDOWN_MS,
+    });
     if (user.room) this.broadcastRoom(user.room);
     this.broadcastLobby(); // also tells everyone else in the lobby about the new head count
   }
@@ -734,6 +744,13 @@ class Lobby {
         requireRoom(room);
         if (!user.chatLimiter.hit()) throw new GameError('chatTooFast');
         const message = room.addChat(user, msg.text);
+        for (const p of room.audience) this.send(p.conn, { t: 'chat', message });
+        break;
+      }
+      case 'emote': {
+        requireRoom(room);
+        if (!user.emoteLimiter.hit()) throw new GameError('emoteTooFast');
+        const message = room.addEmote(user, msg.id);
         for (const p of room.audience) this.send(p.conn, { t: 'chat', message });
         break;
       }

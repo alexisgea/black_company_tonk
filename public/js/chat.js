@@ -8,11 +8,29 @@ import { sidePanel } from './side-panels.js';
 import { t, tList, tNodes } from './i18n.js';
 
 const MAX_CHAT_KEPT = 50;
-export const chat = { messages: [], el: null, logEl: null, input: null };
+export const chat = { messages: [], el: null, logEl: null, input: null, emoteBox: null, emoteToggle: null };
+let emoteCooldownMs = 0;
+let emoteTimer;
 
 function buildChat() {
   chat.logEl = h('div', { class: 'chat-log' });
   chat.input = h('input', { type: 'text', maxLength: 200, placeholder: t('chat.placeholder'), autocomplete: 'off' });
+  chat.emoteToggle = h(
+    'button',
+    {
+      type: 'button',
+      class: 'emote-toggle',
+      title: t('chat.emotesTitle'),
+      'aria-expanded': 'false',
+      onClick: () => {
+        const open = chat.emoteBox.hidden;
+        chat.emoteBox.hidden = !open;
+        chat.emoteToggle.setAttribute('aria-expanded', String(open));
+      },
+    },
+    t('chat.emotes'),
+  );
+  chat.emoteBox = h('div', { class: 'emote-box', hidden: true });
   const form = h(
     'form',
     {
@@ -26,16 +44,52 @@ function buildChat() {
       },
     },
     chat.input,
+    chat.emoteToggle,
     h('button', { type: 'submit' }, t('chat.send')),
   );
-  chat.el = sidePanel('chat', t('chat.title'), chat.logEl, form);
+  chat.el = sidePanel('chat', t('chat.title'), chat.logEl, form, chat.emoteBox);
   persistent.set('chat', chat.el);
+}
+
+// The quick words come from the server (see emotes.js), which also keeps them from being spammed: after one is said
+// the buttons stay greyed out for `cooldownMs`, the same wait the server enforces.
+export function setEmotes(ids, cooldownMs = 0) {
+  emoteCooldownMs = cooldownMs;
+  chat.emoteBox.replaceChildren(
+    ...ids.map((id) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          onClick: () => {
+            if (chat.emoteBox.classList.contains('cooling')) return;
+            send({ t: 'emote', id });
+            chat.emoteBox.hidden = true;
+            chat.emoteToggle.setAttribute('aria-expanded', 'false');
+            coolDownEmotes();
+          },
+        },
+        t(`emote.${id}`),
+      ),
+    ),
+  );
+}
+
+function coolDownEmotes() {
+  chat.emoteBox.classList.add('cooling');
+  for (const b of chat.emoteBox.children) b.disabled = true;
+  clearTimeout(emoteTimer);
+  emoteTimer = setTimeout(() => {
+    chat.emoteBox.classList.remove('cooling');
+    for (const b of chat.emoteBox.children) b.disabled = false;
+  }, emoteCooldownMs);
 }
 
 // Messages the game speaks for a player (see Room.pushChat) are worded here, in the reader's language. A bot's
 // banter is picked by its place in a list of lines, and the English text it came with covers a list that is missing.
 export const chatText = (m) => {
   if (m.kind === 'tonk') return t('chat.tonk');
+  if (m.kind === 'emote') return t(`emote.${m.emote}`, undefined, m.text);
   if (m.kind === 'banter') return tList(`banter.${m.tone}.${m.situation}`)[m.line] ?? m.text;
   return m.text;
 };

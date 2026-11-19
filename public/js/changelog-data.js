@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.40.0',
+    date: '2026-11-19',
+    changes: [
+      'New "Emotes" button next to Send in the chat: thirteen quick lines (greetings, "your move", luck, surprise, a laugh, "I\u2019m winning / losing", goodbyes) you can say with one click. They show in the chat and as a speech bubble.',
+      'Quick lines cannot be spammed: one every 4 seconds per player.',
+    ],
+  },
+  {
     version: '0.38.0',
     date: '2026-11-19',
     changes: [
