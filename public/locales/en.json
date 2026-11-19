@@ -333,8 +333,6 @@
   "mark.bot": "Bot",
   "mark.dealer": "Dealer",
   "mark.dealerTitle": "Deals this hand",
-  "mark.first": "First player",
-  "mark.firstTitle": "Plays first this hand",
   "mark.host": "Host",
   "mark.hostTitle": "Host of this table",
 

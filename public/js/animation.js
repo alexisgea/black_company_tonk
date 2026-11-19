@@ -21,6 +21,7 @@ const SELECT_LIFT = 'translateY(-18px)'; // keep in sync with .card.selected in 
 const DECK_MOVE_MS = 320;
 const SHUFFLE_MS = 220; // one riffle; the deck does two
 const SHUFFLE_STACK = 6;
+const DECK_SCALE = 0.65; // the deck is smaller while it sits by the dealer
 const DEAL_FLIGHT_MS = 300;
 const DEAL_CARD_GAP_MS = 45;
 const DEAL_SPREAD_MS = 600; // the gaps shrink so that a big table is not dealt any slower
@@ -41,7 +42,7 @@ export function captureCards() {
   return cards;
 }
 
-// Where the dealer and first-player chips are, so they can slide to their new seats.
+// Where the dealer chip is, so it can slide to its new seat.
 export function captureMarks() {
   const marks = {};
   for (const el of document.querySelectorAll('[data-role-mark]')) marks[el.dataset.roleMark] = centerOf(el.getBoundingClientRect());
@@ -132,8 +133,8 @@ function ghostFly(card, from, to) {
 
 // ---- The deal ----
 // A new hand is dealt as a little show: the deck slides to the dealer, is shuffled, the cards fly out face down
-// (mine are then turned over), the deck goes back to the middle and turns up the first discard, and finally the
-// first-player chip slides to its seat. While it runs the real cards are hidden by CSS (the table's data-deal
+// (mine are then turned over), and the deck goes back to the middle and turns up the first discard. While it
+// runs the real cards are hidden by CSS (the table's data-deal
 // phase, see style.css) and stand-in cards in #fx do the moving. Nobody can move until it is over.
 // A client that joins or reconnects during a deal never sees it: only a change of hand number seen live starts one.
 const reducedMotion = () => !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -210,11 +211,17 @@ async function runDeal(prevMarks, rerender) {
   if (!deckEl || !discardEl || round.discardTop === null) return abortDeal(rerender);
   const deck = centerOf(deckEl.getBoundingClientRect());
   const discard = centerOf(discardEl.getBoundingClientRect());
-  const seatPoint = (id) => {
-    const hand = id === state.you ? document.querySelector('.me-panel .hand') : null;
-    return hand ? centerOf(hand.getBoundingClientRect()) : panelCenter(id);
+  const deckAt = (id) => {
+    const panel = id === state.you ? document.querySelector('.me-panel') : document.querySelector(`.opp[data-player="${CSS.escape(id)}"]`);
+    if (!panel) return deck;
+    // Tucked against the dealer's right-hand corner, under the panel (above mine, which is at the bottom of the screen),
+    // so the name and the dealer chip stay readable even in the two-column layout of a phone.
+    const r = panel.getBoundingClientRect();
+    const w = deck.w * DECK_SCALE;
+    const h = deck.h * DECK_SCALE;
+    return { cx: r.right - w * 0.6, cy: id === state.you ? r.top - h / 2 + 4 : r.bottom + h / 2 - 4, w: deck.w, h: deck.h };
   };
-  const dealerAt = (round.dealer && seatPoint(round.dealer)) || deck;
+  const dealerAt = (round.dealer && deckAt(round.dealer)) || deck;
   deal.watchdog = setTimeout(() => abortDeal(rerender), DEAL_MAX_MS);
 
   // The deck is a small stack of card backs that all move and riffle together.
@@ -236,7 +243,7 @@ async function runDeal(prevMarks, rerender) {
   };
 
   flyMark('dealer', prevMarks.dealer);
-  await moveStack(dealerAt, 0.65, DECK_MOVE_MS);
+  await moveStack(dealerAt, DECK_SCALE, DECK_MOVE_MS);
   if (!alive()) return;
 
   await Promise.all(
@@ -342,13 +349,8 @@ async function runDeal(prevMarks, rerender) {
   ]);
   if (!alive()) return;
 
-  setPhase('first');
   back.remove();
   face.remove();
-  flyMark('first', prevMarks.first);
-  await wait(MARK_MS);
-  if (!alive()) return;
-
   clearTimeout(deal.watchdog);
   anim.deal = null;
   rerender();
