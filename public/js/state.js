@@ -16,6 +16,7 @@ export const state = {
   room: null,
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
+  confirmLeave: false,
   confirmKick: null, // player id whose "Kick" button was clicked, waiting for confirmation
   confirmAccuse: null, // player id whose accusation is waiting for confirmation
   accusing: false, // "accuse someone of cheating" was picked in the quick words: click the bot to accuse

@@ -39,7 +39,7 @@ const PUBLIC_LOG_FIELDS = {
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
 // (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2). `dynamicTable` makes bots come and go
 // during play. `cheating` lets the bots that have the habit cheat, and lets players accuse them. The labels are in the locale files.
-const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5, dynamicTable: false, cheating: true };
+const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5, dynamicTable: true, cheating: true };
 // Dynamic table: the chance that after a hand one bot gets tired of the table and a new one takes its seat, and how
 // many in-lore lines there are for it ("log.dynLeave.<n>" and "log.dynJoin.<n>" in the locale files).
 const DYNAMIC_LEAVE_CHANCE = 0.15;
@@ -78,7 +78,7 @@ function validateSettings(raw) {
   }
   if (settings.bet > settings.startingCoins) throw new tonk.GameError('betTooHigh');
   if (raw.dynamicTable !== undefined && typeof raw.dynamicTable !== 'boolean') throw new tonk.GameError('badSettings');
-  settings.dynamicTable = raw.dynamicTable === true;
+  settings.dynamicTable = raw.dynamicTable !== false;
   if (raw.cheating !== undefined && typeof raw.cheating !== 'boolean') throw new tonk.GameError('badSettings');
   settings.cheating = raw.cheating !== false;
   return settings;

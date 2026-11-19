@@ -12,21 +12,20 @@ export function nameTag(name, { bot = false, host = false } = {}) {
   );
 }
 
-// The chip that shows who deals this hand. The animation (animation.js) slides it from seat to seat,
-// finding it by data-role-mark.
-// Once the hand is over, whoever went down gets a chip too: green if it won, red if they were caught.
-// With `reserve`, a player without a chip still gets an empty row so no panel is taller than the others.
+export function wentDownMark(id, round) {
+  const r = round.result;
+  if (r?.type !== 'down' || r.actor !== id) return null;
+  return h('span', { class: 'role-mark went-down ' + (r.success ? 'won' : 'caught') }, t(r.success ? 'mark.wentDown' : 'mark.caught'));
+}
+
+// The dealer chip moves between seats in animation.js. Reserve keeps opponents' rows the same height.
 export function roleMarks(id, round, { reserve = false } = {}) {
   const marks = [];
   if (round.dealer === id) {
     marks.push(h('span', { class: 'role-mark dealer', 'data-role-mark': 'dealer', title: t('mark.dealerTitle') }, t('mark.dealer')));
   }
-  const r = round.result;
-  if (r?.type === 'down' && r.actor === id) {
-    marks.push(
-      h('span', { class: 'role-mark went-down ' + (r.success ? 'won' : 'caught') }, t(r.success ? 'mark.wentDown' : 'mark.caught')),
-    );
-  }
+  const down = wentDownMark(id, round);
+  if (down) marks.push(down);
   if (!marks.length) return reserve ? h('div', { class: 'role-marks' }) : null;
   return h('div', { class: 'role-marks' }, marks);
 }

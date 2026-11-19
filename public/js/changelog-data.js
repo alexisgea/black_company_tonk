@@ -1,6 +1,18 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.46.0',
+    date: '2026-11-19',
+    changes: [
+      'Leave table now asks for confirmation, including when watching.',
+      'The open-table list wraps on phones so Join and Watch stay on screen. The waiting-room Bots button has more space, empty seats are easier to read, and table-rule explanations use larger text.',
+      'Dynamic tables are now on by default; the host can still switch them off before starting.',
+      'Emotes now sit on your hand panel instead of in the chat box, including when watching. The waiting room keeps them above chat, and Well played is available again.',
+      'Hand summaries keep hand values and coin changes beside the cards, with a Went down or Caught tag beside the player who called it.',
+      'Bots play about a third more slowly, with an extra pause before each new turn so back-to-back bot turns are easier to follow.',
+    ],
+  },
+  {
     version: '0.45.0',
     date: '2026-11-19',
     changes: [

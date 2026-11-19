@@ -53,6 +53,7 @@
   "room.joinGame": "Join the game",
   "room.kick": "Kick",
   "room.leave": "Leave table",
+  "room.confirmLeave": "Are you sure you want to leave the table?",
   "room.log": "Log",
   "room.needMorePlayers": "Waiting for at least one more player…",
   "room.pauseGame": "Pause game",

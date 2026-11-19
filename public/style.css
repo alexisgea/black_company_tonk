@@ -134,8 +134,11 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .credits a { color: inherit; }
 
 .games { list-style: none; margin: 0; padding: 0; }
-.games li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #d8d0bf22; }
+.games li { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid #d8d0bf22; overflow-wrap: anywhere; }
 .games li:last-child { border-bottom: 0; }
+.games li > * { min-width: 0; max-width: 100%; }
+.game-name { flex-basis: 100%; }
+.game-actions { margin-left: auto; }
 
 .table-layout { display: grid; grid-template-columns: 1fr clamp(19rem, 22vw, 24rem); gap: 12px; padding: 12px; min-height: 100vh; }
 .table { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -201,9 +204,9 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .hand-summary { margin-bottom: 0; }
 .hand-summary h3 { margin: 0 0 10px; }
 .hand-summary .hand-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
-.hand-summary .who { flex: 0 0 9.5rem; overflow-wrap: anywhere; }
+.hand-summary .who { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex: 0 1 12rem; overflow-wrap: anywhere; }
 .hand-summary .cards { display: flex; gap: 3px; flex-wrap: wrap; }
-.hand-summary .result-line { margin: 0 0 0 auto; }
+.hand-summary .result-line { margin: 0; }
 .result-cheats { font-size: 0.875rem; }
 .accuse-row { margin-top: 6px; }
 .accuse-text { margin: 0 0 4px; font-size: 0.8125rem; }
@@ -253,7 +256,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 
 /* The setting rows in the table rules: the control, then its explanation with room around it. */
 .setting { margin-bottom: 16px; }
-.setting-hint { margin: 4px 0 0; font-size: 0.9375rem; line-height: 1.35; }
+.setting-hint { margin: 6px 0 0; font-size: 1.0625rem; line-height: 1.45; }
 .tick-row { gap: 12px; cursor: pointer; }
 .tick-row:hover .tick { border-color: var(--accent); }
 .tick {
@@ -273,8 +276,10 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .tick:focus-visible { outline: none; box-shadow: 0 0 0 3px #b59a5b77; }
 .tick:checked:focus-visible { box-shadow: inset 0 1px 0 #fff6, 0 0 0 3px #b59a5b77; }
 .seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 8px; }
+.seats-head { margin-bottom: 12px; }
 .seat { display: flex; align-items: center; gap: 10px; min-height: 3.4rem; padding: 6px 10px; border-radius: 8px; background: #0003; text-align: left; font-weight: 400; letter-spacing: 0; text-transform: none; }
-.seat.empty { background: transparent; border: 1px dashed #d8d0bf44; }
+.seat.empty { background: #d8d0bf0a; color: var(--text); border: 1px dashed #d8d0bf88; font-family: inherit; }
+button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
 .seat-text { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .seat-sub { font-size: 0.8125rem; }
 .bot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -331,6 +336,9 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .chat-msg.mine strong { color: var(--accent); }
 .chat-form { display: flex; gap: 6px; }
 .chat-form input { flex: 1; min-width: 0; }
+.emote-controls { margin-bottom: 12px; }
+.me-panel .emote-controls { margin: 10px 0 0; }
+.me-panel .emote-box { justify-content: center; }
 .emote-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .emote-box[hidden] { display: none; }
 .emote-box button { font-size: 0.8125rem; padding: 3px 8px; }
@@ -405,6 +413,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 }
 @media (max-width: 760px) {
   .screen { padding: 16px 12px; }
+  .game-actions { flex-basis: 100%; margin-left: 0; }
   .table-layout { padding: 8px; gap: 8px; min-height: 0; }
   /* The playable area fills the visible screen; the side panels start below it. */
   .table { gap: 8px; min-height: calc(100vh - 16px); min-height: calc(100dvh - 16px); }

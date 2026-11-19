@@ -316,6 +316,22 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   assert.equal(lobby.rooms.size, 0);
 });
 
+test('bots: a new turn adds a readable pause, without slowing each move of that turn again', (t) => {
+  t.mock.method(Math, 'random', () => 0.5);
+  const lobby = new Lobby();
+  const previousPace = new Lobby({ botDelayMs: 1200 });
+  const room = { round: { phase: 'draw', turnNo: 0 } };
+  const bot = { botId: 'goblin' };
+  const firstDraw = lobby.thinkMs(room, bot, 0.5);
+  assert.ok(firstDraw >= previousPace.thinkMs(room, bot, 0.5) * 1.3, 'actions are at least 30% slower');
+  room.round.turnNo = 1;
+  assert.equal(lobby.thinkMs(room, bot, 0.5) - firstDraw, 1200, 'new turns add a 1.2 second pause');
+  room.round.phase = 'play';
+  const play = lobby.thinkMs(room, bot, 0.5);
+  room.round.turnNo = 2;
+  assert.equal(lobby.thinkMs(room, bot, 0.5), play, 'spreads and discards do not add another turn pause');
+});
+
 test('bots: wait for the deal to be shown before their first move', async () => {
   const lobby = new Lobby({ botDelayMs: 5, dealMs: 300, rng: () => 0 }); // the host deals, so the bot plays first
   const host = connect(lobby, 'Host');
@@ -729,7 +745,7 @@ test('tonk: the button is pressed automatically when the timer runs out, and bot
   await new Promise((r) => setTimeout(r, 50));
   const bot = botRoom.host.last('room').room;
   assert.equal(bot.status, 'between');
-  assert.ok(bot.chat.some((m) => m.text === 'TONK!' && bot.players.find((p) => p.id === m.pid)?.isBot));
+  assert.ok(bot.chat.some((m) => m.text === 'TONK!' && m.bot));
   botRoom.lobby.closeRoom([...botRoom.lobby.rooms.values()][0], 'done');
 });
 
@@ -924,7 +940,7 @@ test('only the host can change the table settings, and everyone sees them', () =
   assert.match(guest.last('error').message, /Only the host/);
   say(lobby, host, { t: 'updateSettings', settings: { startingCoins: 20, bet: 2 } });
   const room = guest.last('room').room;
-  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2, dynamicTable: false, cheating: true });
+  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2, dynamicTable: true, cheating: true });
   assert.ok(room.players.every((p) => p.coins === 20));
 });
 

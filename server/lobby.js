@@ -55,8 +55,8 @@ class Lobby {
   constructor({
     graceMs = 60000,
     rng = Math.random,
-    botDelayMs = 1200,
-    dealMs = botDelayMs * 3,
+    botDelayMs = 1600,
+    dealMs = botDelayMs * 2.25,
     maxRooms = 100,
     createsPerMinute = 5,
     roomIdleMs = 30 * 60000,
@@ -254,11 +254,13 @@ class Lobby {
 
   // How long a computer player takes over this move: each character has its own pace, a draw takes a little
   // longer to think about than putting cards down, a close call takes longer than an obvious move, and no two
-  // moves take exactly the same time.
+  // moves take exactly the same time. A fresh turn gets an extra pause so consecutive bots do not blur together.
   thinkMs(room, seat, effort = 0.5) {
-    const pace = (room.round.phase === 'draw' ? THINK_DRAW : THINK_PLAY) / profileFor(seat).thinkSpeed;
+    const drawing = room.round.phase === 'draw';
+    const pace = (drawing ? THINK_DRAW : THINK_PLAY) / profileFor(seat).thinkSpeed;
     const ponder = THINK_EFFORT_MIN + effort * (THINK_EFFORT_MAX - THINK_EFFORT_MIN);
-    return Math.round(this.botDelayMs * pace * ponder * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
+    const turnPause = drawing && room.round.turnNo > 0 ? this.botDelayMs * 0.75 : 0;
+    return Math.round(turnPause + this.botDelayMs * pace * ponder * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
   }
 
   // Plays one move for an auto-played seat: the smart player first, then the original simple one, then a plain

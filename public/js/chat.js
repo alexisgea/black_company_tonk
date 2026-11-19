@@ -20,7 +20,7 @@ function buildChat() {
     'button',
     {
       type: 'button',
-      class: 'emote-toggle',
+      class: 'emote-toggle secondary',
       title: t('chat.emotesTitle'),
       'aria-expanded': 'false',
       onClick: () => {
@@ -45,11 +45,11 @@ function buildChat() {
       },
     },
     chat.input,
-    chat.emoteToggle,
     h('button', { type: 'submit' }, t('chat.send')),
   );
-  chat.el = sidePanel('chat', t('chat.title'), chat.logEl, form, chat.emoteBox);
+  chat.el = sidePanel('chat', t('chat.title'), chat.logEl, form);
   persistent.set('chat', chat.el);
+  persistent.set('emotes', h('div', { class: 'emote-controls' }, chat.emoteToggle, chat.emoteBox));
 }
 
 // The quick words come from the server (see emotes.js), which also keeps them from being spammed: after one is said

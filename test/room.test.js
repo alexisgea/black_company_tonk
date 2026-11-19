@@ -137,7 +137,7 @@ test('the host can change the settings only before the game starts, with limits'
   const users = namesFor(MIN_PLAYERS).map(human);
   users.forEach((u) => room.join(u));
   room.updateSettings(users[0], { startingCoins: 100, bet: 5 });
-  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5, dynamicTable: false, cheating: true });
+  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5, dynamicTable: true, cheating: true });
   assert.ok(Object.values(room.coins).every((c) => c === 100));
   assert.throws(() => room.updateSettings(users[0], { startingCoins: 5, bet: 1 }), /Starting coins/);
   assert.throws(() => room.updateSettings(users[0], { startingCoins: 100, bet: 1.5 }), /Bet/);
@@ -201,13 +201,14 @@ test('the host can seat a chosen bot, but not an unknown one or one that is alre
   assert.notEqual(room.addBot().botId, 'goblin');
 });
 
-test('dynamic table setting must be a boolean', () => {
+test('dynamic tables default on, can be switched off, and require a boolean', () => {
   const room = new Room('R', 'Test');
   const a = human('Ann');
   room.join(a);
-  room.updateSettings(a, { startingCoins: 50, bet: 5, dynamicTable: true });
   assert.equal(room.settings.dynamicTable, true);
   room.updateSettings(a, { startingCoins: 50, bet: 5 });
+  assert.equal(room.settings.dynamicTable, true);
+  room.updateSettings(a, { startingCoins: 50, bet: 5, dynamicTable: false });
   assert.equal(room.settings.dynamicTable, false);
   assert.throws(() => room.updateSettings(a, { startingCoins: 50, bet: 5, dynamicTable: 'yes' }), /Bad settings/);
 });

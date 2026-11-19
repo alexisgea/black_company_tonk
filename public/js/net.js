@@ -123,6 +123,7 @@ function onMessage(msg) {
       state.games = msg.games;
       state.online = msg.online ?? 0;
       state.room = null;
+      state.confirmLeave = false;
       state.tableDialog = false;
       state.view = 'lobby';
       chat.messages = [];
@@ -132,6 +133,7 @@ function onMessage(msg) {
     case 'room': {
       // Shouting TONK! is not sent as a chat message of its own: it arrives with the table, so its bubble is raised here.
       const sameTable = state.room?.id === msg.room.id;
+      if (!sameTable) state.confirmLeave = false;
       const lastSeen = sameTable ? (chat.messages[chat.messages.length - 1]?.id ?? -1) : Infinity;
       for (const m of msg.room.chat) if (m.id > lastSeen && m.kind === 'tonk') showBubble(m.pid, m.id, chatText(m), render);
       state.pendingJoin = null;

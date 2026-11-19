@@ -6,7 +6,7 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
-import { nameTag, roleMarks } from './name-tag.js';
+import { nameTag, roleMarks, wentDownMark } from './name-tag.js';
 import { avatar } from './avatar.js';
 import { coin } from './coin.js';
 import { botLabel } from './bot-picker.js';
@@ -21,6 +21,7 @@ import { t, tNodes, botName } from './i18n.js';
 
 const app = document.getElementById('app');
 const chatSlot = () => h('div', { 'data-persist': 'chat' });
+const emoteSlot = () => h('div', { 'data-persist': 'emotes' });
 const secondsLeft = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 const URGENT_SECONDS = 15;
 // Rows of more than this many cards overlap slightly, like a real spread.
@@ -162,7 +163,7 @@ function renderLobby() {
           h(
             'li',
             null,
-            h('strong', null, g.locked ? `\u{1F512} ${tableName(g)}` : tableName(g)),
+            h('strong', { class: 'game-name' }, g.locked ? `\u{1F512} ${tableName(g)}` : tableName(g)),
             h(
               'span',
               { class: 'muted' },
@@ -170,10 +171,13 @@ function renderLobby() {
             ),
             g.spectators ? h('span', { class: 'muted' }, `\u2022 ${t('lobby.watching', { count: g.spectators })}`) : null,
             h('span', { class: 'muted' }, '\u2022 ', coin(), t('lobby.stakes', { coins: g.startingCoins, bet: g.bet })),
-            h('span', { class: 'spacer' }),
-            h('span', { class: 'muted' }, g.status === 'playing' ? t('lobby.inProgress') : t('lobby.open')),
-            h('button', { disabled: !g.joinable, onClick: () => enterTable(g, 'join') }, t('common.join')),
-            h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => enterTable(g, 'watch') }, t('common.watch')),
+            h(
+              'div',
+              { class: 'row game-actions' },
+              h('span', { class: 'muted' }, g.status === 'playing' ? t('lobby.inProgress') : t('lobby.open')),
+              h('button', { disabled: !g.joinable, onClick: () => enterTable(g, 'join') }, t('common.join')),
+              h('button', { class: 'secondary', disabled: !g.watchable, onClick: () => enterTable(g, 'watch') }, t('common.watch')),
+            ),
           ),
         ),
       )
@@ -212,9 +216,50 @@ function renderLobby() {
   );
 }
 
+function leaveControls() {
+  if (!state.confirmLeave)
+    return h(
+      'button',
+      {
+        class: 'secondary',
+        onClick: () => {
+          state.confirmLeave = true;
+          render();
+        },
+      },
+      t('room.leave'),
+    );
+  return h(
+    'div',
+    { class: 'row leave-confirm' },
+    h('span', null, t('room.confirmLeave')),
+    h(
+      'button',
+      {
+        onClick: () => {
+          state.confirmLeave = false;
+          send({ t: 'leaveGame' });
+        },
+      },
+      t('common.confirm'),
+    ),
+    h(
+      'button',
+      {
+        class: 'secondary',
+        onClick: () => {
+          state.confirmLeave = false;
+          render();
+        },
+      },
+      t('common.cancel'),
+    ),
+  );
+}
+
 function renderRoom() {
   const room = state.room;
-  const leave = h('button', { class: 'secondary', onClick: () => send({ t: 'leaveGame' }) }, t('room.leave'));
+  const leave = leaveControls();
   if (room.status === 'waiting') {
     const isHost = room.hostId === state.you;
     const spectating = isSpectator();
@@ -226,7 +271,13 @@ function renderRoom() {
       h(
         'div',
         { class: 'panel' },
-        h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, t('room.players')), h('span', { class: 'spacer' }), tableDialogButton()),
+        h(
+          'div',
+          { class: 'row seats-head' },
+          h('h3', { style: 'margin:0' }, t('room.players')),
+          h('span', { class: 'spacer' }),
+          tableDialogButton(),
+        ),
         h(
           'div',
           { class: 'seats' },
@@ -244,6 +295,7 @@ function renderRoom() {
         leave,
         h('span', { class: 'muted' }, isHost ? (canStart ? '' : t('room.needMorePlayers')) : t('room.waitingForHost')),
       ),
+      emoteSlot(),
       chatSlot(),
       footerActions(),
       tableDialog(),
@@ -281,7 +333,7 @@ function emptySeat() {
     canAdd ? 'button' : 'div',
     { class: 'seat empty', onClick: canAdd ? openTableDialog : null },
     avatar({ empty: true }),
-    h('span', { class: 'seat-text muted' }, t('room.emptySeat')),
+    h('span', { class: 'seat-text' }, t('room.emptySeat')),
   );
 }
 
@@ -389,7 +441,7 @@ function renderTable() {
   const myIdx = seats.indexOf(state.you);
   const opponents = (myIdx === -1 ? seats : [...seats.slice(myIdx + 1), ...seats.slice(0, myIdx)]).filter((id) => id !== state.you);
   const accusing = state.accusing && canAccuse() && !dealing;
-  // Accusing is a gamble (a wrong one costs double the bet), so it asks first. It starts from the chat's quick words
+  // Accusing is a gamble (a wrong one costs double the bet), so it asks first. It starts from the hand's quick words
   // ("accuse someone of cheating"), then the player clicks the bot.
   function accuseControls(id, info) {
     if (!accusing || !info?.isBot || state.confirmAccuse !== id) return null;
@@ -654,6 +706,7 @@ function renderTable() {
           h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
+          emoteSlot(),
           bubbleEl(state.you),
         )
       : h(
@@ -661,6 +714,7 @@ function renderTable() {
           { class: 'me-panel' },
           h('div', { class: 'status' }, isSpectator() ? status || t('status.watchingTable') : status || t('status.joinNextHand')),
           isSpectator() && !over ? h('div', { class: 'row' }, freeSeatButton()) : null,
+          emoteSlot(),
           bubbleEl(state.you),
         ),
   );
@@ -743,7 +797,7 @@ function renderSummary(round) {
       h(
         'div',
         { class: 'hand-row', 'data-player': id },
-        h('span', { class: 'who' }, nameTag(leftName(id, round), { bot: !!r.bots?.[id] })),
+        h('span', { class: 'who' }, nameTag(leftName(id, round), { bot: !!r.bots?.[id] }), wentDownMark(id, round)),
         h(
           'div',
           { class: 'cards' },
