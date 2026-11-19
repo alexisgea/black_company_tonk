@@ -179,18 +179,18 @@
   "chat.emotes": "Emotes",
   "chat.emotesTitle": "Quick words",
 
-  "emote.hello": "Well met, Company!",
+  "emote.hello": "Hello there.",
   "emote.yourMove": "Your move.",
   "emote.thinking": "Give me a moment. I'm thinking.",
-  "emote.oops": "Wrong card. Forgive me.",
+  "emote.oops": "Damn, shouldn't have done that.",
   "emote.wellPlayed": "Well played. Mark it in the Annals.",
   "emote.goodLuck": "May fortune ride with you.",
   "emote.badLuck": "Rotten draw. Curse these cards.",
   "emote.surprise": "What?! How?!",
   "emote.hehe": "Hehehe.",
-  "emote.winning": "The coin is as good as mine.",
-  "emote.losing": "I'm as good as buried.",
-  "emote.goodGame": "A good game, all of you.",
+  "emote.winning": "The coins are as good as mine.",
+  "emote.losing": "I'm never going to financially recover from this.",
+  "emote.congrats": "Well played!",
   "emote.bye": "I'm off. Hold the line.",
 
   "banter.grumbling.turn": [

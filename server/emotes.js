@@ -1,6 +1,6 @@
 'use strict';
 // The quick lines a player can say with one click. The wording is in the locale files under "emote.<id>"; this is the
-// list of ids, in the order the picker shows them (greetings, the game, luck, mood, goodbyes).
+// list of ids, in the order the picker shows them (greetings, the game, luck, mood, congratulations, goodbyes).
 const EMOTES = [
   'hello',
   'yourMove',
@@ -13,7 +13,7 @@ const EMOTES = [
   'hehe',
   'winning',
   'losing',
-  'goodGame',
+  'congrats',
   'bye',
 ];
 

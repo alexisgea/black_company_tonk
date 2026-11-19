@@ -205,9 +205,9 @@ test('emotes: sent to the whole room, one per cooldown, unknown ones refused, an
   say(lobby, alice, { t: 'createGame' });
   say(lobby, bob, { t: 'joinGame', gameId: bob.last('lobby').games[0].id });
 
-  say(lobby, alice, { t: 'emote', id: 'goodGame' });
+  say(lobby, alice, { t: 'emote', id: 'congrats' });
   const got = bob.last('chat').message;
-  assert.deepEqual([got.kind, got.emote, got.name], ['emote', 'goodGame', 'Alice']);
+  assert.deepEqual([got.kind, got.emote, got.name], ['emote', 'congrats', 'Alice']);
   assert.equal(alice.last('chat').message.id, got.id);
 
   say(lobby, alice, { t: 'emote', id: 'bye' });
