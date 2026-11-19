@@ -6,7 +6,7 @@ import { send } from './net.js';
 import { t } from './i18n.js';
 import { avatar } from './avatar.js';
 import { nameTag } from './name-tag.js';
-import { render } from './views.js';
+import { render, invitePanel } from './views.js';
 import { botGrid, botInfo, botLabel } from './bot-picker.js';
 
 const setOpen = (open) => {
@@ -18,10 +18,11 @@ const setOpen = (open) => {
 
 document.addEventListener('keydown', (e) => e.key === 'Escape' && setOpen(false));
 
-export const tableDialogButton = () => h('button', { class: 'secondary', onClick: () => setOpen(true) }, t('tableDialog.button'));
+export const openTableDialog = () => setOpen(true);
+const dialogTitle = () => t(state.room.status === 'waiting' ? 'tableDialog.bots' : 'tableDialog.title');
+export const tableDialogButton = () => h('button', { class: 'secondary', onClick: openTableDialog }, dialogTitle());
 
-// Host only: remove a human (Kick) or a bot (Remove), with an inline confirmation (no browser popup).
-// Humans can be kicked at any time; bots only between hands.
+// Human kicks and post-hand bot removals ask first; waiting-room bot removals are immediate.
 function kickControls(p) {
   if (state.room.hostId !== state.you || p.id === state.you) return null;
   if (p.isBot && state.room.status === 'playing') return null;
@@ -33,6 +34,10 @@ function kickControls(p) {
         class: 'secondary kick-btn',
         title: t('room.removeFromTable', { name: playerName(p) }),
         onClick: () => {
+          if (p.isBot && state.room.status === 'waiting') {
+            send({ t: 'removeBot', id: p.id });
+            return;
+          }
           state.confirmKick = p.id;
           render();
         },
@@ -94,14 +99,15 @@ export function tableDialog() {
     { class: 'modal', onClick: (e) => e.target === e.currentTarget && setOpen(false) },
     h(
       'div',
-      { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('tableDialog.title') },
+      { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': dialogTitle() },
       h(
         'div',
         { class: 'dialog-head' },
-        h('h2', null, t('tableDialog.title')),
+        h('h2', null, dialogTitle()),
         h('span', { class: 'spacer' }),
         h('button', { onClick: () => setOpen(false) }, t('common.close')),
       ),
+      room.status !== 'waiting' ? h('div', { class: 'tbl-invite' }, invitePanel(isHost)) : null,
       h('h3', null, t('room.players')),
       room.players.map(playerRow),
       room.spectators.length ? h('h3', null, t('room.watching')) : null,

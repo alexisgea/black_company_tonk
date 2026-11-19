@@ -1063,14 +1063,14 @@ test('nudge: bots hurry along a player who dawdles, a few times a turn, and stop
     const lobby = new Lobby({ nudgeMs: 20, turnTimeoutMs: 0, botDelayMs: 100000 });
     const host = connect(lobby, 'Solo');
     say(lobby, host, { t: 'createGame' });
-    say(lobby, host, { t: 'addBot', botId: 'croaker' });
-    for (let i = 2; i < MIN_PLAYERS; i++) say(lobby, host, { t: 'addBot', botId: 'otto' });
+    for (const botId of ['croaker', 'otto', 'goblin']) say(lobby, host, { t: 'addBot', botId });
     say(lobby, host, { t: 'startGame' });
     const { room, you } = host.last('room');
     if (room.round.phase === 'tonk' || room.round.turn !== you) continue;
     const nudges = () => host.inbox.filter((m) => m.t === 'chat' && m.message.situation === 'nudge').map((m) => m.message);
     await wait(150);
     assert.equal(nudges().length, 3, 'three nudges, no more');
+    assert.equal(new Set(nudges().map((m) => m.pid)).size, 3, 'each bot speaks once');
     for (const m of nudges()) assert.ok(m.bot && m.kind === 'banter' && m.pid !== you && m.tone && m.text);
     assert.ok([...lobby.rooms.values()][0].chat.some((c) => c.situation === 'nudge'));
     say(lobby, host, { t: 'leaveGame' });

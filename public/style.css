@@ -198,13 +198,18 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .center-stack { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .result { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; max-width: 28rem; }
 .result-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.875rem; margin-top: 4px; }
+.hand-summary { margin-bottom: 0; }
+.hand-summary h3 { margin: 0 0 10px; }
+.hand-summary .hand-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
+.hand-summary .who { flex: 0 0 9.5rem; overflow-wrap: anywhere; }
+.hand-summary .cards { display: flex; gap: 3px; flex-wrap: wrap; }
+.hand-summary .result-line { margin: 0 0 0 auto; }
 .result-cheats { font-size: 0.875rem; }
 .accuse-row { margin-top: 6px; }
 .accuse-text { margin: 0 0 4px; font-size: 0.8125rem; }
 .accuse-banner { justify-content: center; align-items: center; gap: 8px; font-size: 0.875rem; }
 .opp.accusable { cursor: pointer; outline: 2px dashed var(--accent); }
 .opp.accusable:hover { background: rgba(181, 154, 91, 0.18); outline-style: solid; }
-.me-panel .result-line { justify-content: center; font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
 .delta { font-weight: 600; }
 .delta.pos { color: #9aaa6a; }
 .delta.neg { color: #c4776b; }
@@ -227,8 +232,6 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .opp { position: relative; }
 .opp-head { display: flex; align-items: center; gap: 8px; }
 .opp-id { flex: 1; min-width: 0; }
-.purse { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.me-panel .purse { position: absolute; top: 12px; right: 12px; }
 .role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .opp .role-marks { min-height: calc(0.75rem * 1.6 + 2px); }
 .me-panel .role-marks { justify-content: center; margin: 0 0 4px; }
@@ -294,6 +297,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .tbl-player .bot-pop { top: 100%; left: auto; right: 0; transform: none; }
 .kick-btn { flex: none; padding: 3px 10px; font-size: 0.8125rem; }
 .tbl-bots { margin-top: 8px; }
+.tbl-invite { margin-top: 18px; }
 @media (max-width: 760px) {
   .bot-grid { grid-template-columns: repeat(3, 1fr); }
   .bot-card:nth-child(n) .bot-pop { left: 50%; right: auto; transform: translateX(-50%); }

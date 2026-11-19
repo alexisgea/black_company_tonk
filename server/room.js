@@ -121,7 +121,7 @@ class Room {
     this.minds = new Map(); // player id -> what that seat's computer player remembers of the hand (see botmind.js)
     this.moods = new Map(); // bot id -> { confidence } how its last hands went; carries over between hands (see updateMoods)
     this.lastBanter = new Map(); // bot id -> what it last said, so it does not repeat itself (see banter)
-    this.lastNudger = null; // id of the bot that last hurried the player along, so the others get a turn (see nudge)
+    this.lastBanterSpeaker = null; // bot id of the most recent turn remark, nudge, or accusation reply
     this.handNo = 0;
     this.dealerIdx = 0;
     this.coins = {}; // player id -> coins left
@@ -599,9 +599,7 @@ class Room {
   react(bot, situation, rng = this.rng) {
     if (!bot.isBot) return null;
     const pick = pickReaction(bot.botId, situation, rng, this.lastBanter.get(bot.id));
-    if (!pick) return null;
-    this.lastBanter.set(bot.id, pick.id);
-    return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
+    return this.pushBanter(bot, pick);
   }
 
   addChat(user, raw) {
@@ -634,29 +632,30 @@ class Room {
     return message;
   }
 
-  // Now and then a bot says something at the end of its turn (see botbanter.js). Returns the chat message, or null when
-  // it keeps quiet.
-  banter(bot, rng = Math.random) {
-    if (!bot.isBot) return null;
-    const pick = pickBanter(bot.botId, this.moods.get(bot.id)?.confidence ?? 0, rng, this.lastBanter.get(bot.id));
+  // Only store speech that actually happened, including replies that must come from the accused bot.
+  pushBanter(bot, pick) {
     if (!pick) return null;
+    this.lastBanterSpeaker = bot.id;
     this.lastBanter.set(bot.id, pick.id);
     return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
   }
 
-  // One of the bots at the table tells the player whose turn it is to hurry up. It is never the bot that spoke last
-  // when another one could. Null when no bot has anything to say.
+  // The bot ending its turn can speak, unless it already spoke last and another bot can talk.
+  banter(bot, rng = Math.random) {
+    if (!bot.isBot) return null;
+    if (bot.id === this.lastBanterSpeaker && this.players.some((p) => p.id !== bot.id && p.isBot && BANTER_TONE[p.botId])) return null;
+    const pick = pickBanter(bot.botId, this.moods.get(bot.id)?.confidence ?? 0, rng, this.lastBanter.get(bot.id));
+    return this.pushBanter(bot, pick);
+  }
+
+  // Take the next speaking bot in seat order, or start at a random seat if none of them spoke last.
   nudge(rng = Math.random) {
     const talkers = this.players.filter((p) => p.isBot && BANTER_TONE[p.botId]);
-    const others = talkers.filter((p) => p.id !== this.lastNudger);
-    const speakers = others.length ? others : talkers;
-    const bot = speakers[Math.floor(rng() * speakers.length)];
-    if (!bot) return null;
+    if (!talkers.length) return null;
+    const last = talkers.findIndex((p) => p.id === this.lastBanterSpeaker);
+    const bot = talkers[last === -1 ? Math.floor(rng() * talkers.length) : (last + 1) % talkers.length];
     const pick = pickNudge(bot.botId, rng, this.lastBanter.get(bot.id));
-    if (!pick) return null;
-    this.lastNudger = bot.id;
-    this.lastBanter.set(bot.id, pick.id);
-    return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
+    return this.pushBanter(bot, pick);
   }
 
   reorder(user, cards) {

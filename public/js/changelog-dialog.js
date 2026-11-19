@@ -40,5 +40,6 @@ function closeChangelog() {
   changelogEl.hidden = true;
 }
 
-export const changelogButton = () => h('button', { class: 'secondary', onClick: openChangelog }, t('changelog.title'));
+export const changelogButton = () =>
+  h('button', { class: 'secondary', onClick: openChangelog }, h('span', { 'aria-hidden': 'true' }, '\u{1F4DD} '), t('changelog.title'));
 buildChangelog();

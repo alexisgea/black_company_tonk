@@ -1,6 +1,17 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.45.0',
+    date: '2026-11-19',
+    changes: [
+      'The waiting room now has a "Bots" button, and the host can click an empty seat to open the bot picker. Removing a bot there no longer asks for confirmation.',
+      '"Tonk rules" now has a book icon and sits at the bottom beside Settings and Full screen. The lobby Changelog is there too, with a pen-and-paper icon.',
+      'During a game, invite links and table passwords now live in Table settings, alongside the host controls for kicking players and watching guests.',
+      'Current coin balances are no longer repeated beside players on the table. The end-of-hand summary panel is back, with every hand, total and coin change together; the outcome and Deal next hand button stay in the center.',
+      'Bot nudges now rotate through every speaking bot, and ordinary chatter avoids repeating the last speaker when another bot can talk.',
+    ],
+  },
+  {
     version: '0.44.0',
     date: '2026-11-19',
     changes: [

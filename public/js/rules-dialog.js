@@ -50,5 +50,6 @@ function closeRules() {
   rulesEl.hidden = true;
 }
 
-export const rulesButton = () => h('button', { class: 'secondary', onClick: openRules }, t('rules.button'));
+export const rulesButton = () =>
+  h('button', { class: 'secondary', onClick: openRules }, h('span', { 'aria-hidden': 'true' }, '\u{1F4D6} '), t('rules.button'));
 buildRules();

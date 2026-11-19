@@ -117,6 +117,7 @@
   "result.downWon": "{name} went down with {total} and pockets the coins!",
   "result.empty": "{name} emptied their hand and everyone pays double!",
   "result.restartTable": "Restart the table",
+  "result.summary": "Hand summary",
   "result.tableClosesIn": "The table closes in {seconds}s unless it is restarted.",
   "result.tonk": "{name} has TONK and everyone pays double!",
   "result.tonkDraw": "More than one player has TONK – the hand is a draw and no coins change hands.",
@@ -429,6 +430,7 @@
   "settings.title": "Settings",
 
   "tableDialog.botsBetweenHands": "Bots can only be added or removed between hands.",
+  "tableDialog.bots": "Bots",
   "tableDialog.button": "Table settings",
   "tableDialog.title": "Table settings",
 
@@ -441,7 +443,7 @@
   "toast.tableFull": "That table is full and has too many guests.",
   "toast.tableGone": "That table no longer exists.",
 
-  "rules.button": "Rules",
+  "rules.button": "Tonk rules",
   "rules.title": "Tonk rules",
   "rules.goal.title": "Goal",
   "rules.goal.items": [

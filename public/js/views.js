@@ -10,7 +10,7 @@ import { nameTag, roleMarks } from './name-tag.js';
 import { avatar } from './avatar.js';
 import { coin } from './coin.js';
 import { botLabel } from './bot-picker.js';
-import { tableDialog, tableDialogButton } from './table-dialog.js';
+import { tableDialog, tableDialogButton, openTableDialog } from './table-dialog.js';
 import { rulesButton } from './rules-dialog.js';
 import { settingsButton } from './settings-dialog.js';
 import { fullscreenButton } from './fullscreen.js';
@@ -121,9 +121,10 @@ function credits() {
   );
 }
 
-// Display settings and full screen live at the bottom of the page, out of the way of the game.
+// Reference and display controls stay out of the way of the game.
 function footerActions() {
-  return h('div', { class: 'row footer-actions' }, settingsButton(), fullscreenButton());
+  const lobby = state.view === 'lobby' || state.room?.status === 'waiting';
+  return h('div', { class: 'row footer-actions' }, rulesButton(), lobby ? changelogButton() : null, settingsButton(), fullscreenButton());
 }
 
 function renderName() {
@@ -197,8 +198,6 @@ function renderLobby() {
         },
         t('lobby.changeName'),
       ),
-      rulesButton(),
-      changelogButton(),
       h('button', { onClick: () => send({ t: 'createGame' }) }, t('lobby.createTable')),
     ),
     passwordPrompt(),
@@ -243,7 +242,6 @@ function renderRoom() {
         { class: 'row', style: 'margin-bottom:14px' },
         spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, t('room.startGame')),
         leave,
-        rulesButton(),
         h('span', { class: 'muted' }, isHost ? (canStart ? '' : t('room.needMorePlayers')) : t('room.waitingForHost')),
       ),
       chatSlot(),
@@ -278,7 +276,13 @@ function seat(p) {
 }
 
 function emptySeat() {
-  return h('div', { class: 'seat empty' }, avatar({ empty: true }), h('span', { class: 'seat-text muted' }, t('room.emptySeat')));
+  const canAdd = state.room.hostId === state.you;
+  return h(
+    canAdd ? 'button' : 'div',
+    { class: 'seat empty', onClick: canAdd ? openTableDialog : null },
+    avatar({ empty: true }),
+    h('span', { class: 'seat-text muted' }, t('room.emptySeat')),
+  );
 }
 
 // Shown to a player whose seat is being played by a bot because they took too long.
@@ -328,11 +332,9 @@ function renderSide(leaveBtn) {
         ),
         h('span', { class: 'spacer' }),
         tableDialogButton(),
-        rulesButton(),
       ),
       h('div', { class: 'row side-actions' }, leaveBtn, pauseButton()),
     ),
-    h('div', { class: 'panel' }, invitePanel(room.hostId === state.you)),
     h(
       'div',
       { class: 'panel scores' },
@@ -365,12 +367,6 @@ function renderSide(leaveBtn) {
     sidePanel('log', t('room.log'), logEl),
     footerActions(),
   );
-}
-
-// The coins a player has left, shown next to them on the table.
-function purse(info) {
-  if (!info) return null;
-  return h('span', { class: 'purse', title: t('room.coins') }, String(info.coins), coin());
 }
 
 function renderTable() {
@@ -471,11 +467,9 @@ function renderTable() {
           h('strong', null, info ? playerTag(info) : leftName(id, round), info?.away ? ` (${t('player.botPlaying')})` : ''),
           roleMarks(id, round, { reserve: true }),
         ),
-        purse(info),
       ),
       accuseControls(id, info),
       cards,
-      over ? resultLine(round, id) : null,
       meldsOf(id),
       bubbleEl(id),
     );
@@ -629,11 +623,11 @@ function renderTable() {
       { class: 'center' },
       h('div', { class: 'center-stack' }, h('div', { class: 'piles' }, deck, discard), over ? renderResult(round) : null),
     ),
+    over ? renderSummary(round) : null,
     inHand
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
-          purse(room.players.find((x) => x.id === state.you)),
           roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
           accusing && !state.confirmAccuse
@@ -657,7 +651,7 @@ function renderTable() {
           turnTimerLine(myTurn),
           awayNotice(),
           meldsOf(state.you),
-          over ? resultLine(round, state.you) : h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
+          h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
           bubbleEl(state.you),
@@ -738,7 +732,30 @@ setInterval(() => {
   if (retry) retry.textContent = retryText();
 }, 250);
 
-// Hand total and coins won or lost, shown next to a player's revealed cards once the hand is over.
+// Keep all the final hands together, including players who have since left or gone broke.
+function renderSummary(round) {
+  const r = round.result;
+  return h(
+    'div',
+    { class: 'panel hand-summary' },
+    h('h3', null, t('result.summary')),
+    round.order.map((id) =>
+      h(
+        'div',
+        { class: 'hand-row', 'data-player': id },
+        h('span', { class: 'who' }, nameTag(leftName(id, round), { bot: !!r.bots?.[id] })),
+        h(
+          'div',
+          { class: 'cards' },
+          r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
+        ),
+        resultLine(round, id),
+      ),
+    ),
+  );
+}
+
+// Hand total and coins won or lost in the summary.
 function resultLine(round, id) {
   const r = round.result;
   const delta = r.deltas[id] ?? 0;
@@ -881,7 +898,7 @@ function passwordPrompt() {
 // Invite friends with a link; the host can also lock the table by setting a password (applied on Enter or when the
 // field loses focus; clearing it unlocks). The password rides in the link's
 // hash (never sent to the server) so invited friends get straight in.
-function invitePanel(isHost) {
+export function invitePanel(isHost) {
   const room = state.room;
   const link = `${location.origin}/#table=${room.id}${room.password ? `&pw=${encodeURIComponent(room.password)}` : ''}`;
   const copy = async (field) => {

@@ -347,14 +347,61 @@ test('a bot can nudge a slow player, Silent never does, and it varies its lines'
   assert.notEqual(room.nudge(() => 0).line, first.line);
 });
 
-test('nudges come from different bots in turn, not the same one every time', () => {
+test('nudges rotate through every speaking bot before repeating', () => {
   const room = new Room('R', 'Test');
   room.join(human('Ann'));
-  room.addBot('croaker');
-  room.addBot('otto');
-  room.addBot('goblin');
+  const croaker = room.addBot('croaker');
+  room.addBot('silent');
+  const otto = room.addBot('otto');
+  const goblin = room.addBot('goblin');
   const speakers = Array.from({ length: 6 }, () => room.nudge(() => 0).pid);
-  for (let i = 1; i < speakers.length; i++) assert.notEqual(speakers[i], speakers[i - 1]);
+  assert.deepEqual(speakers, [croaker.id, otto.id, goblin.id, croaker.id, otto.id, goblin.id]);
+});
+
+test('turn banter and nudges avoid the last bot to speak when another can talk', () => {
+  const room = new Room('R', 'Test');
+  room.join(human('Ann'));
+  const croaker = room.addBot('croaker');
+  const otto = room.addBot('otto');
+
+  assert.equal(room.banter(croaker, () => 0).pid, croaker.id);
+  assert.equal(room.nudge(() => 0).pid, otto.id, 'a nudge does not echo the previous turn speaker');
+  assert.equal(
+    room.banter(otto, () => 0),
+    null,
+    'the bot that nudged does not also banter',
+  );
+  assert.equal(
+    room.banter(croaker, () => 0.99),
+    null,
+    'a missed roll does not change the last speaker',
+  );
+  assert.equal(
+    room.banter(otto, () => 0),
+    null,
+  );
+  assert.equal(room.banter(croaker, () => 0).pid, croaker.id);
+  assert.equal(
+    room.banter(croaker, () => 0),
+    null,
+    'the same bot does not banter on back-to-back turns',
+  );
+  assert.deepEqual(
+    room.chat.map((message) => message.pid),
+    [croaker.id, otto.id, croaker.id],
+  );
+});
+
+test('an accused bot can reply again, but the next nudge comes from another bot', () => {
+  const room = new Room('R', 'Test');
+  room.join(human('Ann'));
+  const croaker = room.addBot('croaker');
+  const otto = room.addBot('otto');
+
+  assert.equal(room.banter(otto, () => 0).pid, otto.id);
+  assert.equal(room.react(croaker, 'accusedFalsely', () => 0).pid, croaker.id);
+  assert.equal(room.react(croaker, 'accusedFalsely', () => 0).pid, croaker.id);
+  assert.equal(room.nudge(() => 0).pid, otto.id);
 });
 
 test('a Tonk on the deal waits until it is declared, then shouts TONK! in the chat', () => {
