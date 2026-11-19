@@ -5,7 +5,7 @@ import { t, tList } from './i18n.js';
 
 const rulesEl = document.getElementById('rules');
 
-const SECTIONS = ['goal', 'values', 'deal', 'turn', 'spreads', 'emptyHand', 'words', 'other'];
+const SECTIONS = ['goal', 'values', 'deal', 'turn', 'spreads', 'emptyHand', 'cheating', 'words', 'other'];
 
 function buildRules() {
   const section = (name) => [

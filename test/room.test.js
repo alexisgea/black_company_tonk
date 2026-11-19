@@ -137,7 +137,7 @@ test('the host can change the settings only before the game starts, with limits'
   const users = namesFor(MIN_PLAYERS).map(human);
   users.forEach((u) => room.join(u));
   room.updateSettings(users[0], { startingCoins: 100, bet: 5 });
-  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5, dynamicTable: false });
+  assert.deepEqual(room.settings, { startingCoins: 100, bet: 5, dynamicTable: false, cheating: true });
   assert.ok(Object.values(room.coins).every((c) => c === 100));
   assert.throws(() => room.updateSettings(users[0], { startingCoins: 5, bet: 1 }), /Starting coins/);
   assert.throws(() => room.updateSettings(users[0], { startingCoins: 100, bet: 1.5 }), /Bet/);
@@ -454,4 +454,64 @@ test('joinable and summary reflect status and seats', () => {
   room.startHand(a);
   assert.deepEqual(room.summary().players, namesFor(MIN_PLAYERS));
   assert.equal(room.summary().joinable, room.status !== 'playing');
+});
+
+// ---- Cheating ----
+
+test('only a bot at a table with cheating on can cheat, and a cheat leaves nothing in the log', () => {
+  const room = new Room('R', 'Test', seeded(7));
+  const host = human('Ann');
+  room.join(host);
+  room.addBot('one-eye');
+  const bot = room.players.find((p) => p.isBot);
+  room.startHand(host);
+  for (let i = 0; i < 50 && room.round.phase === 'tonk'; i++) {
+    for (const p of room.pendingTonkers) room.declareTonk(p);
+    if (room.status !== 'playing') room.startHand(host);
+  }
+  const play = (user) => {
+    room.round.turn = room.round.order.indexOf(user.id);
+    room.round.phase = 'play';
+    return { type: 'cheatPalm', card: room.round.hands[user.id][0] };
+  };
+  assert.throws(() => room.act(host, play(host)), /Unknown action/);
+  room.settings.cheating = false;
+  assert.throws(() => room.act(bot, play(bot)), /Unknown action/);
+  room.settings.cheating = true;
+  const logged = room.log.length;
+  room.act(bot, play(bot));
+  assert.equal(room.round.cheats.length, 1);
+  assert.equal(room.log.length, logged);
+});
+
+test('a right accusation stops the hand and the cheater pays double, a wrong one costs the accuser double and the hand goes on', () => {
+  const { room, users } = playingRoom();
+  const [a, b] = users;
+  const bet = room.settings.bet;
+  room.accuse(a, b.id);
+  assert.equal(room.status, 'playing');
+  assert.deepEqual([room.coins[a.id], room.coins[b.id]], [50 - 2 * bet, 50 + 2 * bet]);
+  assert.deepEqual(
+    { type: room.log.at(-1).type, caught: room.log.at(-1).caught, amount: room.log.at(-1).amount },
+    { type: 'accuse', caught: false, amount: 2 * bet },
+  );
+
+  room.round.cheats.push({ pid: b.id, kind: 'palm', card: 0 });
+  room.accuse(a, b.id);
+  assert.equal(room.status, 'between');
+  assert.equal(room.round.result.type, 'caught');
+  assert.deepEqual([room.coins[a.id], room.coins[b.id]], [50, 50]);
+  assert.equal(room.log.at(-1).caught, true);
+});
+
+test('a wrong accuser pays no more than they have, and cannot accuse with nothing, when cheating is off, or themselves', () => {
+  const { room, users } = playingRoom();
+  const [a, b] = users;
+  room.coins[a.id] = 3;
+  room.accuse(a, b.id);
+  assert.deepEqual([room.coins[a.id], room.coins[b.id]], [0, 53]);
+  assert.throws(() => room.accuse(a, b.id), /no coins/);
+  assert.throws(() => room.accuse(b, b.id), GameError);
+  room.settings.cheating = false;
+  assert.throws(() => room.accuse(b, a.id), /switched off/);
 });

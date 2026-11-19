@@ -148,6 +148,7 @@ function onMessage(msg) {
       noteFlavor(msg.room.log, render);
       pruneSelection();
       if (msg.room.round?.turn !== state.you || msg.room.round.phase !== 'draw') state.confirmDown = false;
+      if (msg.room.status !== 'playing' || msg.room.paused) state.confirmAccuse = null;
       if (state.confirmKick && ![...msg.room.players, ...msg.room.spectators].some((p) => p.id === state.confirmKick))
         state.confirmKick = null;
       break;

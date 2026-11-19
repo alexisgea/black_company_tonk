@@ -18,7 +18,7 @@ class DevTable {
     if (new Set(bots).size !== bots.length) throw new Error('Each bot can sit at the table only once.');
     this.options = { bots: [...bots], seed, coins, bet };
     this.rng = seeded(seed);
-    this.room = new Room('DEV', 'Dev table', this.rng, { settings: { startingCoins: coins, bet } });
+    this.room = new Room('DEV', 'Dev table', this.rng, { settings: { startingCoins: coins, bet, cheating: true } });
     this.users = bots.map((botId) => ({ id: botId, botId, name: botName(botId), isBot: true, conn: null, room: null }));
     this.entries = [];
     this.seq = 0;
@@ -125,6 +125,14 @@ class DevTable {
         return `adds ${label(action.card)} to spread #${action.meldId}`;
       case 'discard':
         return `discards ${label(action.card)}`;
+      case 'cheatPalm':
+        return `CHEATS: palms ${label(action.card)}`;
+      case 'cheatDiscard':
+        return `CHEATS: discards ${cards(action.cards)} in one turn`;
+      case 'cheatLayoff':
+        return `CHEATS: adds ${label(action.card)} to spread #${action.meldId}, where it does not belong`;
+      case 'cheatTakeUnder':
+        return `CHEATS: takes ${label(hand.find((c) => !before.includes(c)))} from under the top discard`;
       default:
         return JSON.stringify(action);
     }
@@ -142,6 +150,7 @@ class DevTable {
       tonk: `${this.nameOf(result.winners[0])} won with TONK`,
       tonkDraw: 'several Tonks: a draw',
       aborted: 'the hand was aborted',
+      caught: `${this.nameOf(result.actor)} caught ${this.nameOf(result.cheater)} cheating`,
     }[result.type];
     this.push({ kind: 'result', text: `Hand over: ${how}. Coins: ${bits.join('; ')}.` });
   }

@@ -924,7 +924,7 @@ test('only the host can change the table settings, and everyone sees them', () =
   assert.match(guest.last('error').message, /Only the host/);
   say(lobby, host, { t: 'updateSettings', settings: { startingCoins: 20, bet: 2 } });
   const room = guest.last('room').room;
-  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2, dynamicTable: false });
+  assert.deepEqual(room.settings, { startingCoins: 20, bet: 2, dynamicTable: false, cheating: true });
   assert.ok(room.players.every((p) => p.coins === 20));
 });
 

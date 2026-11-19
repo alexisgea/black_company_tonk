@@ -1,6 +1,16 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.42.0',
+    date: '2026-11-19',
+    changes: [
+      'Some bots now cheat, now and then: One-Eye the most, then Willow Swan, Goblin and Cordy. A cheat is never announced, so watch the table: a hand with fewer cards than it should have, two discards in one turn, a card added to a run in the wrong suit or with a rank skipped, or a card taken from under the top of the discard pile.',
+      'New "Accuse" button next to each bot during a hand, with a confirmation. If you are right, the hand stops and the cheater pays everyone double. If you are wrong, you pay the bot double and the hand goes on.',
+      'Cheats nobody caught are revealed when the hand ends. The rules have a new "Cheating" section.',
+      'The host can switch cheating off with the new "Cheating" table rule.',
+    ],
+  },
+  {
     version: '0.41.1',
     date: '2026-11-19',
     changes: [

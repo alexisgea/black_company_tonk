@@ -17,6 +17,7 @@ export const state = {
   selected: new Set(),
   confirmDown: false, // "Go down" clicked, waiting for "I'm sure"
   confirmKick: null, // player id whose "Kick" button was clicked, waiting for confirmation
+  confirmAccuse: null, // player id whose "Accuse" button was clicked, waiting for confirmation
   tonkDeadline: 0, // local time when TONK! is pressed automatically
   restartDeadline: null, // local time when a table whose last human player went broke closes
   turnDeadline: null, // local time when a bot takes over the current human turn (null: no timer running)

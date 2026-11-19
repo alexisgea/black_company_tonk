@@ -15,7 +15,12 @@ const { PROFILES, BASE } = require('../server/botprofiles');
 const { BOTS } = require('../server/botnames');
 const { legacyAction, fallbackAction } = require('../server/bot');
 
-const DEFAULT_OPTIONS = Object.freeze({ coins: DEFAULT_SETTINGS.startingCoins, bet: DEFAULT_SETTINGS.bet, maxHands: 200 });
+const DEFAULT_OPTIONS = Object.freeze({
+  coins: DEFAULT_SETTINGS.startingCoins,
+  bet: DEFAULT_SETTINGS.bet,
+  maxHands: 200,
+  cheating: false, // the bots that have the habit cheat only when asked to, so results measure skill; nobody accuses in a simulation
+});
 const BASE_TUNING = Object.freeze({ ...TUNING });
 const MAX_STEPS_PER_HAND = 1000;
 
@@ -125,7 +130,7 @@ function recordHand(room, seatOf, stats) {
 
 // Plays one session. Returns { hands, seats: [{ key, ...stats }], errors }.
 function playSession({ seats, seed, ...options }) {
-  const { coins, bet, maxHands } = { ...DEFAULT_OPTIONS, ...options };
+  const { coins, bet, maxHands, cheating } = { ...DEFAULT_OPTIONS, ...options };
   const registered = [];
   const tunings = new Map();
   const users = seats.map((seat, i) => {
@@ -143,7 +148,7 @@ function playSession({ seats, seed, ...options }) {
   const errors = new Set();
   try {
     return withSeededRandom(rng, () => {
-      const room = new SimRoom(rng, { startingCoins: coins, bet }, tunings);
+      const room = new SimRoom(rng, { startingCoins: coins, bet, cheating }, tunings);
       for (const user of users) room.join(user);
       const stats = new Map(seats.map((seat, i) => [i, emptySeatStats()]));
       const seatOf = new Map(users.map((user, i) => [user.id, i]));

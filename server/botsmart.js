@@ -2,7 +2,7 @@
 // The smart computer player. It sees what a human sees (`view`, from viewRound) and what it remembers (`mind`, see
 // botmind.js), never the opponents' hands. How well it does each part comes from its profile (botprofiles.js):
 // `calculating` for working with the unseen cards, `focus` for watching the others, `sloppiness` for its own slips.
-const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd } = require('../shared/cards');
+const { rankOf, suitOf, cardValue, handTotal, classifyMeld, layoffEnd, cheatLayoffEnd } = require('../shared/cards');
 const { findMeld, findLayoff: firstLayoff } = require('./botmelds');
 const { estimateGoDown } = require('./botrisk');
 const T = require('./bottuning');
@@ -294,6 +294,53 @@ function chooseDiscard(sight) {
   return scored[0].card;
 }
 
+// The first spread on the table (barring slips of attention) that takes one of the cards as a cheat, with the card that
+// sheds the most points, or null. See cheatLayoffEnd in shared/cards.js.
+function findCheatLayoff(hand, melds) {
+  for (const card of byValueDesc(hand)) {
+    const meld = melds.find((m) => cheatLayoffEnd(m, card));
+    if (meld) return { card, meldId: meld.id };
+  }
+  return null;
+}
+
+// A cheat for this turn's draw: the card under the top discard, when what it remembers of it would help. Null when it
+// does not feel like cheating this turn, or the card would not help. The card it actually gets is whatever lies there.
+function cheatTake(sight) {
+  const { hand, mind, trace } = sight;
+  if (!mind.chance('cheat', mind.cheatChance)) return null;
+  const under = mind.underTop();
+  if (!under) return null;
+  const card = mind.shown(under);
+  const helps = findLayoff([card], noticedMelds(sight)) || findMeld([...hand, card])?.includes(card);
+  if (!helps) return null;
+  trace?.push(`Cheats: remembers ${label(card)} under the top discard and takes it.`);
+  return { type: 'cheatTakeUnder' };
+}
+
+// A cheat for the end of this turn's play (after everything honest is done), or null. A card that fits a spread as a
+// cheat is too good to pass up; otherwise it picks at random between palming its dearest card and throwing a second
+// card away.
+function cheatPlay(sight) {
+  const { hand, mind, trace } = sight;
+  if (!mind.chance('cheat', mind.cheatChance)) return null;
+  const layoff = hand.length >= 2 && findCheatLayoff(hand, noticedMelds(sight));
+  if (layoff) {
+    trace?.push(`Cheats: adds ${label(layoff.card)} to a spread it does not fit.`);
+    return { type: 'cheatLayoff', ...layoff };
+  }
+  if (hand.length < 3) return null;
+  const dearest = byValueDesc(hand)[0];
+  if (mind.rng() < 0.5) {
+    trace?.push(`Cheats: palms ${label(dearest)}.`);
+    return { type: 'cheatPalm', card: dearest };
+  }
+  const honest = chooseDiscard(sight); // what it would throw away anyway stays on top
+  const extra = byValueDesc(hand.filter((c) => c !== honest))[0];
+  trace?.push(`Cheats: throws away ${label(extra)} as well.`);
+  return { type: 'cheatDiscard', cards: [extra, honest] };
+}
+
 function drawPhase(sight) {
   const { hand, view, mind, trace } = sight;
   const top = view.discardTop;
@@ -304,6 +351,8 @@ function drawPhase(sight) {
     return { type: 'takeDiscard' };
   }
   if (shouldGoDown(sight)) return { type: 'goDown' };
+  const cheat = cheatTake(sight);
+  if (cheat) return cheat;
   const canDraw = view.deckCount > 0 || mind.pileSize > 1;
   if (top !== null && (!canDraw || wantsDiscard(sight, top))) {
     if (!canDraw) trace?.push(`Discard ${label(top)}: nothing left to draw, takes it.`);
@@ -334,6 +383,8 @@ function playPhase(sight) {
     trace?.push(`Puts down a spread: ${labels(meld)}.`);
     return { type: 'meld', cards: meld };
   }
+  const cheat = cheatPlay(sight);
+  if (cheat) return cheat;
   return { type: 'discard', card: chooseDiscard(sight) };
 }
 

@@ -33,11 +33,12 @@ const PUBLIC_LOG_FIELDS = {
   unpause: ['pid', 'name'],
   restart: ['pid', 'name'],
   reshuffle: [],
+  accuse: ['pid', 'name', 'botId', 'target', 'targetName', 'targetBotId', 'caught', 'amount'], // `amount`: what a wrong accuser paid
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
 // (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2). `dynamicTable` makes bots come and go
-// during play. The labels are in the locale files.
-const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5, dynamicTable: false };
+// during play. `cheating` lets the bots that have the habit cheat, and lets players accuse them. The labels are in the locale files.
+const DEFAULT_SETTINGS = { startingCoins: 50, bet: 5, dynamicTable: false, cheating: true };
 // Dynamic table: the chance that after a hand one bot gets tired of the table and a new one takes its seat, and how
 // many in-lore lines there are for it ("log.dynLeave.<n>" and "log.dynJoin.<n>" in the locale files).
 const DYNAMIC_LEAVE_CHANCE = 0.15;
@@ -77,6 +78,8 @@ function validateSettings(raw) {
   if (settings.bet > settings.startingCoins) throw new tonk.GameError('betTooHigh');
   if (raw.dynamicTable !== undefined && typeof raw.dynamicTable !== 'boolean') throw new tonk.GameError('badSettings');
   settings.dynamicTable = raw.dynamicTable === true;
+  if (raw.cheating !== undefined && typeof raw.cheating !== 'boolean') throw new tonk.GameError('badSettings');
+  settings.cheating = raw.cheating !== false;
   return settings;
 }
 
@@ -275,7 +278,8 @@ class Room {
   // The smart move for a seat and how hard it is to decide. Worked out once per position (every public event moves
   // logSeq on), so the lobby can use it to time the pause and then play that same move, instead of thinking twice.
   botThink(user) {
-    const key = `${this.logSeq}:${this.round.phase}:${user.id}`;
+    // A cheat leaves nothing in the log, so the count of cheats is part of what makes a position new.
+    const key = `${this.logSeq}:${this.round.phase}:${user.id}:${this.round.cheats?.length ?? 0}`;
     if (this.botPlan?.key !== key) {
       const { view, mind } = this.botSight(user);
       this.botPlan = { key, ...smartThink(view, user.id, mind) };
@@ -287,6 +291,7 @@ class Room {
     let mind = this.minds.get(user.id);
     if (!mind) {
       const profile = profileFor(user);
+      if (!this.settings.cheating) profile.cheat = 0;
       mind = new Mind(user.id, profile, this.rng);
       mind.boldness = this.boldnessOf(user, profile);
       mind.start(tonk.viewRound(this.round, user.id));
@@ -556,9 +561,35 @@ class Room {
     this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('noHand');
     this.requireNotPaused();
+    // Only a computer player at a table with cheating on may cheat; to everybody else these moves do not exist.
+    const cheat = tonk.CHEAT_ACTIONS.has(action?.type);
+    if (cheat && !(user.isBot && this.settings.cheating)) throw new tonk.GameError('unknownAction');
     const events = tonk.applyAction(this.round, user.id, action);
+    if (cheat) this.minds.get(user.id)?.cheated();
     events.forEach((e) => this.addLog(e));
     if (this.round.result) this.settle();
+  }
+
+  // `user` says `targetId` is cheating. Right: the hand stops and the cheater pays every other player double. Wrong: the
+  // accuser pays the accused double (at most what they have) and the hand carries on.
+  accuse(user, targetId) {
+    this.requirePlayer(user);
+    if (this.status !== 'playing') throw new tonk.GameError('noHand');
+    this.requireNotPaused();
+    if (!this.settings.cheating) throw new tonk.GameError('cheatingOff');
+    const target = this.players.find((p) => p.id === targetId);
+    if (!target || target === user) throw new tonk.GameError('badAccusation');
+    if (!(this.coins[user.id] > 0)) throw new tonk.GameError('noCoinsToAccuse');
+    const caught = tonk.accuse(this.round, user.id, target.id);
+    const event = { type: 'accuse', ...whoIs(user), target: target.id, targetName: target.name, targetBotId: target.botId, caught };
+    if (caught) {
+      this.addLog(event);
+      this.settle();
+      return;
+    }
+    const deltas = this.payout({ [user.id]: -tonk.PAY_CAUGHT_CHEATING, [target.id]: tonk.PAY_CAUGHT_CHEATING });
+    for (const [id, delta] of Object.entries(deltas)) this.coins[id] += delta;
+    this.addLog({ ...event, amount: deltas[target.id] });
   }
 
   addChat(user, raw) {

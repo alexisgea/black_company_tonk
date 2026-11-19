@@ -317,3 +317,95 @@ test('a round remembers who dealt and who plays first, even when seats change', 
   assert.equal(v.dealer, null);
   assert.equal(v.first, 'a');
 });
+
+// ---- Cheating ----
+
+const hearts = () => ({ id: 1, owner: 'b', type: 'run', cards: [c(5, 'H'), c(6, 'H'), c(7, 'H')] });
+
+test('cheat: palming takes the card out of the game without a trace in the events, and needs three cards', () => {
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
+  assert.deepEqual(T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') }), []);
+  assert.deepEqual(r.hands.a, [c(2, 'C'), c(5, 'H')]);
+  assert.equal(r.discard.length, 1);
+  assert.deepEqual(r.cheats, [{ pid: 'a', kind: 'palm', card: c(9, 'S') }]);
+  assert.throws(() => T.applyAction(r, 'a', { type: 'cheatPalm', card: c(2, 'C') }), T.GameError);
+});
+
+test('cheat: a double discard puts two cards on the pile, the last one on top, and ends the turn', () => {
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
+  const events = T.applyAction(r, 'a', { type: 'cheatDiscard', cards: [c(9, 'S'), c(5, 'H')] });
+  assert.deepEqual(
+    events.map((e) => [e.type, e.card]),
+    [
+      ['discard', c(9, 'S')],
+      ['discard', c(5, 'H')],
+    ],
+  );
+  assert.equal(r.discard.at(-1), c(5, 'H'));
+  assert.deepEqual(r.hands.a, [c(2, 'C')]);
+  assert.equal(r.order[r.turn], 'b');
+  assert.equal(r.cheats[0].kind, 'doubleDiscard');
+  assert.throws(() => T.applyAction(r, 'b', { type: 'cheatDiscard', cards: [c(5, 'C')] }), T.GameError);
+});
+
+test('cheat: a card of the other suit of the same colour, or one with a rank skipped, can be added to a run; nothing else', () => {
+  const play = (card, cheat = 'cheatLayoff') => {
+    const r = makeRound({ hands: { a: [card, c(1, 'C'), c(2, 'C')], b: [c(5, 'C')] }, melds: [hearts()], phase: 'play' });
+    return { r, run: () => T.applyAction(r, 'a', { type: cheat, card, meldId: 1 }) };
+  };
+  const diamond = play(c(8, 'D'));
+  assert.deepEqual(
+    diamond.run().map((e) => e.type),
+    ['layoff'],
+    'it shows up in the log like any layoff',
+  );
+  assert.deepEqual(diamond.r.melds[0].cards.at(-1), c(8, 'D'));
+  assert.equal(diamond.r.cheats[0].kind, 'layoffSuit');
+
+  const gap = play(c(3, 'H'));
+  gap.run();
+  assert.equal(gap.r.melds[0].cards[0], c(3, 'H'));
+  assert.equal(gap.r.cheats[0].kind, 'layoffGap');
+
+  assert.throws(() => play(c(8, 'C')).run(), T.GameError, 'a black card on a red run is not a near miss');
+  assert.throws(() => play(c(8, 'H')).run(), T.GameError, 'an honest layoff is not a cheat');
+  assert.throws(() => play(c(11, 'H')).run(), T.GameError, 'neither is a card far away');
+});
+
+test('cheat: taking the card under the top discard leaves the top where it is', () => {
+  const r = makeRound({ hands: { a: [c(2, 'C')], b: [c(5, 'C')] }, discard: [c(4, 'S'), c(9, 'C')] });
+  const events = T.applyAction(r, 'a', { type: 'cheatTakeUnder' });
+  assert.deepEqual(events, [{ type: 'takeDiscard', pid: 'a', card: c(4, 'S') }]);
+  assert.deepEqual(r.discard, [c(9, 'C')]);
+  assert.equal(r.phase, 'play');
+  const lone = makeRound({ hands: { a: [c(2, 'C')], b: [c(5, 'C')] } });
+  assert.throws(() => T.applyAction(lone, 'a', { type: 'cheatTakeUnder' }), T.GameError, 'there is nothing under a single card');
+});
+
+test('accuse: right ends the hand and the cheater pays everybody double, wrong changes nothing, and cheats are revealed at the end', () => {
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')], d: [c(6, 'C')] }, phase: 'play' });
+  T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') });
+  assert.equal(T.accuse(r, 'b', 'd'), false);
+  assert.equal(r.result, null);
+  assert.throws(() => T.accuse(r, 'b', 'b'), T.GameError);
+  assert.equal(T.accuse(r, 'b', 'a'), true);
+  assert.equal(r.result.type, 'caught');
+  assert.deepEqual(r.result.deltas, { a: -4, b: 2, d: 2 });
+  assert.deepEqual(r.result.cheats, [{ pid: 'a', kind: 'palm', card: c(9, 'S') }]);
+  assert.throws(() => T.accuse(r, 'b', 'a'), T.GameError, 'the hand is over');
+
+  const quiet = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
+  T.applyAction(quiet, 'a', { type: 'cheatPalm', card: c(9, 'S') });
+  T.applyAction(quiet, 'a', { type: 'discard', card: c(5, 'H') });
+  T.applyAction(quiet, 'b', { type: 'goDown' });
+  assert.equal(quiet.result.cheats.length, 1, 'an unnoticed cheat is shown once the hand is over');
+});
+
+test('a cheat follows the seat when a guest takes over, and goes with a player who leaves', () => {
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')], d: [c(6, 'C')] }, phase: 'play' });
+  T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') });
+  T.renamePlayer(r, 'a', 'z');
+  assert.equal(r.cheats[0].pid, 'z');
+  T.removePlayer(r, 'z');
+  assert.deepEqual(r.cheats, []);
+});

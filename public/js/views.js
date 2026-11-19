@@ -392,6 +392,67 @@ function renderTable() {
   const seats = round.order;
   const myIdx = seats.indexOf(state.you);
   const opponents = (myIdx === -1 ? seats : [...seats.slice(myIdx + 1), ...seats.slice(0, myIdx)]).filter((id) => id !== state.you);
+  const canAccuse = inHand && !over && !tonkPhase && !paused && !dealing && !!room.settings.cheating;
+  // Accusing is a gamble (a wrong one costs double the bet), so it asks first.
+  function accuseControls(id, info) {
+    if (!canAccuse || !info?.isBot) return null;
+    const name = playerName(info);
+    if (state.confirmAccuse !== id) {
+      return h(
+        'div',
+        { class: 'accuse-row' },
+        h(
+          'button',
+          {
+            class: 'secondary kick-btn',
+            title: t('accuse.tip', { name }),
+            onClick: () => {
+              state.confirmAccuse = id;
+              render();
+            },
+          },
+          t('action.accuse'),
+        ),
+      );
+    }
+    const price = Math.min(room.settings.bet * 2, room.players.find((x) => x.id === state.you)?.coins ?? 0);
+    return h(
+      'div',
+      { class: 'accuse-row' },
+      h(
+        'p',
+        { class: 'muted accuse-text' },
+        t('accuse.confirm', { name, price: t('result.coins', { count: price, amount: String(price) }) }),
+      ),
+      h(
+        'div',
+        { class: 'row' },
+        h(
+          'button',
+          {
+            class: 'kick-btn',
+            onClick: () => {
+              state.confirmAccuse = null;
+              send({ t: 'accuse', target: id });
+            },
+          },
+          t('common.confirm'),
+        ),
+        h(
+          'button',
+          {
+            class: 'secondary kick-btn',
+            onClick: () => {
+              state.confirmAccuse = null;
+              render();
+            },
+          },
+          t('common.cancel'),
+        ),
+      ),
+    );
+  }
+
   const oppEls = opponents.map((id) => {
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
@@ -420,6 +481,7 @@ function renderTable() {
         ),
         purse(info),
       ),
+      accuseControls(id, info),
       cards,
       over ? resultLine(round, id) : null,
       meldsOf(id),
@@ -702,14 +764,23 @@ function renderResult(round) {
     case 'empty':
       headline = t('result.empty', { name: nameFor(r.actor) });
       break;
+    case 'caught':
+      headline = t('result.caught', { accuser: nameFor(r.actor), name: nameFor(r.cheater) });
+      break;
     default:
       headline = t('result.aborted');
   }
+  const cheats = (r.cheats ?? []).map((c) =>
+    h('div', null, t(`result.cheat.${c.kind}`, { name: nameFor(c.pid), card: c.card === undefined ? '' : cardLabel(c.card) })),
+  );
   const canDeal = room.players.length >= room.minPlayers;
   return h(
     'div',
     { class: 'result' },
     h('strong', null, headline),
+    cheats.length
+      ? h('div', { class: 'result-cheats muted' }, r.type === 'caught' ? null : h('div', null, t('result.cheatsRevealed')), cheats)
+      : null,
     state.restartDeadline !== null
       ? h(
           'div',
@@ -891,17 +962,16 @@ function settingsPanel(isHost) {
     });
     return rule(key, h('label', { class: 'row' }, h('span', null, coin(), label), input));
   };
-  const dynamicTable = () => {
-    const label = t('tableRules.dynamicTable.label');
-    if (!isHost)
-      return rule('dynamicTable', h('div', null, `${label}: `, h('strong', null, t(settings.dynamicTable ? 'common.on' : 'common.off'))));
+  const toggle = (key) => {
+    const label = t(`tableRules.${key}.label`);
+    if (!isHost) return rule(key, h('div', null, `${label}: `, h('strong', null, t(settings[key] ? 'common.on' : 'common.off'))));
     const input = h('input', {
       type: 'checkbox',
       class: 'tick',
-      checked: settings.dynamicTable,
-      onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, dynamicTable: e.currentTarget.checked } }),
+      checked: settings[key],
+      onChange: (e) => send({ t: 'updateSettings', settings: { ...settings, [key]: e.currentTarget.checked } }),
     });
-    return rule('dynamicTable', h('label', { class: 'row tick-row' }, input, h('span', null, label)));
+    return rule(key, h('label', { class: 'row tick-row' }, input, h('span', null, label)));
   };
   return h(
     'div',
@@ -909,7 +979,8 @@ function settingsPanel(isHost) {
     h('h3', { style: 'margin-top:0' }, t('tableRules.title')),
     field('startingCoins'),
     field('bet'),
-    dynamicTable(),
+    toggle('dynamicTable'),
+    toggle('cheating'),
     h('p', { class: 'setting-hint muted' }, t('tableRules.outOfCoins')),
   );
 }
@@ -944,6 +1015,10 @@ function formatEvent(e) {
       return t('log.layoff', { who, card: cardLabel(e.card) });
     case 'goDown':
       return t('log.goDown', { who, total: e.total });
+    case 'accuse': {
+      const target = e.targetBotId ? botName(e.targetBotId, e.targetName) : nameOf(e.target, e.targetName);
+      return e.caught ? t('log.accuseRight', { who, target }) : t('log.accuseWrong', { who, target, count: e.amount, amount: e.amount });
+    }
     case 'reshuffle':
       return t('log.reshuffle');
     case 'timeout':

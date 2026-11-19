@@ -40,5 +40,27 @@
     return null;
   }
 
-  return { rankOf, suitOf, cardValue, handTotal, isCard, classifyMeld, layoffEnd };
+  // Suits are C, D, H, S: diamonds and hearts are red, clubs and spades black.
+  const isRed = (id) => suitOf(id) === 1 || suitOf(id) === 2;
+
+  // A cheating way of adding a card to a run: the card is not legal there, yet it looks almost right. Returns
+  // { end: 'low' | 'high', kind } or null. `kind` is 'suit' (the next rank in another suit of the same colour) or
+  // 'gap' (the right suit, but one rank is skipped, as in 4 5 7).
+  function cheatLayoffEnd(meld, card) {
+    if (meld.type !== 'run' || layoffEnd(meld, card)) return null;
+    const first = meld.cards[0];
+    const last = meld.cards[meld.cards.length - 1];
+    const rank = rankOf(card);
+    if (suitOf(card) !== suitOf(first)) {
+      if (isRed(card) !== isRed(first)) return null;
+      if (rank === rankOf(first) - 1) return { end: 'low', kind: 'suit' };
+      if (rank === rankOf(last) + 1) return { end: 'high', kind: 'suit' };
+      return null;
+    }
+    if (rank === rankOf(first) - 2) return { end: 'low', kind: 'gap' };
+    if (rank === rankOf(last) + 2) return { end: 'high', kind: 'gap' };
+    return null;
+  }
+
+  return { rankOf, suitOf, cardValue, handTotal, isCard, classifyMeld, layoffEnd, cheatLayoffEnd };
 });

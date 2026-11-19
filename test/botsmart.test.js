@@ -558,7 +558,17 @@ test('a fault in a bot memory does not undo the move that was played', () => {
 test('every character is written with exactly the seven knobs, and what they resolve to', () => {
   assert.deepEqual(PARAMS, ['memory', 'calculating', 'tunnelVision', 'sloppiness', 'riskTaker', 'moodSwing', 'thinkSpeed']);
   const lieutenant = profileFor({ isBot: true, botId: 'the-lieutenant', name: 'The Lieutenant' });
-  assert.deepEqual(Object.keys(lieutenant).sort(), ['boldness', 'calculating', 'focus', 'memory', 'moodSwing', 'sloppiness', 'thinkSpeed']);
+  assert.deepEqual(Object.keys(lieutenant).sort(), [
+    'boldness',
+    'calculating',
+    'cheat',
+    'focus',
+    'memory',
+    'moodSwing',
+    'sloppiness',
+    'thinkSpeed',
+  ]);
+  assert.equal(lieutenant.cheat, 0, 'it is honest');
   assert.ok(Math.abs(lieutenant.focus - (1 - PROFILES['the-lieutenant'].tunnelVision)) < 1e-9, 'focus is the opposite of tunnel vision');
   assert.deepEqual(profileFor({ isBot: true, botId: 'nobody' }).boldness, 0, 'a riskTaker of 0.5 is neutral');
   assert.ok(BASE.riskTaker === 0.5);
@@ -667,4 +677,61 @@ test('think time follows the difficulty of the move: a close call takes longer t
   const room = { round: { phase: 'draw' } };
   const seat = { isBot: true, botId: 'croaker' };
   for (let i = 0; i < 20; i++) assert.ok(lobby.thinkMs(room, seat, 0) < lobby.thinkMs(room, seat, 1));
+});
+
+// ---- Cheating ----
+
+// Every roll comes up 0: a cheater feels like cheating, and picks the first of its options.
+const cheater = (state, cheat = 1, values = {}) => setup(state, { cheat, ...values }, () => 0);
+
+test('cheating: an honest character never cheats, however the dice fall', () => {
+  const s = cheater({ hand: [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')] }, 0);
+  assert.equal(act(s).type, 'discard');
+});
+
+test('cheating: a cheater palms its dearest card, adds a card to a spread it does not fit, or throws two cards away', () => {
+  const hand = [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')];
+  assert.deepEqual(act(cheater({ hand })), { type: 'cheatPalm', card: c(13, 'S') });
+
+  const run = { id: 1, owner: 'b', type: 'run', cards: [c(5, 'H'), c(6, 'H'), c(7, 'H')] };
+  assert.deepEqual(act(cheater({ hand: [c(8, 'D'), c(13, 'S'), c(2, 'C')], melds: [run] }, 1, { focus: 1 })), {
+    type: 'cheatLayoff',
+    card: c(8, 'D'),
+    meldId: 1,
+  });
+
+  const rolls = [0.5, 0, 0.9]; // the look for a way to empty its hand, then it feels like cheating, and the second way comes up
+  const s = setup({ hand }, { cheat: 1 }, () => (rolls.length ? rolls.shift() : 0.9));
+  const move = act(s);
+  assert.equal(move.type, 'cheatDiscard');
+  assert.equal(move.cards.length, 2);
+  assert.equal(move.cards[1], c(13, 'S'), 'the card it would throw away anyway ends on top');
+});
+
+test('cheating: it cheats once a turn at most, and never with too few cards', () => {
+  const s = cheater({ hand: [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')] });
+  assert.equal(act(s).type, 'cheatPalm');
+  s.mind.cheated();
+  assert.equal(act(s).type, 'discard');
+  assert.equal(act(cheater({ hand: [c(13, 'S'), c(9, 'D')] })).type, 'discard');
+});
+
+test('cheating: it takes the card under the top discard when it remembers that one and it helps', () => {
+  const s = cheater({ hand: [c(5, 'H'), c(6, 'H'), c(13, 'S')], phase: 'draw', top: c(4, 'S') });
+  s.mind.observe({ type: 'discard', pid: 'c', card: c(13, 'C') }); // c(4, 'S') is now under the top card...
+  s.view.discardTop = c(13, 'C');
+  assert.equal(act(s).type, 'draw', 'a four of spades is no use');
+  const helpful = cheater({ hand: [c(5, 'H'), c(6, 'H'), c(13, 'S')], phase: 'draw', top: c(7, 'H') });
+  helpful.mind.observe({ type: 'discard', pid: 'c', card: c(13, 'C') });
+  helpful.view.discardTop = c(13, 'C');
+  assert.deepEqual(act(helpful), { type: 'cheatTakeUnder' });
+});
+
+test('cheating: the log shows a card taken from under the top as that card, and a bot remembers it', () => {
+  const mind = new Mind('a', profile({ memory: 1 }), seeded(1));
+  mind.start({ order: ['a', 'b', 'c'], discardTop: c(7, 'H') });
+  mind.observe({ type: 'discard', pid: 'b', card: c(13, 'C') });
+  mind.observe({ type: 'takeDiscard', pid: 'c', card: c(7, 'H') });
+  assert.deepEqual(mind.pileCards(), [c(13, 'C')]);
+  assert.deepEqual(mind.heldBy('c'), [c(7, 'H')]);
 });

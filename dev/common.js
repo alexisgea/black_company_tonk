@@ -11,6 +11,11 @@ const sessionOptions = {
   coins: { type: 'number', default: DEFAULT_OPTIONS.coins, help: 'starting coins of each player' },
   bet: { type: 'number', default: DEFAULT_OPTIONS.bet, help: 'coins one bet is worth' },
   maxHands: { type: 'number', default: DEFAULT_OPTIONS.maxHands, help: 'a table stops after this many hands (or when somebody is broke)' },
+  cheat: {
+    type: 'boolean',
+    default: false,
+    help: 'let the bots that have the habit cheat (nobody accuses them here, so it is never punished)',
+  },
   seed: { type: 'number', default: 1, help: 'the same seed plays the same games' },
   workers: { type: 'number', default: defaultWorkers(), help: 'threads to play on' },
   json: { type: 'boolean', default: false, help: 'print the results as JSON instead of tables' },
@@ -23,7 +28,7 @@ function checkSessionOptions(opts) {
   if (!(opts.bet >= 1) || !(opts.coins >= opts.bet)) fail('--bet must be at least 1 and no more than --coins.');
 }
 
-const gameOptions = (opts) => ({ coins: opts.coins, bet: opts.bet, maxHands: opts.maxHands });
+const gameOptions = (opts) => ({ coins: opts.coins, bet: opts.bet, maxHands: opts.maxHands, cheating: opts.cheat });
 const sessionSeed = (opts, index) => opts.seed * 1000003 + index;
 
 // The same tables for every variant: one "subject" seat (with `patch` applied: { profile?, tuning? }) among copies of

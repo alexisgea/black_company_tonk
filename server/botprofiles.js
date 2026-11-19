@@ -21,6 +21,11 @@
 //   thinkSpeed    how fast it thinks: 1 is the table's normal pace, above 1 is quicker, below 1 is slower. (Not part of
 //                 the level.)
 //
+// A character may also have a `cheat` (0 to 1, left out = 0 = never): how inclined it is to bend the rules. It is not a
+// skill knob (the balance and sensitivity tools ignore it, and the level does not touch it) and only matters when the
+// table has cheating switched on. Each turn it has a chance of CHEAT_RATE * cheat to try one cheat (see cheatMove in
+// botsmart.js), so even the worst offender cheats only now and then.
+//
 // Each entry also has a `rank` (rookie, regular, veteran or expert): a label for how strong the character is compared
 // with the others. It is not a knob and changes nothing in the game. Set it by hand, and keep it in line with the
 // strongest-first order of `BOT_IDS` in botnames.js (a quarter of the roster each, best to worst).
@@ -43,8 +48,10 @@ const BASE = { memory: 0.8, calculating: 0.8, tunnelVision: 0.2, sloppiness: 0.2
 
 const PROFILES = {
   // Gambler: Sharp, but bets everything on thin edges: goes down early whenever the odds look even slightly good.
+  // Also helps the odds along now and then.
   'willow-swan': {
     rank: 'veteran',
+    cheat: 0.6,
     memory: 0.75,
     calculating: 0.75,
     tunnelVision: 0.15,
@@ -65,8 +72,10 @@ const PROFILES = {
     thinkSpeed: 0.75,
   },
   // Tilter: Average skills, but wins and losses throw it completely: brilliant when confident, reckless when behind.
+  // The worst cheat at the table: it cheats most, and clumsily.
   'one-eye': {
     rank: 'rookie',
+    cheat: 1,
     memory: 0.65,
     calculating: 0.65,
     tunnelVision: 0.35,
@@ -97,9 +106,10 @@ const PROFILES = {
     moodSwing: 0,
     thinkSpeed: 0.9,
   },
-  // Rookie: Still learning: weak at everything, and slow about it.
+  // Rookie: Still learning: weak at everything, and slow about it. Has picked up a bad habit or two.
   cordy: {
     rank: 'rookie',
+    cheat: 0.2,
     memory: 0.2,
     calculating: 0.2,
     tunnelVision: 0.7,
@@ -154,8 +164,10 @@ const PROFILES = {
     thinkSpeed: 1.25,
   },
   // Sloppy: Sharp memory and strong card math, but constantly undermines itself with careless, sloppy plays.
+  // A quiet cheat, rarely.
   goblin: {
     rank: 'regular',
+    cheat: 0.4,
     memory: 0.95,
     calculating: 0.95,
     tunnelVision: 0.1,
@@ -194,6 +206,7 @@ function profileFor(player, level = LEVEL) {
     boldness: (p.riskTaker - 0.5) * 2,
     moodSwing: p.moodSwing,
     thinkSpeed: p.thinkSpeed,
+    cheat: p.cheat ?? 0, // not scaled by the level; a seat played for a human never cheats
   };
 }
 
@@ -207,7 +220,10 @@ function profileProblems() {
   for (const id of BOT_IDS) if (!PROFILES[id]) problems.push(`${id} has no profile`);
   for (const [id, profile] of Object.entries({ ...PROFILES, SUBSTITUTE })) {
     if (id !== 'SUBSTITUTE' && !BOT_IDS.includes(id)) problems.push(`${id} is not a bot id`);
-    for (const key of Object.keys(profile)) if (key !== 'rank' && !PARAMS.includes(key)) problems.push(`${id}: unknown parameter ${key}`);
+    for (const key of Object.keys(profile))
+      if (key !== 'rank' && key !== 'cheat' && !PARAMS.includes(key)) problems.push(`${id}: unknown parameter ${key}`);
+    if (profile.cheat !== undefined && !(profile.cheat >= 0 && profile.cheat <= 1)) problems.push(`${id}: cheat must be from 0 to 1`);
+    if (id === 'SUBSTITUTE' && profile.cheat) problems.push('SUBSTITUTE must never cheat');
     if (id !== 'SUBSTITUTE' && !RANKS.includes(profile.rank)) problems.push(`${id}: rank must be one of ${RANKS.join(', ')}`);
     for (const key of PARAMS) {
       const value = profile[key];

@@ -90,6 +90,7 @@
   "status.yourTurnDraw": "Your turn: draw, take the discard, or go down.",
   "status.yourTurnPlay": "Put down a spread or add cards to a spread, then discard one card.",
 
+  "action.accuse": "Accuse",
   "action.discard": "Discard",
   "action.goDown": "Go down",
   "action.selection": "(selection)",
@@ -104,6 +105,13 @@
   "tip.notYourTurn": "You can only do this during your turn, after drawing.",
 
   "result.aborted": "Hand aborted: not enough players. Every coin stays where it was.",
+  "result.caught": "{accuser} caught {name} cheating! {name} pays everyone double.",
+  "result.cheat.doubleDiscard": "{name} threw away two cards in one turn.",
+  "result.cheat.layoffGap": "{name} added the {card} to a run with a rank skipped.",
+  "result.cheat.layoffSuit": "{name} added the {card} to a run of another suit.",
+  "result.cheat.palm": "{name} palmed the {card}.",
+  "result.cheat.takeUnder": "{name} took the {card} from under the top of the discard pile.",
+  "result.cheatsRevealed": "Cheating nobody caught:",
   "result.coins.one": "{amount} coin",
   "result.coins.other": "{amount} coins",
   "result.dealNext": "Deal next hand",
@@ -115,6 +123,9 @@
   "result.tonk": "{name} has TONK and everyone pays double!",
   "result.tonkDraw": "More than one player has TONK – the hand is a draw and no coins change hands.",
   "result.waitingForPlayers": "Waiting for players…",
+
+  "accuse.confirm": "Accuse {name} of cheating? If you are wrong, you pay them {price}.",
+  "accuse.tip": "Think {name} is cheating? Accuse them.",
 
   "panel.collapse": "Fold away",
   "panel.expand": "Unfold",
@@ -139,8 +150,13 @@
   "tableRules.bet.hint": "Coins per payoff unit (a plain win pays 1 bet, TONK, emptying your hand or getting caught 2).",
   "tableRules.dynamicTable.label": "Dynamic table",
   "tableRules.dynamicTable.hint": "Bots that lose their last coin are replaced by new ones, and now and then a bot leaves and another sits down.",
+  "tableRules.cheating.label": "Cheating",
+  "tableRules.cheating.hint": "Some bots cheat now and then and you can accuse them: right and the hand stops and the cheater pays everyone double, wrong and you pay the accused double.",
   "tableRules.outOfCoins": "Run out of coins and you are out of the game.",
 
+  "log.accuseRight": "{who} accused {target} of cheating, and was right!",
+  "log.accuseWrong.one": "{who} accused {target} of cheating, but was wrong, and paid {amount} coin.",
+  "log.accuseWrong.other": "{who} accused {target} of cheating, but was wrong, and paid {amount} coins.",
   "log.back": "{who} is back at the table.",
   "log.brokeBot": "{who} lost every last coin and left the table.",
   "log.brokeHuman": "{who} lost every last coin and is now a guest.",
@@ -410,6 +426,13 @@
     "If you have no cards left during your turn (after putting down a spread, adding to a spread, or     discarding your last card), you win. Every other player pays you double (2).",
     "House rule: in the original rules (see Credits) emptying your hand pays the normal bet (1). Here it pays double."
   ],
+  "rules.cheating.title": "Cheating",
+  "rules.cheating.items": [
+    "Some bots cheat now and then, unless the host switched cheating off. A cheat is never announced: you have to notice it, and nothing in the log says it happened.",
+    "What to look for: a hand with fewer cards than it should have (5, plus every card drawn, minus every card discarded or put down); two discards in one turn; a card added to a run in another suit, or with a rank skipped (4-5-7); a card taken from under the top of the discard pile, so the top card is still the same one.",
+    "Accuse: press “Accuse” next to a player. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
+    "A cheat nobody caught is revealed when the hand ends, and nothing is paid for it."
+  ],
   "rules.words.title": "Words you may hear",
   "rules.words.items": [
     "Spread or meld: a group of cards put down on the table (a set or a run).",
@@ -481,6 +504,7 @@
   "err.alreadyDeclared": "You already declared TONK",
   "err.alreadyDrew": "You already took a card",
   "err.alreadySeated": "Already at a table",
+  "err.badAccusation": "You cannot accuse that player",
   "err.badAction": "Bad action",
   "err.badSettings": "Bad settings",
   "err.banned": "You were removed from this table by the host",
@@ -495,6 +519,7 @@
   "err.cardNotHeld": "You do not hold that card",
   "err.cardsNotHeld": "You do not hold those cards",
   "err.chatTooFast": "You are sending messages too fast",
+  "err.cheatingOff": "Cheating is switched off at this table, so there is nobody to accuse",
   "err.connectionTaken": "This connection already belongs to another player",
   "err.discardPileEmpty": "The discard pile is empty",
   "err.drawFirst": "Take a card first",
@@ -524,6 +549,7 @@
   "err.noSuchBot": "No such bot",
   "err.noSuchMeld": "No such spread",
   "err.noSuchPlayer": "No such player",
+  "err.noCoinsToAccuse": "You have no coins left to back an accusation with",
   "err.noTonkNeeded": "Nobody needs to declare TONK right now",
   "err.notAtTable": "Not at a table",
   "err.notAtThisTable": "Not at this table",

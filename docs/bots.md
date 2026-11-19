@@ -146,6 +146,25 @@ Boldness is not fixed during a game. It starts from the character's `riskTaker` 
 
 Both are multiplied by the character's `moodSwing`, so a steady bot (Silent, Hagop) hardly changes and a moody one (One-Eye, Goblin) swings. Boldness moves the go-down margin by `BOLD_MARGIN` bets per opponent per point, and the rule-of-thumb total by `THUMB_SPAN` points.
 
+## Cheating
+
+Some characters cheat now and then (a table can switch it off, see below). It is a separate number, `cheat` (0 to 1, left out = never), not one of the seven skill knobs: the level does not touch it and `dev:balance` and `dev:sensitivity` ignore it. Each turn a bot with a `cheat` has a `CHEAT_RATE * cheat` chance (5% at most, rolled once per turn, and it never cheats twice in a turn) of trying one cheat. At the moment One-Eye (1), Willow Swan (0.6), Goblin (0.4) and Cordy (0.2) cheat; everybody else is honest. Over a few thousand hands One-Eye cheated in about one hand in eight and Cordy in one in forty.
+
+The cheats, and what a human can see of them. **A cheat never gets a log line of its own**: the log only shows what physically happened, and it is up to the players to notice.
+
+| Cheat                       | What the bot does                                                                                                                                                                                       | The tell                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Palming (`cheatPalm`)       | After everything honest is done, hides its dearest card instead of discarding it (the card is out of the game, so its total drops).                                                                     | Its hand is a card short: 5 + draws - discards - cards put down. Nothing in the log. |
+| Double discard (`cheatDiscard`) | Throws away two cards in one turn, the dearest of the rest and then the one it would have thrown anyway, which stays on top.                                                                        | Two discards by the same player in the log, and the hand count drops by one more. |
+| Wrong spread (`cheatLayoff`)| Adds a card to a run on the table where it does not belong: the next rank in the other suit of the same colour (a red card on a red run), or the right suit with one rank skipped (4 5 7). A card that fits like this is taken before any other cheat. | The card sits on the table for everybody to see.                                 |
+| Pile diving (`cheatTakeUnder`) | Takes the card under the top discard, when it remembers that card (its memory decides, so a forgetful bot can misjudge it) and it would help.                                                         | The log says it took a card that is not the one on top, and the top is unchanged.|
+
+All of them are decided in `cheatTake` and `cheatPlay` in `server/botsmart.js` and checked by the rules engine (`server/tonk.js`), which records them in `round.cheats`. Only a bot at a table with cheating on can send them; a human who sends one gets "Unknown action". A cheat never empties the hand, and the legacy and fallback bots never cheat. The seat played for an away human has no `cheat`.
+
+**Accusing.** A human can accuse a bot at any time during a hand (not while the hand waits for TONK!, or when paused). If it cheated at any point in that hand, the hand stops and it pays every other player double (2 bets); a cheat on the table is not undone. If not, the accuser pays the accused double and the hand continues. Nobody pays more than they have (`Room.accuse`). Bots never accuse. A cheat nobody caught is listed in the result when the hand ends, with no payment.
+
+In the simulations cheating is off unless `--cheat` is given, and even then nobody accuses, so a cheater is never punished. `dev:table` has it on and shows each cheat in the reasoning.
+
 ## Banter
 
 Bots also talk, a little. At the end of its turn a bot has a 20% chance (`BANTER_CHANCE`) of saying one line, so never more than one per turn and not every turn. The line depends on the bot's **tone** (`BANTER_TONE` in `server/botbanter.js`; Silent has none and never speaks) and on how its luck is going: **ahead** or **behind** when its confidence (see Mood above) is far enough from zero, otherwise a general line. It does not repeat the line it said last. This has no effect on how the bot plays.
@@ -183,6 +202,7 @@ At the time of writing, against copies of Otto, the four skills swing between ab
 | One bot to be bolder or more timid                                                  | Its `riskTaker`                                                                                |
 | One bot to be moodier or steadier (and panic more or less)                          | Its `moodSwing`                                                                                |
 | One bot to think for a shorter or longer time                                       | Its `thinkSpeed` (higher is quicker)                                                           |
+| One bot to cheat more or less (0 = never)                                           | Its `cheat`; all bots at once: `CHEAT_RATE` in `bottuning.js`                                  |
 | All bots to be harder or easier                                                     | `LEVEL` in `botprofiles.js`                                                                    |
 | Bots to go down more or less eagerly                                                | `GO_MARGIN` (lower is more eager) in `bottuning.js`                                            |
 | The rule-of-thumb total to move more or less with boldness                          | `THUMB_SPAN` (and `GO_DOWN_AT` for the middle)                                                 |

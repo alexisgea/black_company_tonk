@@ -693,6 +693,15 @@ class Lobby {
         if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
         break;
       }
+      case 'accuse': {
+        requireRoom(room);
+        const resumed = this.resumeSeat(user);
+        const wasPlaying = room.status === 'playing';
+        this.actAndShowResume(room, resumed, () => room.accuse(user, msg.target));
+        this.broadcastRoom(room);
+        if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
+        break;
+      }
       case 'declareTonk': {
         requireRoom(room);
         const resumed = this.resumeSeat(user);

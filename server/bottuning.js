@@ -66,6 +66,9 @@ const MOOD_DECAY = 0.7; // how much of the confidence is left after each hand (i
 const BOLD_MARGIN = 0.25; // bets per opponent knocked off the go-down margin per point of boldness (negative boldness raises it)
 const DESPERATION_WEIGHT = 0.6; // boldness added when the bot has lost all its coins relative to the others (scales linearly with how far behind)
 
+// --- Cheating (a character's `cheat` number lives in botprofiles.js; see cheatMove in botsmart.js) ---
+const CHEAT_RATE = 0.05; // the chance per turn that a bot with a cheat of 1 tries a cheat (a cheat of 0.4 has 0.4 times this)
+
 // --- Pace (see Lobby.thinkMs) ---
 const THINK_DRAW = 1.3; // drawing or taking the discard is thought about a little longer...
 const THINK_PLAY = 0.8; // ...than putting cards down or discarding
@@ -132,4 +135,5 @@ module.exports = {
   MOOD_DECAY,
   BOLD_MARGIN,
   DESPERATION_WEIGHT,
+  CHEAT_RATE,
 };

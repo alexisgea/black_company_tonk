@@ -1,7 +1,7 @@
 'use strict';
 // Pure rules engine for Tonk (Black Company). No I/O, no networking.
 // Card ids and the set/run rules live in ../shared/cards.js (also used by the browser).
-const { rankOf, suitOf, cardValue, handTotal, isCard, classifyMeld, layoffEnd } = require('../shared/cards');
+const { rankOf, suitOf, cardValue, handTotal, isCard, classifyMeld, layoffEnd, cheatLayoffEnd } = require('../shared/cards');
 const { text } = require('./i18n');
 
 const HAND_SIZE = 5;
@@ -9,6 +9,10 @@ const TONK_LOW = 15; // total <= 15 is Tonk
 const TONK_HIGH = 49; // total >= 49 is Tonk
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
+const PAY_CAUGHT_CHEATING = 2; // a caught cheater pays every other player this much; a wrong accuser pays the accused the same
+// Cheats are moves a computer player may make besides the honest ones. They leave no entry in the log (only the
+// ordinary ones for what physically happened), so the table can only notice them. See applyAction.
+const CHEAT_ACTIONS = new Set(['cheatPalm', 'cheatDiscard', 'cheatLayoff', 'cheatTakeUnder']);
 
 // An illegal move or request. `code` names the English message under "err." in public/locales/en.json; the
 // client translates it from the code and `params`, and shows `message` (English) when it does not know the code.
@@ -46,8 +50,11 @@ function finish(round, result) {
     hands[id] = [...round.hands[id]];
     totals[id] = handTotal(round.hands[id]);
   }
-  round.result = { hands, totals, ...result };
+  // Every cheat of the hand is revealed once it is over, caught or not.
+  round.result = { hands, totals, cheats: (round.cheats ?? []).map((cheat) => ({ ...cheat })), ...result };
 }
+
+const recordCheat = (round, pid, kind, extra = {}) => (round.cheats ??= []).push({ pid, kind, ...extra });
 
 const findTonkers = (round) =>
   round.order.filter((id) => {
@@ -94,6 +101,7 @@ function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false
     phase: 'draw',
     tonkers: [], // who must declare (only in the 'tonk' phase)
     declared: [], // who already has
+    cheats: [], // { pid, kind, ... } every cheat played this hand; only revealed in the result
     result: null,
   };
 
@@ -249,10 +257,76 @@ function applyAction(round, pid, action) {
       else advanceTurn(round);
       break;
     }
+    case 'cheatPalm': {
+      // Slips the card up a sleeve: it is out of the game, and the hand is one card short with nothing on the table to show for it.
+      if (round.phase !== 'play') throw new GameError('drawFirst');
+      const card = action.card;
+      if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('cardNotHeld');
+      if (round.hands[pid].length < 3) throw new GameError('badAction');
+      takeFromHand(round, pid, [card]);
+      recordCheat(round, pid, 'palm', { card });
+      break;
+    }
+    case 'cheatDiscard': {
+      // Two cards on the discard pile in one turn: the last of them stays on top.
+      if (round.phase !== 'play') throw new GameError('drawFirst');
+      const cards = action.cards;
+      if (!Array.isArray(cards) || cards.length !== 2) throw new GameError('invalidCards');
+      if (round.hands[pid].length < 3) throw new GameError('badAction');
+      takeFromHand(round, pid, cards);
+      for (const card of cards) {
+        round.discard.push(card);
+        events.push({ type: 'discard', pid, card });
+      }
+      recordCheat(round, pid, 'doubleDiscard', { cards: [...cards] });
+      advanceTurn(round);
+      break;
+    }
+    case 'cheatLayoff': {
+      // Adds a card that does not belong to a run (see cheatLayoffEnd), and it stays there for everybody to see.
+      if (round.phase !== 'play') throw new GameError('drawFirst');
+      const meld = round.melds.find((m) => m.id === action.meldId);
+      if (!meld) throw new GameError('noSuchMeld');
+      const card = action.card;
+      if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('cardNotHeld');
+      const cheat = cheatLayoffEnd(meld, card);
+      if (!cheat || round.hands[pid].length < 2) throw new GameError('layoffMismatch');
+      takeFromHand(round, pid, [card]);
+      if (cheat.end === 'low') meld.cards.unshift(card);
+      else meld.cards.push(card);
+      events.push({ type: 'layoff', pid, card, meldId: meld.id });
+      recordCheat(round, pid, cheat.kind === 'suit' ? 'layoffSuit' : 'layoffGap', { card });
+      break;
+    }
+    case 'cheatTakeUnder': {
+      // Takes the card under the top of the discard pile; the top card stays where it is.
+      if (round.phase !== 'draw') throw new GameError('alreadyDrew');
+      if (round.discard.length < 2) throw new GameError('discardPileEmpty');
+      const [card] = round.discard.splice(round.discard.length - 2, 1);
+      round.hands[pid].push(card);
+      round.phase = 'play';
+      events.push({ type: 'takeDiscard', pid, card });
+      recordCheat(round, pid, 'takeUnder', { card });
+      break;
+    }
     default:
       throw new GameError('unknownAction');
   }
   return events;
+}
+
+// `accuser` says `target` has cheated during this hand. Right: the hand ends and the cheater pays every other player
+// double. Wrong: nothing happens to the hand here (the room makes the accuser pay). Returns whether the accusation was right.
+function accuse(round, accuser, target) {
+  if (round.result) throw new GameError('handOver');
+  if (round.phase === 'tonk') throw new GameError('waitingForTonk');
+  if (accuser === target || !round.order.includes(accuser) || !round.order.includes(target)) throw new GameError('badAccusation');
+  if (!(round.cheats ?? []).some((cheat) => cheat.pid === target)) return false;
+  const deltas = zeroDeltas(round.order);
+  const others = round.order.filter((id) => id !== target);
+  for (const id of others) pay(deltas, target, id, PAY_CAUGHT_CHEATING);
+  finish(round, { type: 'caught', actor: accuser, cheater: target, winners: others, deltas });
+  return true;
 }
 
 // Players may reorder their own hand at any time; it never affects the game state.
@@ -278,6 +352,7 @@ function removePlayer(round, pid) {
   round.deck.unshift(...round.hands[pid]);
   delete round.hands[pid];
   round.order.splice(idx, 1);
+  if (round.cheats) round.cheats = round.cheats.filter((cheat) => cheat.pid !== pid);
 
   if (round.order.length < MIN_PLAYERS) {
     finish(round, { type: 'aborted', winners: [], deltas: zeroDeltas(round.order) });
@@ -306,6 +381,7 @@ function renamePlayer(round, oldId, newId) {
   round.hands[newId] = round.hands[oldId];
   delete round.hands[oldId];
   for (const meld of round.melds) if (meld.owner === oldId) meld.owner = newId;
+  for (const cheat of round.cheats ?? []) if (cheat.pid === oldId) cheat.pid = newId;
 }
 
 // Snapshot for one viewer: own hand in full, opponents' hands only as counts until the hand ends
@@ -351,6 +427,9 @@ module.exports = {
   startRound,
   declareTonk,
   applyAction,
+  accuse,
+  CHEAT_ACTIONS,
+  PAY_CAUGHT_CHEATING,
   reorderHand,
   removePlayer,
   renamePlayer,

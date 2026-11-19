@@ -39,6 +39,15 @@ class Mind {
     return this.profile.moodSwing * T.PANIC_PER_MOOD_SWING; // the chance of panicking when an opponent is nearly out
   }
 
+  get cheatChance() {
+    return (this.profile.cheat ?? 0) * T.CHEAT_RATE; // the chance per turn of trying a cheat
+  }
+
+  // It cheated this turn: no second cheat until the next one.
+  cheated() {
+    this.rolls.set('chance:cheat', false);
+  }
+
   // Is it looking at what the others are doing this turn? (A tunnel-vision bot often is not.) Rolled once per turn.
   watching() {
     return this.decide('focus', 'others');
@@ -71,6 +80,13 @@ class Mind {
     return this.drops.findLast((d) => d.onPile);
   }
 
+  // The discard under the top one, if it is still on the pile as far as the bot knows, and it recalls it.
+  underTop() {
+    const pile = this.pile;
+    const fact = pile[pile.length - 2];
+    return fact && this.recalls(fact) ? fact : undefined;
+  }
+
   observe(event) {
     switch (event.type) {
       case 'draw': {
@@ -79,8 +95,9 @@ class Mind {
         break;
       }
       case 'takeDiscard': {
-        const top = this.top();
-        if (top) top.onPile = false;
+        // Usually the top card; a cheat can take one from under it, which the log shows as a different card.
+        const taken = this.drops.findLast((d) => d.onPile && d.card === event.card) ?? this.top();
+        if (taken) taken.onPile = false;
         if (event.pid !== this.id) this.holding(event.pid).push({ card: event.card, t: this.turnEnds, remembered: undefined });
         break;
       }
