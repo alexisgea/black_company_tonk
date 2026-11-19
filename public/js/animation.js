@@ -215,12 +215,11 @@ async function runDeal(prevMarks, rerender) {
   const deckAt = (id) => {
     const panel = id === state.you ? document.querySelector('.me-panel') : document.querySelector(`.opp[data-player="${CSS.escape(id)}"]`);
     if (!panel) return deck;
-    // Tucked against the dealer's right-hand corner, under the panel (above mine, which is at the bottom of the screen),
+    // Centered under the dealer's panel (above mine, which is at the bottom of the screen),
     // so the name and the dealer chip stay readable even in the two-column layout of a phone.
     const r = panel.getBoundingClientRect();
-    const w = deck.w * DECK_SCALE;
     const h = deck.h * DECK_SCALE;
-    return { cx: r.right - w * 0.6, cy: id === state.you ? r.top - h / 2 + 4 : r.bottom + h / 2 - 4, w: deck.w, h: deck.h };
+    return { cx: r.left + r.width / 2, cy: id === state.you ? r.top - h / 2 + 4 : r.bottom + h / 2 - 4, w: deck.w, h: deck.h };
   };
   const dealerAt = (round.dealer && deckAt(round.dealer)) || deck;
   deal.watchdog = setTimeout(() => abortDeal(rerender), DEAL_MAX_MS);

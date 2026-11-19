@@ -12,7 +12,7 @@ function legacyAction(round, id) {
   const hand = round.hands[id];
   if (round.phase === 'draw') {
     // An empty draw pile means the table is cycling without anyone getting low enough; end the hand.
-    if (handTotal(hand) <= GO_DOWN_AT || round.deck.length === 0) return { type: 'goDown' };
+    if (!round.cheatedThisTurn && (handTotal(hand) <= GO_DOWN_AT || round.deck.length === 0)) return { type: 'goDown' };
     const top = round.discard[round.discard.length - 1];
     if (top !== undefined && discardHelps(round, hand, top)) return { type: 'takeDiscard' };
     const canDraw = round.deck.length > 0 || round.discard.length > 1;

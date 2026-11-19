@@ -541,8 +541,9 @@
   "rules.cheating.title": "Cheating",
   "rules.cheating.items": [
     "Some bots cheat now and then, unless the host switched cheating off. A cheat is never announced: you have to notice it, and nothing in the log says it happened.",
+    "A player cannot cheat and go down in the same turn. After cheating, they must finish their turn normally and wait for a later turn to go down.",
     "What to look for: a hand with fewer cards than it should have (5, plus every card drawn, minus every card discarded or put down); a card added to a run in another suit, or with a rank skipped (4-5-7); someone taking a card from the discard pile when the top card is still the same one afterwards (the log only says they took the top discard).",
-    "Accuse: open “Emotes” (next to the chat box) and pick “Accuse someone of cheating…”, then click the player you suspect and confirm. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
+    "Accuse: open “Emotes” on your hand panel and pick “Accuse someone of cheating…”, then click the player you suspect and confirm. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
     "A cheat nobody caught is revealed when the hand ends, and nothing is paid for it."
   ],
   "rules.words.title": "Words you may hear",
@@ -639,6 +640,7 @@
   "err.emoteTooFast": "Wait a moment before your next quick word",
   "err.emptyMessage": "Message is empty",
   "err.goDownTiming": "You can only go down at the start of your turn",
+  "err.goDownAfterCheat": "You cannot go down in the same turn as cheating",
   "err.handInProgress": "A hand is already in progress",
   "err.handOver": "This hand is over",
   "err.hostOnlyAddBot": "Only the host can add bots",

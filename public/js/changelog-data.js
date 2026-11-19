@@ -3,7 +3,13 @@ export const CHANGELOG = [
   {
     version: '0.47.0',
     date: '2026-11-20',
-    changes: ['Bots now have more lines for their usual chatter, turn nudges and accusation replies.'],
+    changes: [
+      'Bots now have more lines for their usual chatter, turn nudges and accusation replies.',
+      'Cards are now dealt from the middle of the dealer instead of the right-hand corner.',
+      "The extra pause between bot turns is a little shorter, with a small variation based on the next bot's speed.",
+      'A bot that cheats can no longer go down in the same turn; it must finish that turn normally first.',
+      'The checkmarks for Dynamic table and Cheating are a little smaller.',
+    ],
   },
   {
     version: '0.46.0',

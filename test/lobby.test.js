@@ -316,16 +316,26 @@ test('bots: join, play their turns automatically, and rooms with only bots are r
   assert.equal(lobby.rooms.size, 0);
 });
 
-test('bots: a new turn adds a readable pause, without slowing each move of that turn again', (t) => {
+test('bots: new turns add a short pause that varies mildly with the next bot speed', (t) => {
   t.mock.method(Math, 'random', () => 0.5);
   const lobby = new Lobby();
   const previousPace = new Lobby({ botDelayMs: 1200 });
   const room = { round: { phase: 'draw', turnNo: 0 } };
-  const bot = { botId: 'goblin' };
+  const bot = { isBot: true, botId: 'goblin' };
   const firstDraw = lobby.thinkMs(room, bot, 0.5);
   assert.ok(firstDraw >= previousPace.thinkMs(room, bot, 0.5) * 1.3, 'actions are at least 30% slower');
-  room.round.turnNo = 1;
-  assert.equal(lobby.thinkMs(room, bot, 0.5) - firstDraw, 1200, 'new turns add a 1.2 second pause');
+  const pauses = ['silent', 'case'].map((botId) => {
+    room.round.turnNo = 0;
+    const first = lobby.thinkMs(room, { isBot: true, botId }, 0.5);
+    room.round.turnNo = 1;
+    return lobby.thinkMs(room, { isBot: true, botId }, 0.5) - first;
+  });
+  assert.ok(
+    pauses.every((ms) => ms >= 700 && ms <= 1000),
+    'the extra pause stays between 0.7 and 1 second',
+  );
+  assert.ok(pauses[1] > pauses[0], 'the slower bot has a longer pause');
+  assert.ok(pauses[1] - pauses[0] < 250, 'the speed changes the pause only a little');
   room.round.phase = 'play';
   const play = lobby.thinkMs(room, bot, 0.5);
   room.round.turnNo = 2;

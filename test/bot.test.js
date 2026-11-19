@@ -66,4 +66,6 @@ test('bot takes a discard that completes a meld, draws otherwise', () => {
   assert.equal(legacyAction(useless, 'a').type, 'draw');
   const low = { ...base, hands: { a: [c(1, 'C'), c(2, 'D'), c(3, 'S')] }, discard: [c(2, 'H')] };
   assert.equal(legacyAction(low, 'a').type, 'goDown');
+  low.cheatedThisTurn = true;
+  assert.equal(legacyAction(low, 'a').type, 'draw', 'the safety-net bot also respects the no-go-down-after-cheating rule');
 });

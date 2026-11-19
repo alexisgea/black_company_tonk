@@ -714,6 +714,17 @@ test('cheating: it cheats once a turn at most, and never with too few cards', ()
   assert.equal(act(cheater({ hand: [c(13, 'S'), c(9, 'D')] })).type, 'discard');
 });
 
+test('cheating: palming into a low total does not lead to going down until a later turn', () => {
+  const s = cheater({ hand: [c(13, 'S'), c(3, 'C'), c(4, 'D')], phase: 'draw', top: c(8, 'H') });
+  assert.deepEqual(act(s), { type: 'cheatPalm', card: c(13, 'S') });
+  s.view.players.a.hand = [c(3, 'C'), c(4, 'D')];
+  s.view.players.a.count = 2;
+  s.mind.cheated();
+  assert.ok(['draw', 'takeDiscard'].includes(act(s).type), 'the bot continues its turn instead of going down');
+  s.mind.observe({ type: 'discard', pid: 'a', card: c(9, 'D') });
+  assert.equal(act(s).type, 'goDown', 'a low hand can go down on a later turn');
+});
+
 test('cheating: it takes the card under the top discard when it remembers that one and it helps', () => {
   const hand = [c(5, 'H'), c(6, 'H'), c(13, 'S')];
   const useless = cheater({ hand, phase: 'draw', top: c(4, 'S') });

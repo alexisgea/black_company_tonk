@@ -257,9 +257,10 @@ class Lobby {
   // moves take exactly the same time. A fresh turn gets an extra pause so consecutive bots do not blur together.
   thinkMs(room, seat, effort = 0.5) {
     const drawing = room.round.phase === 'draw';
-    const pace = (drawing ? THINK_DRAW : THINK_PLAY) / profileFor(seat).thinkSpeed;
+    const speed = profileFor(seat).thinkSpeed;
+    const pace = (drawing ? THINK_DRAW : THINK_PLAY) / speed;
     const ponder = THINK_EFFORT_MIN + effort * (THINK_EFFORT_MAX - THINK_EFFORT_MIN);
-    const turnPause = drawing && room.round.turnNo > 0 ? this.botDelayMs * 0.75 : 0;
+    const turnPause = drawing && room.round.turnNo > 0 ? (this.botDelayMs * 0.5) / Math.sqrt(speed) : 0;
     return Math.round(turnPause + this.botDelayMs * pace * ponder * (THINK_JITTER_MIN + Math.random() * THINK_JITTER_SPREAD));
   }
 

@@ -360,6 +360,31 @@ test('cheat: a card of the other suit of the same colour, or one with a rank ski
   assert.throws(() => play(c(11, 'H')).run(), T.GameError, 'neither is a card far away');
 });
 
+test('cheating prevents going down that turn, but not on a later turn', () => {
+  const r = makeRound({ hands: { a: [c(13, 'S'), c(3, 'C'), c(4, 'D')], b: [c(5, 'C'), c(7, 'H')] } });
+  T.applyAction(r, 'a', { type: 'cheatPalm', card: c(13, 'S') });
+  const before = JSON.stringify(r);
+  assert.throws(() => T.applyAction(r, 'a', { type: 'goDown' }), { code: 'goDownAfterCheat' });
+  assert.equal(JSON.stringify(r), before, 'a refused go-down leaves the round unchanged');
+  for (const id of ['a', 'b']) {
+    T.applyAction(r, id, { type: 'draw' });
+    T.applyAction(r, id, { type: 'discard', card: r.hands[id].at(-1) });
+  }
+  T.applyAction(r, 'a', { type: 'goDown' });
+  assert.equal(r.result.type, 'down');
+  assert.equal(r.result.actor, 'a');
+});
+
+test('taking over a cheater keeps the go-down restriction, but removing that seat clears it for the next player', () => {
+  const r = makeRound({ hands: { a: [c(13, 'S'), c(3, 'C'), c(4, 'D')], b: [c(5, 'C')], d: [c(6, 'C')] } });
+  T.applyAction(r, 'a', { type: 'cheatPalm', card: c(13, 'S') });
+  T.renamePlayer(r, 'a', 'guest');
+  assert.throws(() => T.applyAction(r, 'guest', { type: 'goDown' }), { code: 'goDownAfterCheat' });
+  T.removePlayer(r, 'guest');
+  T.applyAction(r, 'b', { type: 'goDown' });
+  assert.equal(r.result.actor, 'b');
+});
+
 test('cheat: taking the card under the top discard leaves the top where it is', () => {
   const r = makeRound({ hands: { a: [c(2, 'C')], b: [c(5, 'C')] }, discard: [c(4, 'S'), c(9, 'C')] });
   const events = T.applyAction(r, 'a', { type: 'cheatTakeUnder' });

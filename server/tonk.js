@@ -54,7 +54,10 @@ function finish(round, result) {
   round.result = { hands, totals, cheats: (round.cheats ?? []).map((cheat) => ({ ...cheat })), ...result };
 }
 
-const recordCheat = (round, pid, kind, extra = {}) => (round.cheats ??= []).push({ pid, kind, ...extra });
+const recordCheat = (round, pid, kind, extra = {}) => {
+  (round.cheats ??= []).push({ pid, kind, ...extra });
+  round.cheatedThisTurn = true;
+};
 
 const findTonkers = (round) =>
   round.order.filter((id) => {
@@ -102,6 +105,7 @@ function startRound(playerIds, dealerIdx, rng = Math.random, { deferTonk = false
     tonkers: [], // who must declare (only in the 'tonk' phase)
     declared: [], // who already has
     cheats: [], // { pid, kind, ... } every cheat played this hand; only revealed in the result
+    cheatedThisTurn: false,
     result: null,
   };
 
@@ -169,6 +173,7 @@ function advanceTurn(round) {
   round.turn = (round.turn + 1) % round.order.length;
   round.turnNo++;
   round.phase = 'draw';
+  round.cheatedThisTurn = false;
 }
 
 function winByEmptyHand(round, pid) {
@@ -196,6 +201,7 @@ function applyAction(round, pid, action) {
   switch (action.type) {
     case 'goDown': {
       if (round.phase !== 'draw') throw new GameError('goDownTiming');
+      if (round.cheatedThisTurn) throw new GameError('goDownAfterCheat');
       events.push({ type: 'goDown', pid, total: handTotal(round.hands[pid]) });
       goDown(round, pid);
       break;
@@ -350,6 +356,7 @@ function removePlayer(round, pid) {
     round.turn %= round.order.length;
     round.turnNo++;
     round.phase = 'draw';
+    round.cheatedThisTurn = false;
   }
   if (wasTonk) syncTonk(round);
 }

@@ -45,6 +45,7 @@ class Mind {
 
   // It cheated this turn: no second cheat until the next one.
   cheated() {
+    this.cheatedThisTurn = true;
     this.rolls.set('chance:cheat', false);
   }
 
@@ -61,6 +62,7 @@ class Mind {
     this.drops = []; // every discard of this hand, in order: { card, pid, t, onPile, passedBy, remembered }
     this.held = new Map(); // player id -> { card, t, remembered } for cards they took from the pile and have not put down
     this.rolls = new Map(); // this turn's skill rolls, so a bot does not re-roll the same question within a turn
+    this.cheatedThisTurn = false;
     if (view.discardTop !== null) this.drops.push(this.drop(view.discardTop, null));
   }
 
@@ -108,6 +110,7 @@ class Mind {
         this.release(event.pid, event.card);
         this.turnEnds++;
         this.rolls.clear();
+        this.cheatedThisTurn = false;
         this.drops.push(this.drop(event.card, event.pid));
         break;
       }

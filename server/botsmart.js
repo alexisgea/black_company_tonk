@@ -349,7 +349,7 @@ function drawPhase(sight) {
     trace?.push(`Discard ${label(top)} would let it empty its hand this turn: takes it.`);
     return { type: 'takeDiscard' };
   }
-  if (shouldGoDown(sight)) return { type: 'goDown' };
+  if (!mind.cheatedThisTurn && shouldGoDown(sight)) return { type: 'goDown' };
   const cheat = cheatDraw(sight);
   if (cheat) return cheat;
   const canDraw = view.deckCount > 0 || mind.pileSize > 1;
