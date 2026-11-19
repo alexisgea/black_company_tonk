@@ -697,7 +697,9 @@ class Lobby {
         requireRoom(room);
         const resumed = this.resumeSeat(user);
         const wasPlaying = room.status === 'playing';
-        this.actAndShowResume(room, resumed, () => room.accuse(user, msg.target));
+        let said = null;
+        this.actAndShowResume(room, resumed, () => (said = room.accuse(user, msg.target)));
+        if (said) for (const p of room.audience) this.send(p.conn, { t: 'chat', message: said });
         this.broadcastRoom(room);
         if (wasPlaying && room.status !== 'playing') this.broadcastLobby();
         break;

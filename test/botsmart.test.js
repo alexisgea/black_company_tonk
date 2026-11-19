@@ -174,8 +174,8 @@ test('focus: with an opponent about to empty their hand it sheds the high cards'
 
 test('focus: it will not hand the next player a card that goes with one they hold, unless that leaves it a hand to go down with', () => {
   const choose = (hand, focus) => {
-    const s = setup({ hand }, { focus });
-    s.mind.observe({ type: 'takeDiscard', pid: 'b', card: c(10, 'C') });
+    const s = setup({ hand, top: c(10, 'C') }, { focus });
+    s.mind.observe({ type: 'takeDiscard', pid: 'b' });
     return act(s).card;
   };
   const hand = [c(9, 'C'), c(9, 'H'), c(2, 'S'), c(3, 'D'), c(4, 'H')];
@@ -188,8 +188,8 @@ test('focus: it will not hand the next player a card that goes with one they hol
 test('focus uses its memory of what the next player took from the pile', () => {
   const hand = [c(9, 'C'), c(9, 'H'), c(2, 'S'), c(3, 'D'), c(4, 'H')];
   const choose = (memory, turnsLater) => {
-    const s = setup({ hand }, { focus: 1, memory });
-    s.mind.observe({ type: 'takeDiscard', pid: 'b', card: c(10, 'C') });
+    const s = setup({ hand, top: c(10, 'C') }, { focus: 1, memory });
+    s.mind.observe({ type: 'takeDiscard', pid: 'b' });
     for (const [pid, card] of [
       ['c', c(13, 'S')],
       ['a', c(12, 'S')],
@@ -207,8 +207,8 @@ test('focus uses its memory of what the next player took from the pile', () => {
 test('focus uses what a player threw away: they are unlikely to want the same kind of card', () => {
   const hand = [c(9, 'C'), c(9, 'H'), c(2, 'S'), c(3, 'D'), c(4, 'H')];
   const choose = (thrown) => {
-    const s = setup({ hand }, { focus: 1, memory: 1 });
-    s.mind.observe({ type: 'takeDiscard', pid: 'b', card: c(10, 'C') });
+    const s = setup({ hand, top: c(10, 'C') }, { focus: 1, memory: 1 });
+    s.mind.observe({ type: 'takeDiscard', pid: 'b' });
     if (thrown) s.mind.observe({ type: 'discard', pid: 'b', card: c(8, 'C') });
     return act(s).card;
   };
@@ -689,9 +689,10 @@ test('cheating: an honest character never cheats, however the dice fall', () => 
   assert.equal(act(s).type, 'discard');
 });
 
-test('cheating: a cheater palms its dearest card, adds a card to a spread it does not fit, or throws two cards away', () => {
+test('cheating: a cheater adds a card to a spread it does not fit, or palms its dearest card, at the start or the end of its turn', () => {
   const hand = [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')];
   assert.deepEqual(act(cheater({ hand })), { type: 'cheatPalm', card: c(13, 'S') });
+  assert.deepEqual(act(cheater({ hand, phase: 'draw' })), { type: 'cheatPalm', card: c(13, 'S') });
 
   const run = { id: 1, owner: 'b', type: 'run', cards: [c(5, 'H'), c(6, 'H'), c(7, 'H')] };
   assert.deepEqual(act(cheater({ hand: [c(8, 'D'), c(13, 'S'), c(2, 'C')], melds: [run] }, 1, { focus: 1 })), {
@@ -700,12 +701,9 @@ test('cheating: a cheater palms its dearest card, adds a card to a spread it doe
     meldId: 1,
   });
 
-  const rolls = [0.5, 0, 0.9]; // the look for a way to empty its hand, then it feels like cheating, and the second way comes up
-  const s = setup({ hand }, { cheat: 1 }, () => (rolls.length ? rolls.shift() : 0.9));
-  const move = act(s);
-  assert.equal(move.type, 'cheatDiscard');
-  assert.equal(move.cards.length, 2);
-  assert.equal(move.cards[1], c(13, 'S'), 'the card it would throw away anyway ends on top');
+  const rolls = [0.5, 0, 0.9]; // no way to empty its hand, it feels like cheating at the start of its turn, and waits for the end of its play
+  const s = setup({ hand, phase: 'draw', top: c(13, 'D') }, { cheat: 1 }, () => (rolls.length ? rolls.shift() : 0.9));
+  assert.equal(act(s).type, 'draw');
 });
 
 test('cheating: it cheats once a turn at most, and never with too few cards', () => {
@@ -717,21 +715,22 @@ test('cheating: it cheats once a turn at most, and never with too few cards', ()
 });
 
 test('cheating: it takes the card under the top discard when it remembers that one and it helps', () => {
-  const s = cheater({ hand: [c(5, 'H'), c(6, 'H'), c(13, 'S')], phase: 'draw', top: c(4, 'S') });
-  s.mind.observe({ type: 'discard', pid: 'c', card: c(13, 'C') }); // c(4, 'S') is now under the top card...
-  s.view.discardTop = c(13, 'C');
-  assert.equal(act(s).type, 'draw', 'a four of spades is no use');
-  const helpful = cheater({ hand: [c(5, 'H'), c(6, 'H'), c(13, 'S')], phase: 'draw', top: c(7, 'H') });
+  const hand = [c(5, 'H'), c(6, 'H'), c(13, 'S')];
+  const useless = cheater({ hand, phase: 'draw', top: c(4, 'S') });
+  useless.mind.observe({ type: 'discard', pid: 'c', card: c(13, 'C') }); // c(4, 'S') is now under the top card...
+  useless.view.discardTop = c(13, 'C');
+  assert.notEqual(act(useless).type, 'cheatTakeUnder', 'a four of spades is no use');
+  const helpful = cheater({ hand, phase: 'draw', top: c(7, 'H') });
   helpful.mind.observe({ type: 'discard', pid: 'c', card: c(13, 'C') });
   helpful.view.discardTop = c(13, 'C');
   assert.deepEqual(act(helpful), { type: 'cheatTakeUnder' });
 });
 
-test('cheating: the log shows a card taken from under the top as that card, and a bot remembers it', () => {
+test('cheating: the log does not name a card taken from the discard pile, so a bot takes it to be the top one', () => {
   const mind = new Mind('a', profile({ memory: 1 }), seeded(1));
   mind.start({ order: ['a', 'b', 'c'], discardTop: c(7, 'H') });
   mind.observe({ type: 'discard', pid: 'b', card: c(13, 'C') });
-  mind.observe({ type: 'takeDiscard', pid: 'c', card: c(7, 'H') });
-  assert.deepEqual(mind.pileCards(), [c(13, 'C')]);
-  assert.deepEqual(mind.heldBy('c'), [c(7, 'H')]);
+  mind.observe({ type: 'takeDiscard', pid: 'c' });
+  assert.deepEqual(mind.pileCards(), [c(7, 'H')]);
+  assert.deepEqual(mind.heldBy('c'), [c(13, 'C')]);
 });

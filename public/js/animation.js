@@ -56,6 +56,7 @@ export function currentMeta() {
     handNo: room.handNo,
     ended: !!room.round?.result,
     lastSeq: room.log.reduce((m, e) => Math.max(m, e.seq || 0), 0),
+    discardTop: room.round?.discardTop ?? null, // the log does not name a card taken from the discard pile
   };
 }
 
@@ -373,12 +374,16 @@ export function playAnimations(prevMeta, prevCards, prevMarks, rerender) {
   const deck = pileCenter('deck');
 
   const placedBy = new Map(); // card id -> opponent who just placed it
+  let top = prevMeta.discardTop; // the top of the discard pile as the events go by; null once it is not known
   for (const e of events) {
+    const taken = top;
+    if (e.type === 'discard') top = e.card;
+    else if (e.type === 'takeDiscard') top = null;
     if (e.pid === state.you) continue;
     if (e.type === 'discard' || e.type === 'layoff') placedBy.set(e.card, e.pid);
     else if (e.type === 'meld') e.cards.forEach((c) => placedBy.set(c, e.pid));
     else if (e.type === 'draw') ghostFly(null, deck, panelCenter(e.pid));
-    else if (e.type === 'takeDiscard') ghostFly(e.card, known.get(e.card) || pileCenter('discard'), panelCenter(e.pid));
+    else if (e.type === 'takeDiscard') ghostFly(taken, known.get(taken) || pileCenter('discard'), panelCenter(e.pid));
   }
 
   let dealt = 0;

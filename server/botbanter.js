@@ -8,7 +8,7 @@
 const { lines } = require('./i18n');
 
 const TONES = ['grumbling', 'jovial', 'sly', 'nervous', 'cold'];
-const SITUATIONS = ['turn', 'ahead', 'behind', 'nudge']; // 'nudge' is not a mood: it is what they say to a player who dawdles
+const SITUATIONS = ['turn', 'ahead', 'behind', 'nudge', 'accusedGuilty', 'accusedFalsely']; // the last three are not moods: what they say to a player who dawdles, and when accused rightly or wrongly of cheating
 
 const BANTER_TONE = {
   'the-lady': 'cold',
@@ -47,6 +47,12 @@ const pickNudge = (botId, rng = Math.random, last = null) => {
   return tone ? pickLine(tone, 'nudge', rng, last) : null;
 };
 
+// What a bot says when it is accused of cheating: `situation` is 'accusedGuilty' (it was right) or 'accusedFalsely'.
+const pickReaction = (botId, situation, rng = Math.random, last = null) => {
+  const tone = BANTER_TONE[botId];
+  return tone ? pickLine(tone, situation, rng, last) : null;
+};
+
 function pickLine(tone, situation, rng, last) {
   const pool = lines(`banter.${tone}.${situation}`);
   const choices = pool.map((_, i) => i).filter((i) => `${tone}.${situation}.${i}` !== last);
@@ -55,4 +61,4 @@ function pickLine(tone, situation, rng, last) {
   return { tone, situation, line, text: pool[line], id: `${tone}.${situation}.${line}` };
 }
 
-module.exports = { BANTER_TONE, BANTER_CHANCE, TONES, SITUATIONS, pickBanter, pickNudge };
+module.exports = { BANTER_TONE, BANTER_CHANCE, TONES, SITUATIONS, pickBanter, pickNudge, pickReaction };

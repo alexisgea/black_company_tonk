@@ -304,23 +304,31 @@ function findCheatLayoff(hand, melds) {
   return null;
 }
 
-// A cheat for this turn's draw: the card under the top discard, when what it remembers of it would help. Null when it
-// does not feel like cheating this turn, or the card would not help. The card it actually gets is whatever lies there.
-function cheatTake(sight) {
+// A cheat for the start of the turn, or null. If it feels like cheating this turn (rolled once), it takes the card under
+// the top discard when what it remembers of that card would help (the card it actually gets is whatever lies there);
+// otherwise it palms its dearest card now or, half the time, waits for the end of its play (see cheatPlay).
+function cheatDraw(sight) {
   const { hand, mind, trace } = sight;
   if (!mind.chance('cheat', mind.cheatChance)) return null;
   const under = mind.underTop();
-  if (!under) return null;
-  const card = mind.shown(under);
-  const helps = findLayoff([card], noticedMelds(sight)) || findMeld([...hand, card])?.includes(card);
-  if (!helps) return null;
-  trace?.push(`Cheats: remembers ${label(card)} under the top discard and takes it.`);
-  return { type: 'cheatTakeUnder' };
+  if (under) {
+    const card = mind.shown(under);
+    if (findLayoff([card], noticedMelds(sight)) || findMeld([...hand, card])?.includes(card)) {
+      trace?.push(`Cheats: remembers ${label(card)} under the top discard and takes it.`);
+      return { type: 'cheatTakeUnder' };
+    }
+  }
+  return hand.length >= 3 && mind.rng() < 0.5 ? palm(hand, trace) : null;
+}
+
+function palm(hand, trace) {
+  const dearest = byValueDesc(hand)[0];
+  trace?.push(`Cheats: palms ${label(dearest)}.`);
+  return { type: 'cheatPalm', card: dearest };
 }
 
 // A cheat for the end of this turn's play (after everything honest is done), or null. A card that fits a spread as a
-// cheat is too good to pass up; otherwise it picks at random between palming its dearest card and throwing a second
-// card away.
+// cheat is too good to pass up; otherwise it palms its dearest card.
 function cheatPlay(sight) {
   const { hand, mind, trace } = sight;
   if (!mind.chance('cheat', mind.cheatChance)) return null;
@@ -329,16 +337,7 @@ function cheatPlay(sight) {
     trace?.push(`Cheats: adds ${label(layoff.card)} to a spread it does not fit.`);
     return { type: 'cheatLayoff', ...layoff };
   }
-  if (hand.length < 3) return null;
-  const dearest = byValueDesc(hand)[0];
-  if (mind.rng() < 0.5) {
-    trace?.push(`Cheats: palms ${label(dearest)}.`);
-    return { type: 'cheatPalm', card: dearest };
-  }
-  const honest = chooseDiscard(sight); // what it would throw away anyway stays on top
-  const extra = byValueDesc(hand.filter((c) => c !== honest))[0];
-  trace?.push(`Cheats: throws away ${label(extra)} as well.`);
-  return { type: 'cheatDiscard', cards: [extra, honest] };
+  return hand.length >= 3 ? palm(hand, trace) : null;
 }
 
 function drawPhase(sight) {
@@ -351,7 +350,7 @@ function drawPhase(sight) {
     return { type: 'takeDiscard' };
   }
   if (shouldGoDown(sight)) return { type: 'goDown' };
-  const cheat = cheatTake(sight);
+  const cheat = cheatDraw(sight);
   if (cheat) return cheat;
   const canDraw = view.deckCount > 0 || mind.pileSize > 1;
   if (top !== null && (!canDraw || wantsDiscard(sight, top))) {

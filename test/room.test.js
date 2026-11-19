@@ -492,8 +492,11 @@ test('a right accusation stops the hand and the cheater pays double, a wrong one
   assert.equal(room.status, 'playing');
   assert.deepEqual([room.coins[a.id], room.coins[b.id]], [50 - 2 * bet, 50 + 2 * bet]);
   assert.deepEqual(
-    { type: room.log.at(-1).type, caught: room.log.at(-1).caught, amount: room.log.at(-1).amount },
-    { type: 'accuse', caught: false, amount: 2 * bet },
+    room.log.slice(-2).map((e) => [e.type, e.pid, e.target, e.amount]),
+    [
+      ['accuse', a.id, b.id, undefined],
+      ['accusePaid', a.id, b.id, 2 * bet],
+    ],
   );
 
   room.round.cheats.push({ pid: b.id, kind: 'palm', card: 0 });
@@ -501,7 +504,28 @@ test('a right accusation stops the hand and the cheater pays double, a wrong one
   assert.equal(room.status, 'between');
   assert.equal(room.round.result.type, 'caught');
   assert.deepEqual([room.coins[a.id], room.coins[b.id]], [50, 50]);
-  assert.equal(room.log.at(-1).caught, true);
+  assert.equal(room.log.at(-1).type, 'accuse');
+});
+
+test('an accused bot answers, one way when it was right and another when it was wrong, and Silent says nothing', () => {
+  const room = new Room('R', 'Test', seeded(7));
+  const host = human('Ann');
+  room.join(host);
+  room.addBot('one-eye');
+  room.addBot('silent');
+  const [oneEye, silent] = room.players.filter((p) => p.isBot);
+  room.startHand(host);
+  for (let i = 0; i < 50 && room.round.phase === 'tonk'; i++) {
+    for (const p of room.pendingTonkers) room.declareTonk(p);
+    if (room.status !== 'playing') room.startHand(host);
+  }
+  const wrong = room.accuse(host, oneEye.id);
+  assert.deepEqual([wrong.kind, wrong.pid, wrong.tone, wrong.situation], ['banter', oneEye.id, 'sly', 'accusedFalsely']);
+  assert.equal(room.accuse(host, silent.id), null);
+  room.round.cheats.push({ pid: oneEye.id, kind: 'palm', card: 0 });
+  const right = room.accuse(host, oneEye.id);
+  assert.equal(right.situation, 'accusedGuilty');
+  assert.notEqual(right.text, wrong.text);
 });
 
 test('a wrong accuser pays no more than they have, and cannot accuse with nothing, when cheating is off, or themselves', () => {

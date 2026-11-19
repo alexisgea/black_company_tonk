@@ -127,8 +127,6 @@ class DevTable {
         return `discards ${label(action.card)}`;
       case 'cheatPalm':
         return `CHEATS: palms ${label(action.card)}`;
-      case 'cheatDiscard':
-        return `CHEATS: discards ${cards(action.cards)} in one turn`;
       case 'cheatLayoff':
         return `CHEATS: adds ${label(action.card)} to spread #${action.meldId}, where it does not belong`;
       case 'cheatTakeUnder':

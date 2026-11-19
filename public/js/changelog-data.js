@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.43.0',
+    date: '2026-11-19',
+    changes: [
+      'Cheating is now harder to spot: the log only says a player "took the top discard" without naming the card, so watch whether the top card changes. The "two discards" cheat is gone (it was the same as hiding a card), and a bot may now also hide a card before drawing.',
+      'Accusing a bot now shows "NAME, you filthy cheater!" in the log, and the accused bot answers in the chat and in a speech bubble, one way if you were right and another if you were wrong. A wrong accusation also logs the coins you paid.',
+    ],
+  },
+  {
     version: '0.42.0',
     date: '2026-11-19',
     changes: [

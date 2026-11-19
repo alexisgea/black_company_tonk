@@ -12,7 +12,7 @@ const MAX_PLAYERS = 5;
 const PAY_CAUGHT_CHEATING = 2; // a caught cheater pays every other player this much; a wrong accuser pays the accused the same
 // Cheats are moves a computer player may make besides the honest ones. They leave no entry in the log (only the
 // ordinary ones for what physically happened), so the table can only notice them. See applyAction.
-const CHEAT_ACTIONS = new Set(['cheatPalm', 'cheatDiscard', 'cheatLayoff', 'cheatTakeUnder']);
+const CHEAT_ACTIONS = new Set(['cheatPalm', 'cheatLayoff', 'cheatTakeUnder']);
 
 // An illegal move or request. `code` names the English message under "err." in public/locales/en.json; the
 // client translates it from the code and `params`, and shows `message` (English) when it does not know the code.
@@ -258,28 +258,13 @@ function applyAction(round, pid, action) {
       break;
     }
     case 'cheatPalm': {
-      // Slips the card up a sleeve: it is out of the game, and the hand is one card short with nothing on the table to show for it.
-      if (round.phase !== 'play') throw new GameError('drawFirst');
+      // Slips the card up a sleeve, before or after drawing: it is out of the game, and the hand is one card short with
+      // nothing on the table to show for it.
       const card = action.card;
       if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('cardNotHeld');
       if (round.hands[pid].length < 3) throw new GameError('badAction');
       takeFromHand(round, pid, [card]);
       recordCheat(round, pid, 'palm', { card });
-      break;
-    }
-    case 'cheatDiscard': {
-      // Two cards on the discard pile in one turn: the last of them stays on top.
-      if (round.phase !== 'play') throw new GameError('drawFirst');
-      const cards = action.cards;
-      if (!Array.isArray(cards) || cards.length !== 2) throw new GameError('invalidCards');
-      if (round.hands[pid].length < 3) throw new GameError('badAction');
-      takeFromHand(round, pid, cards);
-      for (const card of cards) {
-        round.discard.push(card);
-        events.push({ type: 'discard', pid, card });
-      }
-      recordCheat(round, pid, 'doubleDiscard', { cards: [...cards] });
-      advanceTurn(round);
       break;
     }
     case 'cheatLayoff': {

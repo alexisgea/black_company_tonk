@@ -985,6 +985,8 @@ function settingsPanel(isHost) {
   );
 }
 
+const accusedName = (e) => (e.targetBotId ? botName(e.targetBotId, e.targetName) : nameOf(e.target, e.targetName));
+
 function formatEvent(e) {
   const who = e.botId && e.type !== 'takeover' ? botName(e.botId, e.name) : nameOf(e.pid, e.name);
   switch (e.type) {
@@ -1006,7 +1008,7 @@ function formatEvent(e) {
     case 'draw':
       return t('log.draw', { who });
     case 'takeDiscard':
-      return t('log.takeDiscard', { who, card: cardLabel(e.card) });
+      return t('log.takeDiscard', { who });
     case 'discard':
       return t('log.discard', { who, card: cardLabel(e.card) });
     case 'meld':
@@ -1015,10 +1017,10 @@ function formatEvent(e) {
       return t('log.layoff', { who, card: cardLabel(e.card) });
     case 'goDown':
       return t('log.goDown', { who, total: e.total });
-    case 'accuse': {
-      const target = e.targetBotId ? botName(e.targetBotId, e.targetName) : nameOf(e.target, e.targetName);
-      return e.caught ? t('log.accuseRight', { who, target }) : t('log.accuseWrong', { who, target, count: e.amount, amount: e.amount });
-    }
+    case 'accuse':
+      return t('log.accuse', { who, target: accusedName(e) });
+    case 'accusePaid':
+      return t('log.accusePaid', { who, target: accusedName(e), count: e.amount, amount: e.amount });
     case 'reshuffle':
       return t('log.reshuffle');
     case 'timeout':

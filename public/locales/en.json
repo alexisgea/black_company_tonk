@@ -106,7 +106,6 @@
 
   "result.aborted": "Hand aborted: not enough players. Every coin stays where it was.",
   "result.caught": "{accuser} caught {name} cheating! {name} pays everyone double.",
-  "result.cheat.doubleDiscard": "{name} threw away two cards in one turn.",
   "result.cheat.layoffGap": "{name} added the {card} to a run with a rank skipped.",
   "result.cheat.layoffSuit": "{name} added the {card} to a run of another suit.",
   "result.cheat.palm": "{name} palmed the {card}.",
@@ -154,9 +153,9 @@
   "tableRules.cheating.hint": "Some bots cheat now and then and you can accuse them: right and the hand stops and the cheater pays everyone double, wrong and you pay the accused double.",
   "tableRules.outOfCoins": "Run out of coins and you are out of the game.",
 
-  "log.accuseRight": "{who} accused {target} of cheating, and was right!",
-  "log.accuseWrong.one": "{who} accused {target} of cheating, but was wrong, and paid {amount} coin.",
-  "log.accuseWrong.other": "{who} accused {target} of cheating, but was wrong, and paid {amount} coins.",
+  "log.accuse": "{who}: “{target}, you filthy cheater!”",
+  "log.accusePaid.one": "{who} paid {target} {amount} coin for the false accusation.",
+  "log.accusePaid.other": "{who} paid {target} {amount} coins for the false accusation.",
   "log.back": "{who} is back at the table.",
   "log.brokeBot": "{who} lost every last coin and left the table.",
   "log.brokeHuman": "{who} lost every last coin and is now a guest.",
@@ -181,7 +180,7 @@
   "log.pause": "{who} paused the game.",
   "log.reshuffle": "Discard pile reshuffled into the draw pile.",
   "log.restart": "{who} restarted the table.",
-  "log.takeDiscard": "{who} took {card} from the discard.",
+  "log.takeDiscard": "{who} took the top discard.",
   "log.takeover": "{who} took over {bot}'s seat.",
   "log.timeout": "{who} took too long, a bot plays their turns now.",
   "log.unpause": "{who} resumed the game.",
@@ -262,6 +261,56 @@
     "What are you waiting for?",
     "Hesitation has buried better players.",
     "I grow tired of waiting."
+  ],
+  "banter.grumbling.accusedGuilty": [
+    "Fine, fine. Don't make a fuss. Take your coins.",
+    "Damn it. Who saw? Never mind. Here's your coin.",
+    "Ok ok, no need to shout. Take it and be quiet."
+  ],
+  "banter.jovial.accusedGuilty": [
+    "Ha! Caught me! Here, no hard feelings!",
+    "Ok ok, don't make a fuss. Here are some coins!",
+    "Sharp eyes, friend! Take your coins, then."
+  ],
+  "banter.sly.accusedGuilty": [
+    "Ok ok, don't make a fuss. Here are some coins.",
+    "Hehe. Sharp eye. Take the coins, and keep quiet.",
+    "Fine. You caught me this time. Don't gloat."
+  ],
+  "banter.nervous.accusedGuilty": [
+    "Oh no, oh no. Please don't shout. Take the coins.",
+    "I... it was a mistake! Fine. Here are your coins.",
+    "Ok ok, don't make a fuss. Take them, please."
+  ],
+  "banter.cold.accusedGuilty": [
+    "You are observant. Take your coins. Do not repeat it.",
+    "Noted. Here are your coins. Say nothing more.",
+    "Very well. The coins are yours."
+  ],
+  "banter.grumbling.accusedFalsely": [
+    "Seeing things again? That'll cost you for slandering me.",
+    "I'm an honest man. Now pay up for the insult.",
+    "Cheat? Me? You'll pay for that mouth of yours."
+  ],
+  "banter.jovial.accusedFalsely": [
+    "Ha! Cheating? You're dreaming, friend. Pay for the joke!",
+    "You wound me! That insult is worth a few coins.",
+    "Seeing ghosts, are we? Pay up and we'll call it even."
+  ],
+  "banter.sly.accusedFalsely": [
+    "You're hallucinating again. Pay for dirtying my name.",
+    "Hehe. Wrong. Now pay for the slander, nice and quiet.",
+    "Cheating? Me? That will cost you, friend."
+  ],
+  "banter.nervous.accusedFalsely": [
+    "What? I didn't! Why would you say that? Pay up, please.",
+    "That's... that's slander! You owe me for that.",
+    "I would never! You need to pay for saying that."
+  ],
+  "banter.cold.accusedFalsely": [
+    "You are mistaken. The insult has a price. Pay.",
+    "A false accusation is costly. Pay what is owed.",
+    "Hallucinations again. You pay for dirtying my name."
   ],
   "banter.jovial.turn": [
     "Your turn, friend. Make it a good one!",
@@ -429,7 +478,7 @@
   "rules.cheating.title": "Cheating",
   "rules.cheating.items": [
     "Some bots cheat now and then, unless the host switched cheating off. A cheat is never announced: you have to notice it, and nothing in the log says it happened.",
-    "What to look for: a hand with fewer cards than it should have (5, plus every card drawn, minus every card discarded or put down); two discards in one turn; a card added to a run in another suit, or with a rank skipped (4-5-7); a card taken from under the top of the discard pile, so the top card is still the same one.",
+    "What to look for: a hand with fewer cards than it should have (5, plus every card drawn, minus every card discarded or put down); a card added to a run in another suit, or with a rank skipped (4-5-7); someone taking a card from the discard pile when the top card is still the same one afterwards (the log only says they took the top discard).",
     "Accuse: press “Accuse” next to a player. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
     "A cheat nobody caught is revealed when the hand ends, and nothing is paid for it."
   ],

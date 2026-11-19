@@ -95,10 +95,13 @@ class Mind {
         break;
       }
       case 'takeDiscard': {
-        // Usually the top card; a cheat can take one from under it, which the log shows as a different card.
-        const taken = this.drops.findLast((d) => d.onPile && d.card === event.card) ?? this.top();
-        if (taken) taken.onPile = false;
-        if (event.pid !== this.id) this.holding(event.pid).push({ card: event.card, t: this.turnEnds, remembered: undefined });
+        // The log does not name the card: it is the one that was on top, as far as anybody can tell (a cheat can take
+        // the one under it, and fools whoever trusts the log).
+        const taken = this.top();
+        if (taken) {
+          taken.onPile = false;
+          if (event.pid !== this.id) this.holding(event.pid).push({ card: taken.card, t: this.turnEnds, remembered: undefined });
+        }
         break;
       }
       case 'discard': {

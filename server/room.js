@@ -5,7 +5,7 @@ const { pickBot, BOTS } = require('./botnames');
 const { Mind } = require('./botmind');
 const { smartThink } = require('./botsmart');
 const { profileFor } = require('./botprofiles');
-const { pickBanter, pickNudge, BANTER_TONE } = require('./botbanter');
+const { pickBanter, pickNudge, pickReaction, BANTER_TONE } = require('./botbanter');
 const { EMOTES } = require('./emotes');
 const { text: englishText } = require('./i18n');
 const T = require('./bottuning');
@@ -19,7 +19,7 @@ const PUBLIC_LOG_FIELDS = {
   takeover: ['pid', 'name', 'botId', 'botName'], // botId and botName are the bot whose seat was taken
   deal: ['pid', 'name', 'botId', 'hand'],
   draw: ['pid'],
-  takeDiscard: ['pid', 'card'],
+  takeDiscard: ['pid'], // the card is not named: it was the one on top (a cheat can take another)
   discard: ['pid', 'card'],
   meld: ['pid', 'kind', 'cards'],
   layoff: ['pid', 'card', 'meldId'],
@@ -33,7 +33,8 @@ const PUBLIC_LOG_FIELDS = {
   unpause: ['pid', 'name'],
   restart: ['pid', 'name'],
   reshuffle: [],
-  accuse: ['pid', 'name', 'botId', 'target', 'targetName', 'targetBotId', 'caught', 'amount'], // `amount`: what a wrong accuser paid
+  accuse: ['pid', 'name', 'botId', 'target', 'targetName', 'targetBotId'],
+  accusePaid: ['pid', 'name', 'botId', 'target', 'targetName', 'targetBotId', 'amount'], // a wrong accuser paying the accused
 };
 // What the host can change in the waiting room. `bet` is what one payoff unit is worth in coins
 // (a plain win is 1 bet, a Tonk, emptying your hand or a failed go-down is 2). `dynamicTable` makes bots come and go
@@ -571,7 +572,8 @@ class Room {
   }
 
   // `user` says `targetId` is cheating. Right: the hand stops and the cheater pays every other player double. Wrong: the
-  // accuser pays the accused double (at most what they have) and the hand carries on.
+  // accuser pays the accused double (at most what they have) and the hand carries on. Returns the chat message of the
+  // accused bot's reaction (null when it has nothing to say).
   accuse(user, targetId) {
     this.requirePlayer(user);
     if (this.status !== 'playing') throw new tonk.GameError('noHand');
@@ -581,15 +583,25 @@ class Room {
     if (!target || target === user) throw new tonk.GameError('badAccusation');
     if (!(this.coins[user.id] > 0)) throw new tonk.GameError('noCoinsToAccuse');
     const caught = tonk.accuse(this.round, user.id, target.id);
-    const event = { type: 'accuse', ...whoIs(user), target: target.id, targetName: target.name, targetBotId: target.botId, caught };
+    const who = { ...whoIs(user), target: target.id, targetName: target.name, targetBotId: target.botId };
+    this.addLog({ type: 'accuse', ...who });
     if (caught) {
-      this.addLog(event);
       this.settle();
-      return;
+    } else {
+      const deltas = this.payout({ [user.id]: -tonk.PAY_CAUGHT_CHEATING, [target.id]: tonk.PAY_CAUGHT_CHEATING });
+      for (const [id, delta] of Object.entries(deltas)) this.coins[id] += delta;
+      this.addLog({ type: 'accusePaid', ...who, amount: deltas[target.id] });
     }
-    const deltas = this.payout({ [user.id]: -tonk.PAY_CAUGHT_CHEATING, [target.id]: tonk.PAY_CAUGHT_CHEATING });
-    for (const [id, delta] of Object.entries(deltas)) this.coins[id] += delta;
-    this.addLog({ ...event, amount: deltas[target.id] });
+    return this.react(target, caught ? 'accusedGuilty' : 'accusedFalsely');
+  }
+
+  // A bot answers an accusation (see botbanter.js); null when it has no tone to say it in.
+  react(bot, situation, rng = this.rng) {
+    if (!bot.isBot) return null;
+    const pick = pickReaction(bot.botId, situation, rng, this.lastBanter.get(bot.id));
+    if (!pick) return null;
+    this.lastBanter.set(bot.id, pick.id);
+    return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
   }
 
   addChat(user, raw) {

@@ -322,30 +322,18 @@ test('a round remembers who dealt and who plays first, even when seats change', 
 
 const hearts = () => ({ id: 1, owner: 'b', type: 'run', cards: [c(5, 'H'), c(6, 'H'), c(7, 'H')] });
 
-test('cheat: palming takes the card out of the game without a trace in the events, and needs three cards', () => {
+test('cheat: palming takes the card out of the game without a trace in the events, before or after drawing, and needs three cards', () => {
   const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
   assert.deepEqual(T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') }), []);
   assert.deepEqual(r.hands.a, [c(2, 'C'), c(5, 'H')]);
   assert.equal(r.discard.length, 1);
   assert.deepEqual(r.cheats, [{ pid: 'a', kind: 'palm', card: c(9, 'S') }]);
   assert.throws(() => T.applyAction(r, 'a', { type: 'cheatPalm', card: c(2, 'C') }), T.GameError);
-});
 
-test('cheat: a double discard puts two cards on the pile, the last one on top, and ends the turn', () => {
-  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
-  const events = T.applyAction(r, 'a', { type: 'cheatDiscard', cards: [c(9, 'S'), c(5, 'H')] });
-  assert.deepEqual(
-    events.map((e) => [e.type, e.card]),
-    [
-      ['discard', c(9, 'S')],
-      ['discard', c(5, 'H')],
-    ],
-  );
-  assert.equal(r.discard.at(-1), c(5, 'H'));
-  assert.deepEqual(r.hands.a, [c(2, 'C')]);
-  assert.equal(r.order[r.turn], 'b');
-  assert.equal(r.cheats[0].kind, 'doubleDiscard');
-  assert.throws(() => T.applyAction(r, 'b', { type: 'cheatDiscard', cards: [c(5, 'C')] }), T.GameError);
+  const early = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] } });
+  T.applyAction(early, 'a', { type: 'cheatPalm', card: c(9, 'S') });
+  assert.equal(early.phase, 'draw', 'it is still the draw phase');
+  assert.equal(early.hands.a.length, 2);
 });
 
 test('cheat: a card of the other suit of the same colour, or one with a rank skipped, can be added to a run; nothing else', () => {
