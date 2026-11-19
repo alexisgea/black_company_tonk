@@ -17,6 +17,8 @@ const LOW_BIAS_MAX = 0.15; // ...up to this much (a card of value v is dealt wit
 const NOISE = 1.5; // how far its estimate can be off, in bets per opponent, at a calculating of 0 (shrinks as it rises)
 const MEMORY_NOISE = 1.8; // the same for a memory of 0: a bot that forgets what went by has a hazy picture of the unseen cards, so of the odds
 const THUMB_SPAN = 6; // with no calculation (tunnel vision) it goes down at GO_DOWN_AT, plus or minus this much at full boldness
+const MIN_CARD_VALUE = 1; // the least a card in an opponent's hand can count (an ace)
+const MAX_CARD_VALUE = 10; // the most a card can count (a ten or a face card)
 const RESHUFFLES_BEFORE_FORCED_DOWN = 1; // once the draw pile has run out again after this many reshuffles, it goes down
 
 // --- Danger: opponents about to empty their hand ---
@@ -87,6 +89,8 @@ module.exports = {
   NOISE,
   MEMORY_NOISE,
   THUMB_SPAN,
+  MIN_CARD_VALUE,
+  MAX_CARD_VALUE,
   RESHUFFLES_BEFORE_FORCED_DOWN,
   THREAT_ONE_CARD,
   THREAT_TWO_CARDS,

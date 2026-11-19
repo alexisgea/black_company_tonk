@@ -244,6 +244,27 @@ test('going down: with tunnel vision it skips the risk and goes by a rule of thu
   assert.equal(down(12, -0.5), 'draw', 'a timid one lower');
 });
 
+test('going down: even a careless bot never goes down when an opponent cannot hold more, and never passes up a sure win', () => {
+  const counts = { b: 2, c: 5 };
+  const careless = { calculating: 0, focus: 0, sloppiness: 1, memory: 0, moodSwing: 1, boldness: 1 };
+  // 28 cannot beat two cards (20 at most): panic, rule of thumb and noisy guesses all stay put.
+  const hand28 = [c(10, 'S'), c(10, 'D'), c(8, 'H')];
+  for (const focus of [0, 1]) {
+    for (let seed = 1; seed <= 30; seed++) {
+      const rng = seeded(seed);
+      const s = setup({ hand: hand28, phase: 'draw', counts, top: null }, { ...careless, focus }, rng);
+      assert.notEqual(act(s).type, 'goDown');
+    }
+  }
+  // Three against opponents who all hold five cards (five at the very least) always wins, however poorly it counts.
+  const full = { b: 5, c: 5 };
+  for (let seed = 1; seed <= 30; seed++) {
+    const rng = seeded(seed);
+    const s = setup({ hand: [c(1, 'S'), c(2, 'D')], phase: 'draw', counts: full, top: null }, { ...careless, focus: 1 }, rng);
+    assert.equal(act(s).type, 'goDown');
+  }
+});
+
 test('going down: heads-up a calculating bot can go down (a go-down pays one bet from one opponent)', () => {
   const s = setup({ hand: [c(1, 'S'), c(2, 'D')], phase: 'draw', counts: { b: 5 } }, { calculating: 1, focus: 1, memory: 1 });
   s.view.order = ['a', 'b'];
@@ -558,9 +579,9 @@ test('sloppiness: a sloppy bot sometimes throws a close second-best card, a care
 });
 
 test('moodSwing: with an opponent nearly out a moody bot can panic and go down with a middling hand, a steady one does not', () => {
-  const hand = [c(10, 'S'), c(8, 'D'), c(2, 'H')];
+  const hand = [c(10, 'S'), c(8, 'D'), c(1, 'H')];
   const decide = (counts, moodSwing) => {
-    const rolls = [0, 0.1]; // it is watching, and the panic roll comes up; then ordinary random numbers
+    const rolls = [0, 0.1]; // it is watching, and the panic roll comes up; then ordinary random numbers // it is watching, and the panic roll comes up; then ordinary random numbers
     const rng = seeded(2);
     return act(
       setup({ hand, phase: 'draw', counts, top: null }, { calculating: 1, focus: 1, moodSwing }, () =>

@@ -135,6 +135,23 @@ function shouldGoDown(sight) {
   }
   const total = handTotal(hand);
   const rng = mind.rng;
+  // Whatever its character, anybody can count the cards in the others' hands: an opponent whose hand cannot add up to
+  // more than this total makes a go-down certain to fail, and one whose hand cannot add up to less makes it certain to
+  // win (unless chasing an empty hand pays better).
+  const lowest = Math.min(...opponents.map((p) => view.players[p].count * T.MIN_CARD_VALUE));
+  const doomed = opponents.some((p) => view.players[p].count * T.MAX_CARD_VALUE <= total);
+  if (doomed) {
+    trace?.push(`Go down? An opponent holds too few cards to add up to more than ${total}: it cannot win, no.`);
+    return false;
+  }
+  if (lowest > total) {
+    sight.effort = T.THINK_EASY;
+    const chase = chaseWorth(sight);
+    trace?.push(
+      `Go down? Every opponent holds at least ${lowest}, more than ${total}: a sure win worth ${opponents.length} bets; chasing an empty hand is worth ${chase.toFixed(2)}: ${opponents.length >= chase ? 'goes down' : 'keeps chasing'}.`,
+    );
+    return opponents.length >= chase;
+  }
   // Panic: an opponent is nearly out, so a nervous bot goes down with whatever looks lowish without working it out.
   if (mind.panic > 0 && threatOf(sight) > 0 && mind.chance('panic', mind.panic)) {
     sight.effort = T.THINK_EASY;

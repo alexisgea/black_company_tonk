@@ -1,6 +1,13 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.41.1',
+    date: '2026-11-19',
+    changes: [
+      'Weak bots no longer make impossible calls: they never go down when an opponent with few cards cannot possibly hold more, and they always go down when their hand is certain to be the lowest.',
+    ],
+  },
+  {
     version: '0.41.0',
     date: '2026-11-19',
     changes: [
