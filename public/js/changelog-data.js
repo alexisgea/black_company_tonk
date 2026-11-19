@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.47.0',
+    date: '2026-11-20',
+    changes: ['Bots now have more lines for their usual chatter, turn nudges and accusation replies.'],
+  },
+  {
     version: '0.46.0',
     date: '2026-11-19',
     changes: [

@@ -168,6 +168,8 @@ In the simulations cheating is off unless `--cheat` is given, and even then nobo
 
 Bots also talk, a little. At the end of its turn a bot has a 20% chance (`BANTER_CHANCE`) of saying one line, so never more than one per turn and not every turn. The line depends on the bot's **tone** (`BANTER_TONE` in `server/botbanter.js`; Silent has none and never speaks) and on how its luck is going: **ahead** or **behind** when its confidence (see Mood above) is far enough from zero, otherwise a general line. It does not repeat the line it said last. This has no effect on how the bot plays.
 
+The English lines live in `public/locales/en.json`. Adding or changing lines there affects variety, not how often a bot speaks or how it plays.
+
 ## Pace
 
 A bot waits before it moves so humans can follow the game. The wait is the table's base delay divided by the bot's `thinkSpeed`, a little longer for drawing than for putting down cards, with a random 75% to 125% so no two moves take exactly the same time. It also follows how **hard the decision was**: an obvious move (a rule of thumb, laying down a spread, discarding a king instead of a two) takes about 60% of the usual time, a close call (a go-down that is almost worth it, two discards that score about the same) takes up to 180%. This does not change how the bot plays; it makes the mistakes look like thinking.
