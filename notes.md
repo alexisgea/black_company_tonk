@@ -30,7 +30,6 @@ Art
 
 
 Bot Ai
-- add bot randomly joining and leaving during a game and giving reasons
 - add cheating somehow -> one eye is bad but cheatscheats but is bad -> also abitlity to accuse the cheater, get cash if right , give cash if false
   
 Features Todo

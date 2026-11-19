@@ -117,6 +117,7 @@ class Room {
     this.minds = new Map(); // player id -> what that seat's computer player remembers of the hand (see botmind.js)
     this.moods = new Map(); // bot id -> { confidence } how its last hands went; carries over between hands (see updateMoods)
     this.lastBanter = new Map(); // bot id -> what it last said, so it does not repeat itself (see banter)
+    this.lastNudger = null; // id of the bot that last hurried the player along, so the others get a turn (see nudge)
     this.handNo = 0;
     this.dealerIdx = 0;
     this.coins = {}; // player id -> coins left
@@ -567,7 +568,6 @@ class Room {
     return this.pushChat(user, text);
   }
 
-  // `kind` marks messages the game speaks for a player (like shouting TONK!), which each client words in its own language;
   // A premade line (see emotes.js), worded by each client in its own language; `text` is the English fallback.
   addEmote(user, id) {
     if (!this.players.includes(user) && !this.spectators.includes(user)) throw new tonk.GameError('notAtThisTable');
@@ -575,6 +575,7 @@ class Room {
     return this.pushChat(user, englishText(`emote.${id}`), 'emote', { emote: id });
   }
 
+  // `kind` marks messages the game speaks for a player (like shouting TONK!), which each client words in its own language;
   // `extra` is whatever more the client needs for that (see banter).
   pushChat(user, text, kind = null, extra = null) {
     const message = { id: this.chatSeq++, pid: user.id, name: user.name, text };
@@ -600,13 +601,17 @@ class Room {
     return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
   }
 
-  // One of the bots at the table tells the player whose turn it is to hurry up. Null when no bot has anything to say.
+  // One of the bots at the table tells the player whose turn it is to hurry up. It is never the bot that spoke last
+  // when another one could. Null when no bot has anything to say.
   nudge(rng = Math.random) {
-    const speakers = this.players.filter((p) => p.isBot && BANTER_TONE[p.botId]);
+    const talkers = this.players.filter((p) => p.isBot && BANTER_TONE[p.botId]);
+    const others = talkers.filter((p) => p.id !== this.lastNudger);
+    const speakers = others.length ? others : talkers;
     const bot = speakers[Math.floor(rng() * speakers.length)];
     if (!bot) return null;
     const pick = pickNudge(bot.botId, rng, this.lastBanter.get(bot.id));
     if (!pick) return null;
+    this.lastNudger = bot.id;
     this.lastBanter.set(bot.id, pick.id);
     return this.pushChat(bot, pick.text, 'banter', { tone: pick.tone, situation: pick.situation, line: pick.line });
   }

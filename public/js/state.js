@@ -27,7 +27,8 @@ export const state = {
   pendingJoin: null, // the table we just asked to enter, so a "password needed" answer knows what it was for
   passwordPrompt: null, // { gameId, mode, name, error } while asking for a table password
   bots: [], // the computer players and their rank and tag ({ id, rank, tag }), sent by the server on connect
-  botInfo: null, // id of the bot whose profile popup is open in the room's bot picker
+  botInfo: null, // "place:botId" of the bot profile popup that is open (in the table settings popup)
+  tableDialog: false, // the table settings popup is open
 };
 
 // Invite links look like /#table=ABCD or /#table=ABCD&pw=secret. The hash never reaches the server (or its logs),

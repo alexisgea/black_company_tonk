@@ -46,7 +46,7 @@
   "room.awayNotice": "You took too long, so a bot is playing your turns.",
   "room.bet": "Bet: {bet}",
   "room.botInfo": "About {name}",
-  "room.botsHint": "Click a bot to seat it, click a seat to clear it.",
+  "room.botsHint": "Click a bot to seat it.",
   "room.coins": "Coins",
   "room.emptySeat": "Empty seat",
   "room.handNumber": "Hand #{number}",
@@ -347,10 +347,12 @@
   "card.ranks": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
 
   "mark.bot": "Bot",
+  "mark.caught": "Caught",
   "mark.dealer": "Dealer",
   "mark.dealerTitle": "Deals this hand",
   "mark.host": "Host",
   "mark.hostTitle": "Host of this table",
+  "mark.wentDown": "Went down",
 
   "fullscreen.enter": "Full screen",
   "fullscreen.exit": "Exit full screen",
@@ -360,6 +362,10 @@
   "settings.fontSize": "Font size",
   "settings.language": "Language",
   "settings.title": "Settings",
+
+  "tableDialog.botsBetweenHands": "Bots can only be added or removed between hands.",
+  "tableDialog.button": "Table settings",
+  "tableDialog.title": "Table settings",
 
   "changelog.title": "Changelog",
 

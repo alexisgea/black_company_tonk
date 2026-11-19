@@ -195,9 +195,11 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .away-notice { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; padding: 8px 12px; border: 1px solid var(--rust); border-radius: 8px; background: #7a4a2e33; font-style: italic; }
 .no-transition, .no-transition * { transition: none !important; }
 
-.result .hands { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
-.result .hand-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.result .hand-row .who { width: 9.5rem; }
+.center-stack { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.result { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; max-width: 28rem; }
+.result-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.875rem; margin-top: 4px; }
+.me-panel .result-line { justify-content: center; font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
+.delta { font-weight: 600; }
 .delta.pos { color: #9aaa6a; }
 .delta.neg { color: #c4776b; }
 
@@ -209,8 +211,6 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .host-star { color: var(--accent); }
 .score-actions { display: inline-flex; gap: 4px; }
 .score-value { flex: none; min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
-/* The small round "x" that removes a player or bot, quieter than a text button; sized like the "i" next to it. */
-.side .x-btn, .x-btn { flex: none; width: 1.4rem; height: 1.4rem; padding: 0; border-radius: 50%; font-size: 0.8125rem; line-height: 1; text-transform: none; letter-spacing: 0; }
 .btn-icon { width: 1em; height: 1em; margin-right: 0.45em; vertical-align: -0.12em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .setting-input { width: 90px; }
 
@@ -221,10 +221,17 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .opp { position: relative; }
 .opp-head { display: flex; align-items: center; gap: 8px; }
 .opp-id { flex: 1; min-width: 0; }
+.purse { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.me-panel .purse { position: absolute; top: 12px; right: 12px; }
 .role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.opp .role-marks { min-height: calc(0.75rem * 1.6 + 2px); }
 .me-panel .role-marks { justify-content: center; margin: 0 0 4px; }
 .role-mark { position: relative; z-index: 3; display: inline-flex; align-items: center; gap: 0.35em; padding: 0 0.6em 0 0.45em; border: 1px solid var(--accent); border-radius: 999px; background: #0003; color: var(--accent); font-family: var(--font-display); font-size: 0.75rem; font-weight: 700; line-height: 1.6; white-space: nowrap; }
 .role-mark::before { content: ''; flex: none; }
+.role-mark.went-down { padding-left: 0.6em; font-weight: 700; }
+.role-mark.went-down.won { border-color: #9aaa6a; color: #9aaa6a; }
+.role-mark.went-down.caught { border-color: #c4776b; color: #c4776b; }
+.role-mark.went-down::before { display: none; }
 /* The dealer: a small deck of cards. */
 .role-mark.dealer::before { width: 0.6em; height: 0.85em; border: 1px solid #8a7a55; border-radius: 2px; background: repeating-linear-gradient(45deg, #4a3626, #4a3626 2px, #3a2a1d 2px, #3a2a1d 4px); box-shadow: 2px -1px 0 -1px #8a7a55; margin-right: 2px; }
 
@@ -259,8 +266,6 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 8px; }
 .seat { display: flex; align-items: center; gap: 10px; min-height: 3.4rem; padding: 6px 10px; border-radius: 8px; background: #0003; text-align: left; font-weight: 400; letter-spacing: 0; text-transform: none; }
 .seat.empty { background: transparent; border: 1px dashed #d8d0bf44; }
-.seat.seat-bot { font-family: inherit; font-size: inherit; color: inherit; cursor: pointer; }
-.seat.seat-bot:hover { border-color: var(--blood); background: #8a2e2633; }
 .seat-text { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .seat-sub { font-size: 0.8125rem; }
 .bot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -275,13 +280,14 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .bot-pop .bot-label { text-transform: capitalize; }
 .bot-card:nth-child(4n + 1) .bot-pop { left: 0; transform: none; }
 .bot-card:nth-child(4n) .bot-pop { left: auto; right: 0; transform: none; }
-/* The "i" shown during a game sits inline; its popup hangs from the panel or row it is in. */
+/* The "i" next to a bot in the table settings popup sits inline; its popup hangs from the row. */
 .info-wrap { flex: none; display: inline-flex; align-items: center; }
 .info-wrap .bot-info { position: static; width: 1.4rem; height: 1.4rem; padding: 0; font-size: 0.8125rem; }
-.opp .bot-pop { top: 2.6rem; left: 0; right: auto; transform: none; width: 14rem; }
-.opp:last-child .bot-pop { left: auto; right: 0; }
-.opp:first-child .bot-pop { left: 0; right: auto; }
-.score-row .bot-pop { top: 100%; left: auto; right: 0; transform: none; }
+.tbl-player { position: relative; display: flex; align-items: center; gap: 8px; min-height: 2.4rem; }
+.tbl-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tbl-player .bot-pop { top: 100%; left: auto; right: 0; transform: none; }
+.kick-btn { flex: none; padding: 3px 10px; font-size: 0.8125rem; }
+.tbl-bots { margin-top: 8px; }
 @media (max-width: 760px) {
   .bot-grid { grid-template-columns: repeat(3, 1fr); }
   .bot-card:nth-child(n) .bot-pop { left: 50%; right: auto; transform: translateX(-50%); }
@@ -315,16 +321,16 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .chat-msg.mine strong { color: var(--accent); }
 .chat-form { display: flex; gap: 6px; }
 .chat-form input { flex: 1; min-width: 0; }
+.emote-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.emote-box[hidden] { display: none; }
+.emote-box button { font-size: 0.8125rem; padding: 3px 8px; }
+.emote-box button:disabled { opacity: 0.45; cursor: default; }
 
 /* A player's latest words, hanging off their panel for a few seconds (BUBBLE_MS in callouts.js). */
 .me-panel { position: relative; }
 .bubble {
   position: absolute; z-index: 6; width: max-content; max-width: min(16rem, 90vw); padding: 6px 10px; border-radius: 10px;
   background: #e8dfcb; color: #1b1c1d; border: 1px solid var(--accent); box-shadow: 0 4px 12px #0008;
-.emote-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.emote-box[hidden] { display: none; }
-.emote-box button { font-size: 0.8125rem; padding: 3px 8px; }
-.emote-box button:disabled { opacity: 0.45; cursor: default; }
   font-size: 0.9375rem; line-height: 1.25; text-align: left; overflow-wrap: anywhere; pointer-events: none;
   animation: bubble-in 0.15s ease-out, bubble-out 0.4s ease-in 5.6s forwards;
 }
@@ -401,8 +407,6 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   .opp .melds { gap: 4px; margin-top: 6px; }
   .opp .meld { padding: 4px; }
   .opp .meld .cards { gap: 1px; }
-  .opp:nth-child(odd) .bot-pop { left: 0; right: auto; }
-  .opp:nth-child(even) .bot-pop { left: auto; right: 0; }
   .opp:nth-child(odd) .bubble { left: 8px; right: auto; }
   .opp:nth-child(even) .bubble { left: auto; right: 8px; }
   .opp:nth-child(odd) .bubble::after { left: 16px; right: auto; }

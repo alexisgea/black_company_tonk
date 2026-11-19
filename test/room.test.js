@@ -347,6 +347,16 @@ test('a bot can nudge a slow player, Silent never does, and it varies its lines'
   assert.notEqual(room.nudge(() => 0).line, first.line);
 });
 
+test('nudges come from different bots in turn, not the same one every time', () => {
+  const room = new Room('R', 'Test');
+  room.join(human('Ann'));
+  room.addBot('croaker');
+  room.addBot('otto');
+  room.addBot('goblin');
+  const speakers = Array.from({ length: 6 }, () => room.nudge(() => 0).pid);
+  for (let i = 1; i < speakers.length; i++) assert.notEqual(speakers[i], speakers[i - 1]);
+});
+
 test('a Tonk on the deal waits until it is declared, then shouts TONK! in the chat', () => {
   let checked = 0;
   for (let seed = 1; seed < 300 && checked < 5; seed++) {

@@ -409,11 +409,12 @@ export function playAnimations(prevMeta, prevCards, prevMarks, rerender) {
 
   // The hand just ended (someone went down, Tonk, or emptied their hand): hands are turned over onto the table.
   if (meta.ended && !prevMeta.ended) {
-    for (const row of document.querySelectorAll('.result .hand-row')) {
-      const pid = row.dataset.player;
-      const from = pid === state.you ? centerOf(document.querySelector('.me-panel .hand').getBoundingClientRect()) : panelCenter(pid);
+    for (const opp of document.querySelectorAll('.opp[data-player]')) {
+      const from = panelCenter(opp.dataset.player);
       if (!from) continue;
-      row.querySelectorAll('.card').forEach((el, i) => flyFrom(el, { ...from, w: from.w * 0.1 }, { duration: 420, delay: i * 70 }));
+      opp
+        .querySelectorAll(':scope > .cards .card')
+        .forEach((el, i) => flyFrom(el, { ...from, w: from.w * 0.1 }, { duration: 420, delay: i * 70 }));
     }
   }
 }

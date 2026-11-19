@@ -123,6 +123,7 @@ function onMessage(msg) {
       state.games = msg.games;
       state.online = msg.online ?? 0;
       state.room = null;
+      state.tableDialog = false;
       state.view = 'lobby';
       chat.messages = [];
       clearCallouts();

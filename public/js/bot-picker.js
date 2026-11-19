@@ -56,7 +56,7 @@ function infoButton(botId, place) {
   );
 }
 
-// The "i" next to a bot's name during a game (nothing for a human), with its popup right under it.
+// The "i" next to a bot's name (nothing for a human), with its popup right under it.
 export function botInfo(p, place) {
   if (!p?.botId) return null;
   return h(
@@ -91,14 +91,15 @@ function botCard(entry, full) {
   );
 }
 
-// Host only: every bot with its rank and tag, plus a random pick. Clicking one seats it at the table.
+// Host only: every bot with its rank and tag, plus a random pick. Clicking one seats it at the table
+// (not while a hand is being played, nor when the table is full).
 export function botGrid() {
   const room = state.room;
-  const full = room.players.length >= room.maxPlayers;
+  const full = room.status === 'playing' || room.players.length >= room.maxPlayers;
   return h(
     'div',
-    { class: 'panel' },
-    h('h3', { style: 'margin-top:0' }, t('room.addBot')),
+    null,
+    h('h3', null, t('room.addBot')),
     h('p', { class: 'muted' }, t('room.botsHint')),
     h(
       'div',

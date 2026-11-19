@@ -9,7 +9,8 @@ import { bubbleEl, flavorEvents } from './callouts.js';
 import { nameTag, roleMarks } from './name-tag.js';
 import { avatar } from './avatar.js';
 import { coin } from './coin.js';
-import { botGrid, botLabel, botInfo } from './bot-picker.js';
+import { botLabel } from './bot-picker.js';
+import { tableDialog, tableDialogButton } from './table-dialog.js';
 import { rulesButton } from './rules-dialog.js';
 import { settingsButton } from './settings-dialog.js';
 import { fullscreenButton } from './fullscreen.js';
@@ -23,16 +24,19 @@ const chatSlot = () => h('div', { 'data-persist': 'chat' });
 const secondsLeft = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 const URGENT_SECONDS = 15;
 // Rows of more than this many cards overlap slightly, like a real spread.
-const TIGHT_FROM = 5;
+// Six is left loose so drawing a card doesn't make a row jump; spreads (7+) overlap.
+const TIGHT_FROM = 6;
 const FEEDBACK_EMAIL = 'alexis@geaxle.com';
 const title = () => h('h1', null, t('app.title'));
 
-const marksOf = (id) => ({
-  bot: !!state.room.players.find((p) => p.id === id)?.isBot,
-  host: state.room.hostId === id,
-});
 const playerTag = (p) => nameTag(playerName(p), { bot: p.isBot, host: p.id === state.room.hostId });
 
+// Someone who left at the end of a hand keeps the name they had in it: the result remembers it.
+const leftName = (id, round) => {
+  const r = round.result;
+  if (r?.bots?.[id]) return botName(r.bots[id], r.names?.[id]);
+  return r?.names?.[id] ?? nameOf(id);
+};
 export function render() {
   if (drag.active) {
     drag.pendingRender = true; // never rebuild the DOM under an active drag
@@ -223,14 +227,13 @@ function renderRoom() {
       h(
         'div',
         { class: 'panel' },
-        h('h3', { style: 'margin-top:0' }, t('room.players')),
+        h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, t('room.players')), h('span', { class: 'spacer' }), tableDialogButton()),
         h(
           'div',
           { class: 'seats' },
-          Array.from({ length: room.maxPlayers }, (_, i) => (room.players[i] ? seat(room.players[i], isHost) : emptySeat())),
+          Array.from({ length: room.maxPlayers }, (_, i) => (room.players[i] ? seat(room.players[i]) : emptySeat())),
         ),
       ),
-      isHost ? botGrid() : null,
       spectatorsPanel(),
       settingsPanel(isHost),
       h('div', { class: 'panel' }, invitePanel(isHost)),
@@ -245,14 +248,17 @@ function renderRoom() {
       ),
       chatSlot(),
       footerActions(),
+      tableDialog(),
     );
   }
-  return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave));
+  return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave), tableDialog());
 }
 
-// A seat at the table in the waiting room. The host clears a bot's seat by clicking it.
-function seat(p, isHost) {
-  const body = [
+// A seat at the table in the waiting room.
+function seat(p) {
+  return h(
+    'div',
+    { class: 'seat' },
     avatar(),
     h(
       'span',
@@ -267,19 +273,8 @@ function seat(p, isHost) {
       ),
       p.isBot ? h('span', { class: 'seat-sub muted' }, botLabel(p.botId)) : null,
     ),
-  ];
-  if (isHost && p.isBot) {
-    return h(
-      'button',
-      {
-        class: 'secondary seat seat-bot',
-        title: t('room.removeFromTable', { name: playerName(p) }),
-        onClick: () => send({ t: 'removeBot', id: p.id }),
-      },
-      body,
-    );
-  }
-  return h('div', { class: 'seat' }, body, kickControls(p), takeOverButton(p));
+    takeOverButton(p),
+  );
 }
 
 function emptySeat() {
@@ -332,6 +327,7 @@ function renderSide(leaveBtn) {
           h('div', { class: 'muted' }, t('room.handNumber', { number: room.handNo }), room.paused ? ` \u2013 ${t('room.paused')}` : ''),
         ),
         h('span', { class: 'spacer' }),
+        tableDialogButton(),
         rulesButton(),
       ),
       h('div', { class: 'row side-actions' }, leaveBtn, pauseButton()),
@@ -359,7 +355,7 @@ function renderSide(leaveBtn) {
             playerTag(p),
             (p.connected ? '' : ` (${t('player.offline')})`) + (p.away ? ` (${t('player.botPlaying')})` : ''),
           ),
-          h('span', { class: 'score-actions' }, botInfo(p, 'score'), kickControls(p), takeOverButton(p)),
+          h('span', { class: 'score-actions' }, takeOverButton(p)),
           h('span', { class: 'score-value' }, String(p.coins), coin()),
         ),
       ),
@@ -369,6 +365,12 @@ function renderSide(leaveBtn) {
     sidePanel('log', t('room.log'), logEl),
     footerActions(),
   );
+}
+
+// The coins a player has left, shown next to them on the table.
+function purse(info) {
+  if (!info) return null;
+  return h('span', { class: 'purse', title: t('room.coins') }, String(info.coins), coin());
 }
 
 function renderTable() {
@@ -413,12 +415,13 @@ function renderTable() {
         h(
           'div',
           { class: 'opp-id' },
-          h('strong', null, info ? playerTag(info) : nameOf(id), info?.away ? ` (${t('player.botPlaying')})` : ''),
-          roleMarks(id, round),
+          h('strong', null, info ? playerTag(info) : leftName(id, round), info?.away ? ` (${t('player.botPlaying')})` : ''),
+          roleMarks(id, round, { reserve: true }),
         ),
-        botInfo(info, 'opp'),
+        purse(info),
       ),
       cards,
+      over ? resultLine(round, id) : null,
       meldsOf(id),
       bubbleEl(id),
     );
@@ -567,18 +570,22 @@ function renderTable() {
     { class: 'table', 'data-deal': dealing ? anim.deal.phase : null },
     h('div', { class: 'opponents' }, oppEls),
     flavorBanner(),
-    h('div', { class: 'center' }, h('div', { class: 'piles' }, deck, discard)),
-    over ? renderResult(round) : null,
+    h(
+      'div',
+      { class: 'center' },
+      h('div', { class: 'center-stack' }, h('div', { class: 'piles' }, deck, discard), over ? renderResult(round) : null),
+    ),
     inHand
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
+          purse(room.players.find((x) => x.id === state.you)),
           roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
           turnTimerLine(myTurn),
           awayNotice(),
           meldsOf(state.you),
-          h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
+          over ? resultLine(round, state.you) : h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
           bubbleEl(state.you),
@@ -621,7 +628,6 @@ function spectatorsPanel() {
           { class: 'score-name' },
           s.name + (s.id === state.you ? ` ${t('player.you')}` : '') + (s.connected ? '' : ` (${t('player.offline')})`),
         ),
-        h('span', { class: 'score-actions' }, kickControls(s)),
       ),
     ),
   );
@@ -660,10 +666,28 @@ setInterval(() => {
   if (retry) retry.textContent = retryText();
 }, 250);
 
+// Hand total and coins won or lost, shown next to a player's revealed cards once the hand is over.
+function resultLine(round, id) {
+  const r = round.result;
+  const delta = r.deltas[id] ?? 0;
+  return h(
+    'div',
+    { class: 'result-line', 'data-result': id },
+    h('span', { class: 'result-total' }, r.totals[id] === undefined ? null : t('status.handValue', { total: r.totals[id] })),
+    h(
+      'span',
+      { class: 'delta ' + (delta > 0 ? 'pos' : delta < 0 ? 'neg' : '') },
+      coin(),
+      t('result.coins', { count: Math.abs(delta), amount: `${delta > 0 ? '+' : ''}${delta}` }),
+    ),
+  );
+}
+
+// The outcome of the hand and the way on to the next one, shown under the piles.
 function renderResult(round) {
   const r = round.result;
   const room = state.room;
-  const nameFor = (id) => (r.bots?.[id] ? botName(r.bots[id], r.names?.[id]) : (r.names?.[id] ?? nameOf(id)));
+  const nameFor = (id) => leftName(id, round);
   let headline;
   switch (r.type) {
     case 'tonk':
@@ -681,26 +705,11 @@ function renderResult(round) {
     default:
       headline = t('result.aborted');
   }
-  const rows = round.order.map((id) =>
-    h(
-      'div',
-      { class: 'hand-row', 'data-player': id },
-      h('span', { class: 'who' }, nameTag(nameFor(id), marksOf(id)), ` (${r.totals[id]})`),
-      r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
-      h(
-        'span',
-        { class: 'delta ' + (r.deltas[id] > 0 ? 'pos' : r.deltas[id] < 0 ? 'neg' : '') },
-        coin(),
-        t('result.coins', { count: Math.abs(r.deltas[id]), amount: `${r.deltas[id] > 0 ? '+' : ''}${r.deltas[id]}` }),
-      ),
-    ),
-  );
   const canDeal = room.players.length >= room.minPlayers;
   return h(
     'div',
-    { class: 'panel result' },
+    { class: 'result' },
     h('strong', null, headline),
-    h('div', { class: 'hands' }, rows),
     state.restartDeadline !== null
       ? h(
           'div',
@@ -718,60 +727,8 @@ function renderResult(round) {
               { disabled: !canDeal, onClick: () => send({ t: 'startGame' }) },
               canDeal ? t('result.dealNext') : t('result.waitingForPlayers'),
             ),
-            addBotButton(),
           ),
   );
-}
-
-// Host only: remove a human (Kick) or a bot (Remove), with an inline confirmation (no browser popup).
-// Bots can only be removed between hands.
-function kickControls(p) {
-  if (state.room.hostId !== state.you || p.id === state.you) return null;
-  if (p.isBot && state.room.status === 'playing') return null;
-  const label = p.isBot ? t('room.remove') : t('room.kick');
-  if (state.confirmKick !== p.id) {
-    return h(
-      'button',
-      {
-        class: 'secondary x-btn',
-        title: t('room.removeFromTable', { name: playerName(p) }),
-        'aria-label': label,
-        onClick: () => {
-          state.confirmKick = p.id;
-          render();
-        },
-      },
-      '\u00d7',
-    );
-  }
-  return [
-    h(
-      'button',
-      {
-        class: 'x-btn',
-        title: t('common.confirm'),
-        'aria-label': t('common.confirm'),
-        onClick: () => {
-          state.confirmKick = null;
-          send({ t: p.isBot ? 'removeBot' : 'kick', id: p.id });
-        },
-      },
-      '\u2713',
-    ),
-    h(
-      'button',
-      {
-        class: 'secondary x-btn',
-        title: t('common.cancel'),
-        'aria-label': t('common.cancel'),
-        onClick: () => {
-          state.confirmKick = null;
-          render();
-        },
-      },
-      '\u2715',
-    ),
-  ];
 }
 
 // Guests can sit in a bot's seat (it keeps the bot's cards and coins) or, between hands, in a free one.
@@ -909,17 +866,6 @@ function invitePanel(isHost) {
       : room.locked
         ? h('div', { class: 'muted', style: 'margin-top:6px' }, t('invite.lockedNote'))
         : null,
-  );
-}
-
-// Host only: bots fill empty seats (up to the table limit).
-function addBotButton() {
-  const room = state.room;
-  if (room.hostId !== state.you) return null;
-  return h(
-    'button',
-    { class: 'secondary', disabled: room.players.length >= room.maxPlayers, onClick: () => send({ t: 'addBot' }) },
-    t('room.addBot'),
   );
 }
 

@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.41.0',
+    date: '2026-11-19',
+    changes: [
+      'Each player\u2019s current coins are now shown right next to them on the table.',
+      'New "Table settings" button (in the waiting room and beside the scores during a game): see who is at the table, open bot profiles, and, for the host, kick players, remove bots and add bots, which now lives in one popup.',
+    ],
+  },
+  {
     version: '0.40.1',
     date: '2026-11-19',
     changes: [
@@ -15,6 +23,36 @@ export const CHANGELOG = [
       'New "Emotes" button next to Send in the chat: thirteen quick lines (greetings, "your move", luck, surprise, a laugh, "I\u2019m winning / losing", goodbyes) you can say with one click. They show in the chat and as a speech bubble.',
       'Quick lines cannot be spammed: one every 4 seconds per player.',
     ],
+  },
+  {
+    version: '0.39.1',
+    date: '2026-11-19',
+    changes: [
+      'The player who went down now wears a "Went down" tag (or "Caught" if they were caught) at the end of the hand, like the dealer tag.',
+    ],
+  },
+  {
+    version: '0.39.0',
+    date: '2026-11-19',
+    changes: [
+      'The end-of-hand summary panel is gone: everyone\u2019s cards are turned over on the table, with their hand value and the coins won or lost right beside them.',
+      'The "Deal next hand" button now sits under the draw and discard piles.',
+    ],
+  },
+  {
+    version: '0.38.3',
+    date: '2026-11-19',
+    changes: ['When you take your time, the bots now take turns hurrying you instead of the same one nagging every time.'],
+  },
+  {
+    version: '0.38.2',
+    date: '2026-11-19',
+    changes: ["The dealer chip no longer pushes that player's cards down; all opponents' cards sit on the same level."],
+  },
+  {
+    version: '0.38.1',
+    date: '2026-11-19',
+    changes: ['Cards only start to overlap from seven in a row, so drawing a card no longer makes the row jump around.'],
   },
   {
     version: '0.38.0',
