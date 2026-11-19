@@ -730,38 +730,43 @@ function kickControls(p) {
     return h(
       'button',
       {
-        class: 'secondary small-btn',
+        class: 'secondary x-btn',
         title: t('room.removeFromTable', { name: playerName(p) }),
+        'aria-label': label,
         onClick: () => {
           state.confirmKick = p.id;
           render();
         },
       },
-      label,
+      '\u00d7',
     );
   }
   return [
     h(
       'button',
       {
-        class: 'small-btn',
+        class: 'x-btn',
+        title: t('common.confirm'),
+        'aria-label': t('common.confirm'),
         onClick: () => {
           state.confirmKick = null;
           send({ t: p.isBot ? 'removeBot' : 'kick', id: p.id });
         },
       },
-      t('common.confirm'),
+      '\u2713',
     ),
     h(
       'button',
       {
-        class: 'secondary small-btn',
+        class: 'secondary x-btn',
+        title: t('common.cancel'),
+        'aria-label': t('common.cancel'),
         onClick: () => {
           state.confirmKick = null;
           render();
         },
       },
-      t('common.cancel'),
+      '\u2715',
     ),
   ];
 }

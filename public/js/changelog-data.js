@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.37.0',
+    date: '2026-11-19',
+    changes: [
+      'The side panel is a bit wider.',
+      'Removing or kicking a player is now a small "x" button next to the "i", with a tick and a cross to confirm or cancel, and the coin totals have more room.',
+      'The full screen button shows the usual four-arrow icon.',
+    ],
+  },
+  {
     version: '0.36.1',
     date: '2026-11-19',
     changes: [

@@ -137,7 +137,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .games li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #d8d0bf22; }
 .games li:last-child { border-bottom: 0; }
 
-.table-layout { display: grid; grid-template-columns: 1fr 17rem; gap: 12px; padding: 12px; min-height: 100vh; }
+.table-layout { display: grid; grid-template-columns: 1fr clamp(19rem, 22vw, 24rem); gap: 12px; padding: 12px; min-height: 100vh; }
 .table { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 /* Compact side panels so the whole sidebar fits a typical desktop window. */
@@ -207,7 +207,10 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .helmet { display: inline-block; width: 1.15em; height: 0.78em; vertical-align: -0.05em; background: currentColor; -webkit-mask: url(img/helmet.png) center / contain no-repeat; mask: url(img/helmet.png) center / contain no-repeat; }
 .host-star { color: var(--accent); }
 .score-actions { display: inline-flex; gap: 4px; }
-.score-value { min-width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
+.score-value { flex: none; min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+/* The small round "x" that removes a player or bot, quieter than a text button; sized like the "i" next to it. */
+.side .x-btn, .x-btn { flex: none; width: 1.4rem; height: 1.4rem; padding: 0; border-radius: 50%; font-size: 0.8125rem; line-height: 1; text-transform: none; letter-spacing: 0; }
+.btn-icon { width: 1em; height: 1em; margin-right: 0.45em; vertical-align: -0.12em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .setting-input { width: 90px; }
 
 /* The empty frame for profile pictures; shared by seats and the bot grid. */
