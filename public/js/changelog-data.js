@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.47.2',
+    date: '2026-11-20',
+    changes: ['The playing area no longer collapses at medium window widths when the side panels move below it.'],
+  },
+  {
     version: '0.47.1',
     date: '2026-11-20',
     changes: [
