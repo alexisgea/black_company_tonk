@@ -86,6 +86,37 @@ test('create, list, join, start and play a hand through the lobby', () => {
   }
 });
 
+test('only the waiting-room host can rename a table; members and the lobby see the new name', () => {
+  const lobby = new Lobby();
+  const {
+    humans: [host, member],
+    gameId,
+  } = seatedGame(lobby);
+  const watcher = connect(lobby, 'Watcher');
+  const visitor = connect(lobby, 'Visitor');
+  say(lobby, watcher, { t: 'watchGame', gameId });
+  assert.equal(visitor.last('lobby').games[0].owner, 'P1');
+
+  say(lobby, member, { t: 'renameTable', name: 'Other name' });
+  assert.equal(member.last('error').code, 'hostOnlyRename');
+  say(lobby, host, { t: 'renameTable', name: ' \t ' });
+  assert.equal(host.last('error').code, 'tableNameRequired');
+  say(lobby, host, { t: 'renameTable', name: 'x'.repeat(host.last('room').room.maxNameLength + 1) });
+  assert.equal(host.last('error').code, 'tableNameTooLong');
+
+  say(lobby, host, { t: 'renameTable', name: '  The Annals  ' });
+  for (const conn of [host, member, watcher]) {
+    const { id, name, owner } = conn.last('room').room;
+    assert.deepEqual({ id, name, owner }, { id: gameId, name: 'The Annals', owner: null });
+  }
+  assert.equal(visitor.last('lobby').games[0].name, 'The Annals');
+  assert.equal(visitor.last('lobby').games[0].owner, null);
+
+  say(lobby, host, { t: 'startGame' });
+  say(lobby, host, { t: 'renameTable', name: 'Too late' });
+  assert.equal(host.last('error').code, 'tableNameLocked');
+});
+
 test('reconnect with token resumes the seat; grace timeout removes the player', async () => {
   const lobby = new Lobby({ graceMs: 20 });
   const alice = connect(lobby, 'Alice');

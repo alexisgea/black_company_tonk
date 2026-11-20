@@ -741,6 +741,12 @@ class Lobby {
         this.broadcastAll(room);
         break;
       }
+      case 'renameTable': {
+        requireHost(room, user, 'hostOnlyRename');
+        room.rename(msg.name);
+        this.broadcastAll(room);
+        break;
+      }
       case 'addBot': {
         requireHost(room, user, 'hostOnlyAddBot');
         if (msg.botId === undefined || msg.botId === null) room.addRandomBot();

@@ -29,16 +29,20 @@ async function setup() {
       spectators: [],
       maxPlayers: 5,
       minPlayers: 2,
+      maxNameLength: 48,
       settings: { startingCoins: 50, bet: 5, dynamicTable: true, cheating: true },
       settingLimits: { startingCoins: { min: 10, max: 10000 }, bet: { min: 1, max: 1000 } },
       log: [],
     },
   };
   const sent = [];
+  const scrolls = [];
+  window.scrollTo = (...position) => scrolls.push(position);
   let redraw = () => {};
   const noop = () => null;
   const context = {
     ...dom,
+    window,
     location: { origin: 'http://localhost' },
     state,
     t: (key) => key,
@@ -116,7 +120,7 @@ async function setup() {
     discardTop: 4,
     dealer: 'bot',
   };
-  return { ...views, ...chatModule, state, sent, document, persistent, round };
+  return { ...views, ...chatModule, state, sent, scrolls, document, persistent, round };
 }
 
 test('leaving a waiting, playing or watched table requires confirmation and supports cancel', async () => {
@@ -142,16 +146,16 @@ test('leaving a waiting, playing or watched table requires confirmation and supp
   }
 });
 
-test('emotes move from the waiting room onto the hand panel and keep their open state and cooldown', async () => {
+test('emotes are absent in the waiting room and available on the hand panel during play', async () => {
   const { render, state, round, chat, setEmotes, sent, document, persistent } = await setup();
   setEmotes(['wellPlayed'], 4000);
   render();
-  assert.equal(document.querySelector('.chat .emote-toggle'), null);
-  chat.emoteToggle.click();
+  assert.equal(document.querySelector('.emote-toggle'), null);
   state.room.status = 'playing';
   state.room.round = round;
   render();
   assert.equal(document.querySelector('.me-panel .emote-controls'), persistent.get('emotes'));
+  chat.emoteToggle.click();
   assert.equal(chat.emoteBox.hidden, false);
   chat.emoteBox.querySelector('.emote').click();
   assert.deepEqual(sent, [{ t: 'emote', id: 'wellPlayed' }]);
@@ -161,6 +165,40 @@ test('emotes move from the waiting room onto the hand panel and keep their open 
   state.you = 'guest';
   render();
   assert.ok(document.querySelector('.me-panel .emote-toggle'), 'watchers also keep access to emotes');
+});
+
+test('waiting room puts Leave and Start below the title and scrolls up only when play begins', async () => {
+  const { render, state, round, sent, scrolls, document } = await setup();
+  state.room.players.push({ id: 'bot', name: 'Bot', isBot: true, connected: true, coins: 50 });
+  render();
+  const [leave, start] = document.querySelector('h1 + .waiting-controls').children;
+  assert.equal(leave.textContent, 'room.leave');
+  assert.equal(start.textContent, 'room.startGame');
+  start.click();
+  assert.deepEqual(sent, [{ t: 'startGame' }]);
+  assert.deepEqual(scrolls, []);
+  state.room.status = 'playing';
+  state.room.round = round;
+  render();
+  render();
+  assert.deepEqual(scrolls, [[0, 0]]);
+});
+
+test('the waiting room lets the host submit a table name but hides the editor from guests', async () => {
+  const { render, state, sent, document } = await setup();
+  render();
+  const input = document.querySelector('input[name="tableName"]');
+  assert.equal(input.value, 'Test table');
+  input.value = '  The Annals  ';
+  input.form.querySelector('button').click();
+  assert.deepEqual(sent, [{ t: 'renameTable', name: 'The Annals' }]);
+  state.room.name = 'The Annals';
+  render();
+  assert.equal(document.querySelector('h1').textContent, 'The Annals');
+  assert.equal(input.value, 'The Annals');
+  state.you = 'guest';
+  render();
+  assert.equal(document.querySelector('input[name="tableName"]'), null);
 });
 
 test('hand summaries put the went-down chip beside its actor, including a failed go-down', async () => {

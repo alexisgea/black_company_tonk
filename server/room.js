@@ -57,6 +57,7 @@ const MAX_SPECTATORS = 20;
 const DEFAULT_TONK_TIMEOUT_MS = 15000;
 const ORDINALS = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
 const MAX_PASSWORD = 32;
+const MAX_TABLE_NAME = 48;
 const RANDOM_SEAT = { id: 'random', name: 'Random' }; // stands in for a bot until the table starts
 const nameKey = (name) => name.normalize('NFKC').toLowerCase();
 const digest = (text) => crypto.createHash('sha256').update(text).digest();
@@ -101,7 +102,7 @@ class Room {
   ) {
     this.id = id;
     this.name = name;
-    this.owner = owner; // who made the table, so each client can word its default name ("X's table") in its own language
+    this.owner = owner; // used by clients to translate the default name ("X's table"); cleared when renamed
     this.rng = rng;
     this.settings = { ...settings };
     this.tonkTimeoutMs = tonkTimeoutMs; // how long a player has to press TONK! before it is done for them
@@ -461,6 +462,15 @@ class Room {
     for (const p of this.players) this.coins[p.id] = this.settings.startingCoins;
   }
 
+  rename(raw) {
+    if (this.status !== 'waiting') throw new tonk.GameError('tableNameLocked');
+    const name = typeof raw === 'string' ? raw.replace(CONTROL_CHARS, '').trim() : '';
+    if (!name) throw new tonk.GameError('tableNameRequired');
+    if (name.length > MAX_TABLE_NAME) throw new tonk.GameError('tableNameTooLong', { max: MAX_TABLE_NAME });
+    this.name = name;
+    this.owner = null;
+  }
+
   startHand(user) {
     this.requirePlayer(user);
     if (this.status === 'playing') throw new tonk.GameError('handInProgress');
@@ -763,6 +773,7 @@ class Room {
         handNo: this.handNo,
         minPlayers: tonk.MIN_PLAYERS,
         maxPlayers: tonk.MAX_PLAYERS,
+        maxNameLength: MAX_TABLE_NAME,
         settings: { ...this.settings },
         settingLimits: settingLimitsView(),
         players: this.players.map((p) => ({

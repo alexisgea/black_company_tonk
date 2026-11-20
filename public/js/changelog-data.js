@@ -1,6 +1,15 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.48.0',
+    date: '2026-11-20',
+    changes: [
+      'Hosts can rename their table before starting the game.',
+      'Leave table and Start game now sit below the table name. Starting the game scrolls back to the top.',
+      'The four lobby footer buttons stay in one row or a two-by-two grid. The waiting room has smaller rule checkboxes and no emote button.',
+    ],
+  },
+  {
     version: '0.47.2',
     date: '2026-11-20',
     changes: ['The playing area no longer collapses at medium window widths when the side panels move below it.'],

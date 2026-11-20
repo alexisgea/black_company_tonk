@@ -54,6 +54,7 @@ export function render() {
   const prevMarks = captureMarks();
   anim.meta = null;
   const inRoom = !state.replaced && state.connected && state.view === 'room';
+  const starting = inRoom && state.room.status !== 'waiting' && app.firstElementChild?.dataset.waitingRoom === state.room.id;
   beginDeal(prevMeta, inRoom);
   // Reused elements must not start CSS transitions from the stale inline styles the patcher clears (drag, FLIP).
   app.classList.add('no-transition');
@@ -72,6 +73,7 @@ export function render() {
       }
     }
     void app.offsetHeight; // commit styles while transitions are still off
+    if (starting) window.scrollTo(0, 0);
   } finally {
     app.classList.remove('no-transition');
   }
@@ -125,7 +127,14 @@ function credits() {
 // Reference and display controls stay out of the way of the game.
 function footerActions() {
   const lobby = state.view === 'lobby' || state.room?.status === 'waiting';
-  return h('div', { class: 'row footer-actions' }, rulesButton(), lobby ? changelogButton() : null, settingsButton(), fullscreenButton());
+  return h(
+    'div',
+    { class: `footer-actions ${lobby ? 'lobby-footer-actions' : 'row'}` },
+    rulesButton(),
+    lobby ? changelogButton() : null,
+    settingsButton(),
+    fullscreenButton(),
+  );
 }
 
 function renderName() {
@@ -266,8 +275,16 @@ function renderRoom() {
     const canStart = isHost && room.players.length >= room.minPlayers;
     return h(
       'div',
-      { class: 'screen' },
-      h('h1', null, tableName(room)),
+      { class: 'screen', 'data-waiting-room': room.id },
+      h('h1', { class: 'table-name' }, tableName(room)),
+      h(
+        'div',
+        { class: 'waiting-controls' },
+        leave,
+        spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, t('room.startGame')),
+        canStart ? null : h('span', { class: 'muted waiting-status' }, t(isHost ? 'room.needMorePlayers' : 'room.waitingForHost')),
+      ),
+      isHost ? renameTableForm(room) : null,
       h(
         'div',
         { class: 'panel' },
@@ -288,20 +305,39 @@ function renderRoom() {
       settingsPanel(isHost),
       h('div', { class: 'panel' }, invitePanel(isHost)),
       awayNotice(),
-      h(
-        'div',
-        { class: 'row', style: 'margin-bottom:14px' },
-        spectating ? freeSeatButton() : h('button', { disabled: !canStart, onClick: () => send({ t: 'startGame' }) }, t('room.startGame')),
-        leave,
-        h('span', { class: 'muted' }, isHost ? (canStart ? '' : t('room.needMorePlayers')) : t('room.waitingForHost')),
-      ),
-      emoteSlot(),
       chatSlot(),
       footerActions(),
       tableDialog(),
     );
   }
   return h('div', { class: 'table-layout' }, renderTable(), renderSide(leave), tableDialog());
+}
+
+function renameTableForm(room) {
+  return h(
+    'form',
+    {
+      class: 'row table-rename',
+      onSubmit: (e) => {
+        e.preventDefault();
+        const field = e.currentTarget.elements.namedItem('tableName');
+        const name = field.value.trim();
+        if (!name) return toast(t('err.tableNameRequired'));
+        field.blur();
+        if (name !== tableName(room)) send({ t: 'renameTable', name });
+      },
+    },
+    h('input', {
+      type: 'text',
+      name: 'tableName',
+      'aria-label': t('room.tableName'),
+      maxLength: room.maxNameLength,
+      required: true,
+      value: tableName(room),
+      'data-sync': true,
+    }),
+    h('button', { type: 'submit', class: 'secondary' }, t('room.renameTable')),
+  );
 }
 
 // A seat at the table in the waiting room.
