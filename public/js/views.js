@@ -457,6 +457,11 @@ function renderSide(leaveBtn) {
   );
 }
 
+function purse(info) {
+  if (!info) return null;
+  return h('span', { class: 'purse', title: t('room.coins') }, String(info.coins), coin());
+}
+
 function renderTable() {
   const room = state.room;
   const round = room.round;
@@ -556,6 +561,7 @@ function renderTable() {
           h('strong', null, info ? playerTag(info) : leftName(id, round), info?.away ? ` (${t('player.botPlaying')})` : ''),
           roleMarks(id, round, { reserve: true }),
         ),
+        purse(info),
       ),
       accuseControls(id, info),
       cards,
@@ -717,6 +723,7 @@ function renderTable() {
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
+          purse(room.players.find((player) => player.id === state.you)),
           roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
           accusing && !state.confirmAccuse

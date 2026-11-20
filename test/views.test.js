@@ -228,3 +228,29 @@ test('finished hands reveal each hand and show its total and coin change without
   assert.equal(document.querySelector('.me-panel .result-line .result-total').textContent, 'status.handValue');
   assert.equal(document.querySelector('.me-panel .result-line .delta.pos').textContent, 'result.coins');
 });
+
+test('player balances stay visible beside each seat during a hand and after it ends', async () => {
+  const { render, state, round, document } = await setup();
+  state.room.status = 'playing';
+  state.room.players.push({ id: 'bot', name: 'Bot', connected: true, isBot: true, coins: 37 });
+  state.room.round = round;
+
+  render();
+  assert.equal(document.querySelector('.opp .purse').textContent, '37');
+  assert.equal(document.querySelector('.me-panel .purse').textContent, '50');
+
+  state.room.status = 'between';
+  round.result = {
+    type: 'down',
+    actor: 'host',
+    success: true,
+    names: { host: 'Host', bot: 'Bot' },
+    hands: { host: [0, 1], bot: [2, 3] },
+    totals: { host: 3, bot: 7 },
+    deltas: { host: 5, bot: -5 },
+    winners: ['host'],
+  };
+  render();
+  assert.equal(document.querySelector('.opp .purse').textContent, '37');
+  assert.equal(document.querySelector('.me-panel .purse').textContent, '50');
+});
