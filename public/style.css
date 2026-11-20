@@ -141,7 +141,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .game-actions { margin-left: auto; }
 
 .table-layout { display: grid; grid-template-columns: 1fr clamp(19rem, 22vw, 24rem); gap: 12px; padding: 12px; min-height: 100vh; }
-.table { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.table { display: flex; flex-direction: column; gap: 12px; min-width: 0; container: table / inline-size; }
 .side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 /* Compact side panels so the whole sidebar fits a typical desktop window. */
 .side .panel { margin-bottom: 0; padding: 10px 12px; }
@@ -170,8 +170,31 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   .table { min-height: 0; overflow-y: auto; padding: 4px; margin: -4px; }
   .side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 }
-.opponents { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-.opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 150px; }
+.opponents {
+  --opp-track: minmax(0, 14rem);
+  display: grid; grid-template-columns: var(--opp-track); gap: 12px; justify-content: center;
+}
+.opponents:has(> .opp:nth-child(2)) { grid-template-columns: repeat(2, var(--opp-track)); }
+/* The last opponent sits on the right, even when the last row is incomplete. */
+.opp:is(:nth-child(3), :nth-child(4)):last-child { grid-column: -2; }
+@container table (width < 500px) {
+  /* With four opponents, play goes from bottom left, across the top, then down the right. */
+  .opp:first-child:nth-last-child(4) { grid-area: 2 / 1; }
+  .opp:nth-child(2):not(:nth-last-child(3)),
+  .opp:nth-child(3):nth-last-child(2),
+  .opp:nth-child(4) { --opp-bubble-inline: auto 12px; }
+}
+@container table (width >= 500px) {
+  .opponents:has(> .opp:nth-child(3)) { grid-template-columns: repeat(3, var(--opp-track)); }
+}
+@container table (500px <= width < 660px) {
+  .opp:nth-child(3) { --opp-bubble-inline: auto 12px; }
+}
+@container table (width >= 660px) {
+  .opponents:has(> .opp:nth-child(4)) { grid-template-columns: repeat(4, var(--opp-track)); }
+  .opp:nth-child(4) { --opp-bubble-inline: auto 12px; }
+}
+.opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 0; }
 .opp.turn, .me-panel.turn { outline: 3px solid var(--accent); }
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
 .opp.offline, .opp.away { opacity: 0.5; }
@@ -234,6 +257,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
 .opp { position: relative; }
 .opp-head { display: flex; align-items: center; gap: 8px; }
+.opp-id { overflow-wrap: anywhere; }
 .opp-id { flex: 1; min-width: 0; }
 .role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .opp .role-marks { min-height: calc(0.75rem * 1.6 + 2px); }
@@ -358,9 +382,9 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
   content: ''; position: absolute; width: 10px; height: 10px; background: #e8dfcb; rotate: 45deg;
   top: -6px; left: 16px; border: 1px solid var(--accent); border-right: 0; border-bottom: 0;
 }
-.opp .bubble { top: calc(100% + 8px); left: 12px; }
-.opp:last-child .bubble { left: auto; right: 12px; }
-.opp:last-child .bubble::after { left: auto; right: 16px; }
+.opp:last-child:nth-child(-n+4) { --opp-bubble-inline: auto 12px; }
+.opp .bubble { top: calc(100% + 8px); inset-inline: var(--opp-bubble-inline, 12px auto); }
+.opp .bubble::after { inset-inline: var(--opp-bubble-inline, 12px auto); }
 .me-panel .bubble { bottom: calc(100% + 8px); left: 50%; translate: -50% 0; }
 .me-panel .bubble::after { top: auto; bottom: -6px; left: calc(50% - 5px); border: 1px solid var(--accent); border-left: 0; border-top: 0; }
 @keyframes bubble-in { from { opacity: 0; transform: translateY(4px) scale(0.95); } }
@@ -418,18 +442,15 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
   /* The playable area fills the visible screen; the side panels start below it. */
   .table { gap: 8px; min-height: calc(100vh - 16px); min-height: calc(100dvh - 16px); }
   .center { padding: 0; }
-  .opponents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .opp { padding: 6px 8px; min-width: 0; }
-  .opp-id { overflow-wrap: anywhere; font-size: 0.875rem; }
+  .opponents { gap: 8px; }
+  .opponents:has(> .opp:nth-child(2)) { --opp-track: minmax(0, 1fr); }
+  .opp { padding: 6px 8px; }
+  .opp-id { font-size: 0.875rem; }
   .opp .card.mini { --card-w: calc(28px * var(--card-scale)); --card-h: calc(39px * var(--card-scale)); font-size: calc(11px * var(--card-scale)); }
   .opp .cards { gap: 1px; }
   .opp .melds { gap: 4px; margin-top: 6px; }
   .opp .meld { padding: 4px; }
   .opp .meld .cards { gap: 1px; }
-  .opp:nth-child(odd) .bubble { left: 8px; right: auto; }
-  .opp:nth-child(even) .bubble { left: auto; right: 8px; }
-  .opp:nth-child(odd) .bubble::after { left: 16px; right: auto; }
-  .opp:nth-child(even) .bubble::after { left: auto; right: 16px; }
   .me-panel { padding: 8px; }
   .status { font-size: 1rem; }
   .hand { padding: 14px 0 4px; }
