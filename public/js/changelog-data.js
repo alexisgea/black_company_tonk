@@ -7,6 +7,7 @@ export const CHANGELOG = [
       'Hosts can rename their table before starting the game.',
       'Leave table and Start game now sit below the table name. Starting the game scrolls back to the top.',
       'The four lobby footer buttons stay in one row or a two-by-two grid. The waiting room has smaller rule checkboxes and no emote button.',
+      'The end-of-hand summary panel is gone again. Each player’s revealed cards show their hand total and coin change at their seat; the result and Deal next hand controls remain by the piles.',
     ],
   },
   {

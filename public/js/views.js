@@ -6,7 +6,7 @@ import { cardEl, cardLabel } from './theme.js';
 import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
-import { nameTag, roleMarks, wentDownMark } from './name-tag.js';
+import { nameTag, roleMarks } from './name-tag.js';
 import { avatar } from './avatar.js';
 import { coin } from './coin.js';
 import { botLabel } from './bot-picker.js';
@@ -525,7 +525,8 @@ function renderTable() {
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
     const cards = h('div', { class: 'cards' + (p.count > TIGHT_FROM ? ' tight' : '') });
-    if (p.hand) p.hand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
+    const revealedHand = over ? round.result.hands[id] : p.hand;
+    if (revealedHand) revealedHand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
     else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
     return h(
       'div',
@@ -558,6 +559,7 @@ function renderTable() {
       ),
       accuseControls(id, info),
       cards,
+      over ? resultLine(round, id) : null,
       meldsOf(id),
       bubbleEl(id),
     );
@@ -711,7 +713,6 @@ function renderTable() {
       { class: 'center' },
       h('div', { class: 'center-stack' }, h('div', { class: 'piles' }, deck, discard), over ? renderResult(round) : null),
     ),
-    over ? renderSummary(round) : null,
     inHand
       ? h(
           'div',
@@ -739,7 +740,7 @@ function renderTable() {
           turnTimerLine(myTurn),
           awayNotice(),
           meldsOf(state.you),
-          h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
+          over ? resultLine(round, state.you) : h('div', { class: 'hand-value' }, t('status.handValue', { total: me.total })),
           h('div', { class: 'hand' }, handEls),
           over ? null : tonkPhase ? tonkControls : controls,
           emoteSlot(),
@@ -822,30 +823,7 @@ setInterval(() => {
   if (retry) retry.textContent = retryText();
 }, 250);
 
-// Keep all the final hands together, including players who have since left or gone broke.
-function renderSummary(round) {
-  const r = round.result;
-  return h(
-    'div',
-    { class: 'panel hand-summary' },
-    h('h3', null, t('result.summary')),
-    round.order.map((id) =>
-      h(
-        'div',
-        { class: 'hand-row', 'data-player': id },
-        h('span', { class: 'who' }, nameTag(leftName(id, round), { bot: !!r.bots?.[id] }), wentDownMark(id, round)),
-        h(
-          'div',
-          { class: 'cards' },
-          r.hands[id].map((c) => cardEl(c, { size: 'mini' })),
-        ),
-        resultLine(round, id),
-      ),
-    ),
-  );
-}
-
-// Hand total and coins won or lost in the summary.
+// Hand total and coins won or lost, shown alongside a player's revealed cards once the hand is over.
 function resultLine(round, id) {
   const r = round.result;
   const delta = r.deltas[id] ?? 0;

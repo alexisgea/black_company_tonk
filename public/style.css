@@ -230,12 +230,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .center-stack { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .result { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; max-width: 28rem; }
 .result-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.875rem; margin-top: 4px; }
-.hand-summary { margin-bottom: 0; }
-.hand-summary h3 { margin: 0 0 10px; }
-.hand-summary .hand-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
-.hand-summary .who { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex: 0 1 12rem; overflow-wrap: anywhere; }
-.hand-summary .cards { display: flex; gap: 3px; flex-wrap: wrap; }
-.hand-summary .result-line { margin: 0; }
+.me-panel .result-line { justify-content: center; font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
 .result-cheats { font-size: 0.875rem; }
 .accuse-row { margin-top: 6px; }
 .accuse-text { margin: 0 0 4px; font-size: 0.8125rem; }

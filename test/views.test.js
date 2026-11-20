@@ -201,10 +201,11 @@ test('the waiting room lets the host submit a table name but hides the editor fr
   assert.equal(document.querySelector('input[name="tableName"]'), null);
 });
 
-test('hand summaries put the went-down chip beside its actor, including a failed go-down', async () => {
+test('finished hands reveal each hand and show its total and coin change without a summary panel', async () => {
   const { render, state, round, document } = await setup();
   state.room.status = 'between';
   state.room.round = round;
+  round.players.bot.hand = null;
   round.result = {
     type: 'down',
     actor: 'host',
@@ -216,11 +217,14 @@ test('hand summaries put the went-down chip beside its actor, including a failed
     winners: ['host'],
   };
   render();
-  const actor = () => document.querySelector('.hand-summary [data-player="host"]');
-  assert.equal(actor().querySelector('.who .went-down.won').textContent, 'mark.wentDown');
-  assert.equal(document.querySelector('.hand-summary [data-player="bot"] .went-down'), null);
-  assert.ok(actor().querySelector('.cards + .result-line'));
-  round.result.success = false;
-  render();
-  assert.equal(actor().querySelector('.who .went-down.caught').textContent, 'mark.caught');
+  assert.equal(document.querySelector('.hand-summary'), null);
+  assert.equal(document.querySelectorAll('.opp .cards .card').length, 2);
+  assert.deepEqual(
+    Array.from(document.querySelectorAll('.opp .cards .card'), (card) => card.textContent),
+    ['2', '3'],
+  );
+  assert.equal(document.querySelector('.opp .result-line .result-total').textContent, 'status.handValue');
+  assert.equal(document.querySelector('.opp .result-line .delta.neg').textContent, 'result.coins');
+  assert.equal(document.querySelector('.me-panel .result-line .result-total').textContent, 'status.handValue');
+  assert.equal(document.querySelector('.me-panel .result-line .delta.pos').textContent, 'result.coins');
 });
