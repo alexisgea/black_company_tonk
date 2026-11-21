@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.50.0',
+    date: '2026-11-21',
+    changes: [
+      'Cheating bots can make up a card to complete a spread, and only palm a card when their new hand size matches another player.',
+      'The cheating table rule now explains where to find accusations.',
+    ],
+  },
+  {
     version: '0.49.0',
     date: '2026-11-20',
     changes: ['Each player’s current coin balance now appears beside their seat throughout the game.'],

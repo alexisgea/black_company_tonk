@@ -691,8 +691,8 @@ test('cheating: an honest character never cheats, however the dice fall', () => 
 
 test('cheating: a cheater adds a card to a spread it does not fit, or palms its dearest card, at the start or the end of its turn', () => {
   const hand = [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')];
-  assert.deepEqual(act(cheater({ hand })), { type: 'cheatPalm', card: c(13, 'S') });
-  assert.deepEqual(act(cheater({ hand, phase: 'draw' })), { type: 'cheatPalm', card: c(13, 'S') });
+  assert.deepEqual(act(cheater({ hand, counts: { b: 3, c: 5 } })), { type: 'cheatPalm', card: c(13, 'S') });
+  assert.deepEqual(act(cheater({ hand, phase: 'draw', counts: { b: 3, c: 5 } })), { type: 'cheatPalm', card: c(13, 'S') });
 
   const run = { id: 1, owner: 'b', type: 'run', cards: [c(5, 'H'), c(6, 'H'), c(7, 'H')] };
   assert.deepEqual(act(cheater({ hand: [c(8, 'D'), c(13, 'S'), c(2, 'C')], melds: [run] }, 1, { focus: 1 })), {
@@ -707,7 +707,7 @@ test('cheating: a cheater adds a card to a spread it does not fit, or palms its 
 });
 
 test('cheating: it cheats once a turn at most, and never with too few cards', () => {
-  const s = cheater({ hand: [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')] });
+  const s = cheater({ hand: [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')], counts: { b: 3, c: 5 } });
   assert.equal(act(s).type, 'cheatPalm');
   s.mind.cheated();
   assert.equal(act(s).type, 'discard');
@@ -715,7 +715,7 @@ test('cheating: it cheats once a turn at most, and never with too few cards', ()
 });
 
 test('cheating: palming into a low total does not lead to going down until a later turn', () => {
-  const s = cheater({ hand: [c(13, 'S'), c(3, 'C'), c(4, 'D')], phase: 'draw', top: c(8, 'H') });
+  const s = cheater({ hand: [c(13, 'S'), c(3, 'C'), c(4, 'D')], phase: 'draw', top: c(8, 'H'), counts: { b: 2, c: 5 } });
   assert.deepEqual(act(s), { type: 'cheatPalm', card: c(13, 'S') });
   s.view.players.a.hand = [c(3, 'C'), c(4, 'D')];
   s.view.players.a.count = 2;
@@ -723,6 +723,21 @@ test('cheating: palming into a low total does not lead to going down until a lat
   assert.ok(['draw', 'takeDiscard'].includes(act(s).type), 'the bot continues its turn instead of going down');
   s.mind.observe({ type: 'discard', pid: 'a', card: c(9, 'D') });
   assert.equal(act(s).type, 'goDown', 'a low hand can go down on a later turn');
+});
+
+test('cheating: a bot only palms when another player has the resulting count', () => {
+  const hand = [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')];
+  for (const phase of ['draw', 'play']) {
+    assert.notEqual(act(cheater({ hand, phase, counts: { b: 4, c: 5 } })).type, 'cheatPalm');
+    assert.equal(act(cheater({ hand, phase, counts: { b: 4, c: 3 } })).type, 'cheatPalm');
+  }
+});
+
+test('cheating: a bot makes up a card to put down a spread, even if it holds the matching card', () => {
+  const hand = [c(5, 'H'), c(6, 'H'), c(7, 'H'), c(13, 'S')];
+  const move = act(cheater({ hand }));
+  assert.deepEqual(move, { type: 'cheatMeld', cards: hand.slice(0, 2), card: hand[2] });
+  assert.equal(act(cheater({ hand }, 0)).type, 'meld');
 });
 
 test('cheating: it takes the card under the top discard when it remembers that one and it helps', () => {

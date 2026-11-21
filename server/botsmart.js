@@ -318,8 +318,10 @@ function cheatDraw(sight) {
       return { type: 'cheatTakeUnder' };
     }
   }
-  return hand.length >= 3 && mind.rng() < 0.5 ? palm(hand, trace) : null;
+  return canPalm(sight) && mind.rng() < 0.5 ? palm(hand, trace) : null;
 }
+
+const canPalm = ({ hand, opponents, view }) => hand.length >= 3 && opponents.some((id) => view.players[id].count === hand.length - 1);
 
 function palm(hand, trace) {
   const dearest = byValueDesc(hand)[0];
@@ -337,7 +339,24 @@ function cheatPlay(sight) {
     trace?.push(`Cheats: adds ${label(layoff.card)} to a spread it does not fit.`);
     return { type: 'cheatLayoff', ...layoff };
   }
-  return hand.length >= 3 ? palm(hand, trace) : null;
+  return canPalm(sight) ? palm(hand, trace) : null;
+}
+
+function cheatMeld(sight) {
+  const { hand, mind, trace } = sight;
+  if (hand.length < 3 || !mind.chance('cheat', mind.cheatChance)) return null;
+  for (let i = 0; i < hand.length; i++) {
+    for (let j = i + 1; j < hand.length; j++) {
+      const cards = [hand[i], hand[j]];
+      for (const card of [...hand, ...Array(52).keys()]) {
+        if (classifyMeld([...cards, card])) {
+          trace?.push(`Cheats: puts down ${labels(cards)} with a made-up ${label(card)}.`);
+          return { type: 'cheatMeld', cards, card };
+        }
+      }
+    }
+  }
+  return null;
 }
 
 function drawPhase(sight) {
@@ -377,6 +396,8 @@ function playPhase(sight) {
     trace?.push(`Adds ${label(layoff.card)} to a spread on the table.`);
     return { type: 'layoff', ...layoff };
   }
+  const fakeMeld = cheatMeld(sight);
+  if (fakeMeld) return fakeMeld;
   const meld = findMeld(hand);
   if (meld) {
     trace?.push(`Puts down a spread: ${labels(meld)}.`);

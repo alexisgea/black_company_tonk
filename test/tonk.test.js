@@ -322,18 +322,65 @@ test('a round remembers who dealt and who plays first, even when seats change', 
 
 const hearts = () => ({ id: 1, owner: 'b', type: 'run', cards: [c(5, 'H'), c(6, 'H'), c(7, 'H')] });
 
-test('cheat: palming takes the card out of the game without a trace in the events, before or after drawing, and needs three cards', () => {
-  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
+test('cheat: palming requires a matching opponent count and at least three cards, before or after drawing', () => {
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C'), c(6, 'C')] }, phase: 'play' });
   assert.deepEqual(T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') }), []);
   assert.deepEqual(r.hands.a, [c(2, 'C'), c(5, 'H')]);
   assert.equal(r.discard.length, 1);
   assert.deepEqual(r.cheats, [{ pid: 'a', kind: 'palm', card: c(9, 'S') }]);
   assert.throws(() => T.applyAction(r, 'a', { type: 'cheatPalm', card: c(2, 'C') }), T.GameError);
 
-  const early = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] } });
+  const early = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C'), c(6, 'C')] } });
   T.applyAction(early, 'a', { type: 'cheatPalm', card: c(9, 'S') });
   assert.equal(early.phase, 'draw', 'it is still the draw phase');
   assert.equal(early.hands.a.length, 2);
+
+  const unmatched = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')], d: [c(6, 'C')] } });
+  const before = JSON.stringify(unmatched);
+  assert.throws(() => T.applyAction(unmatched, 'a', { type: 'cheatPalm', card: c(9, 'S') }), T.GameError);
+  assert.equal(JSON.stringify(unmatched), before);
+});
+
+test('cheat: a made-up card completes a spread while only two cards leave the hand', () => {
+  const real = [c(5, 'H'), c(6, 'H')];
+  const fake = c(7, 'H');
+  const r = makeRound({
+    hands: { a: [...real, c(13, 'S')], b: [c(5, 'C')] },
+    melds: [{ id: 1, owner: 'b', type: 'run', cards: [fake, c(8, 'H'), c(9, 'H')] }],
+    phase: 'play',
+  });
+  assert.deepEqual(T.applyAction(r, 'a', { type: 'cheatMeld', cards: real, card: fake }), [
+    { type: 'meld', pid: 'a', kind: 'run', cards: [...real, fake] },
+  ]);
+  assert.deepEqual(r.hands.a, [c(13, 'S')]);
+  assert.equal(r.melds.flatMap((m) => m.cards).filter((card) => card === fake).length, 2);
+  assert.equal(T.viewRound(r, 'b').result, null);
+  assert.equal(T.accuse(r, 'b', 'a'), true);
+  assert.deepEqual(r.result.cheats, [{ pid: 'a', kind: 'meld', card: fake }]);
+
+  const held = makeRound({ hands: { a: [...real, fake], b: [c(5, 'C')] }, phase: 'play' });
+  T.applyAction(held, 'a', { type: 'cheatMeld', cards: real, card: fake });
+  assert.deepEqual(held.hands.a, [fake]);
+  assert.equal(held.result, null);
+});
+
+test('cheat: a made-up spread rejects invalid or unheld cards and cannot empty the hand', () => {
+  const make = (phase = 'play') => makeRound({ hands: { a: [c(5, 'H'), c(6, 'H'), c(13, 'S')], b: [c(5, 'C')] }, phase });
+  const action = { type: 'cheatMeld', cards: [c(5, 'H'), c(6, 'H')], card: c(7, 'H') };
+  for (const [round, move] of [
+    [make('draw'), action],
+    [make(), { ...action, cards: [c(6, 'H'), c(8, 'H')] }],
+    [make(), { ...action, card: c(9, 'H') }],
+    [make(), { ...action, cards: [c(5, 'H'), c(5, 'H')] }],
+    [make(), { ...action, card: 52 }],
+  ]) {
+    const before = JSON.stringify(round);
+    assert.throws(() => T.applyAction(round, 'a', move), T.GameError);
+    assert.equal(JSON.stringify(round), before);
+  }
+  const short = make();
+  short.hands.a.pop();
+  assert.throws(() => T.applyAction(short, 'a', action), T.GameError);
 });
 
 test('cheat: a card of the other suit of the same colour, or one with a rank skipped, can be added to a run; nothing else', () => {
@@ -376,7 +423,7 @@ test('cheating prevents going down that turn, but not on a later turn', () => {
 });
 
 test('taking over a cheater keeps the go-down restriction, but removing that seat clears it for the next player', () => {
-  const r = makeRound({ hands: { a: [c(13, 'S'), c(3, 'C'), c(4, 'D')], b: [c(5, 'C')], d: [c(6, 'C')] } });
+  const r = makeRound({ hands: { a: [c(13, 'S'), c(3, 'C'), c(4, 'D')], b: [c(5, 'C'), c(7, 'C')], d: [c(6, 'C')] } });
   T.applyAction(r, 'a', { type: 'cheatPalm', card: c(13, 'S') });
   T.renamePlayer(r, 'a', 'guest');
   assert.throws(() => T.applyAction(r, 'guest', { type: 'goDown' }), { code: 'goDownAfterCheat' });
@@ -396,7 +443,7 @@ test('cheat: taking the card under the top discard leaves the top where it is', 
 });
 
 test('accuse: right ends the hand and the cheater pays everybody double, wrong changes nothing, and cheats are revealed at the end', () => {
-  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')], d: [c(6, 'C')] }, phase: 'play' });
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C'), c(7, 'C')], d: [c(6, 'C')] }, phase: 'play' });
   T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') });
   assert.equal(T.accuse(r, 'b', 'd'), false);
   assert.equal(r.result, null);
@@ -407,7 +454,7 @@ test('accuse: right ends the hand and the cheater pays everybody double, wrong c
   assert.deepEqual(r.result.cheats, [{ pid: 'a', kind: 'palm', card: c(9, 'S') }]);
   assert.throws(() => T.accuse(r, 'b', 'a'), T.GameError, 'the hand is over');
 
-  const quiet = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')] }, phase: 'play' });
+  const quiet = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C'), c(7, 'C')] }, phase: 'play' });
   T.applyAction(quiet, 'a', { type: 'cheatPalm', card: c(9, 'S') });
   T.applyAction(quiet, 'a', { type: 'discard', card: c(5, 'H') });
   T.applyAction(quiet, 'b', { type: 'goDown' });
@@ -415,7 +462,7 @@ test('accuse: right ends the hand and the cheater pays everybody double, wrong c
 });
 
 test('a cheat follows the seat when a guest takes over, and goes with a player who leaves', () => {
-  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C')], d: [c(6, 'C')] }, phase: 'play' });
+  const r = makeRound({ hands: { a: [c(9, 'S'), c(2, 'C'), c(5, 'H')], b: [c(5, 'C'), c(7, 'C')], d: [c(6, 'C')] }, phase: 'play' });
   T.applyAction(r, 'a', { type: 'cheatPalm', card: c(9, 'S') });
   T.renamePlayer(r, 'a', 'z');
   assert.equal(r.cheats[0].pid, 'z');

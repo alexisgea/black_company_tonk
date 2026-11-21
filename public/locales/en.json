@@ -110,6 +110,7 @@
   "result.caught": "{accuser} caught {name} cheating! {name} pays everyone double.",
   "result.cheat.layoffGap": "{name} added the {card} to a run with a rank skipped.",
   "result.cheat.layoffSuit": "{name} added the {card} to a run of another suit.",
+  "result.cheat.meld": "{name} made up the {card} in a spread.",
   "result.cheat.palm": "{name} palmed the {card}.",
   "result.cheat.takeUnder": "{name} took the {card} from under the top of the discard pile.",
   "result.cheatsRevealed": "Cheating nobody caught:",
@@ -154,7 +155,7 @@
   "tableRules.dynamicTable.label": "Dynamic table",
   "tableRules.dynamicTable.hint": "Bots that lose their last coin are replaced by new ones, and now and then a bot leaves and another sits down.",
   "tableRules.cheating.label": "Cheating",
-  "tableRules.cheating.hint": "Some bots cheat now and then and you can accuse them: right and the hand stops and the cheater pays everyone double, wrong and you pay the accused double.",
+  "tableRules.cheating.hint": "Some bots cheat now and then. To accuse someone, open Emotes during a hand: right and the hand stops and the cheater pays everyone double, wrong and you pay the accused double.",
   "tableRules.outOfCoins": "Run out of coins and you are out of the game.",
 
   "log.accuse": "{who}: “{target}, you filthy cheater!”",
@@ -544,7 +545,7 @@
   "rules.cheating.items": [
     "Some bots cheat now and then, unless the host switched cheating off. A cheat is never announced: you have to notice it, and nothing in the log says it happened.",
     "A player cannot cheat and go down in the same turn. After cheating, they must finish their turn normally and wait for a later turn to go down.",
-    "What to look for: a hand with fewer cards than it should have (5, plus every card drawn, minus every card discarded or put down); a card added to a run in another suit, or with a rank skipped (4-5-7); someone taking a card from the discard pile when the top card is still the same one afterwards (the log only says they took the top discard).",
+    "What to look for: a hand with the wrong number of cards (5, plus every card drawn, minus every card discarded or put down); a spread containing a made-up card, possibly identical to another visible card; a card added to a run in another suit, or with a rank skipped (4-5-7); someone taking a card from the discard pile when the top card is still the same one afterwards (the log only says they took the top discard).",
     "Accuse: open “Emotes” on your hand panel and pick “Accuse someone of cheating…”, then click the player you suspect and confirm. If they cheated at any point during this hand, the hand stops and they pay every other player double (2 bets). If they did not, you pay them double (2 bets) and the hand goes on.",
     "A cheat nobody caught is revealed when the hand ends, and nothing is paid for it."
   ],

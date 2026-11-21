@@ -523,10 +523,13 @@ test('only a bot at a table with cheating on can cheat, and a cheat leaves nothi
     return { type: 'cheatPalm', card: room.round.hands[user.id][0] };
   };
   assert.throws(() => room.act(host, play(host)), /Unknown action/);
+  assert.throws(() => room.act(host, { type: 'cheatMeld' }), /Unknown action/);
   room.settings.cheating = false;
   assert.throws(() => room.act(bot, play(bot)), /Unknown action/);
+  assert.throws(() => room.act(bot, { type: 'cheatMeld' }), /Unknown action/);
   room.settings.cheating = true;
   const logged = room.log.length;
+  room.round.hands[host.id].pop();
   room.act(bot, play(bot));
   assert.equal(room.round.cheats.length, 1);
   assert.equal(room.log.length, logged);

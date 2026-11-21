@@ -12,7 +12,7 @@ const MAX_PLAYERS = 5;
 const PAY_CAUGHT_CHEATING = 2; // a caught cheater pays every other player this much; a wrong accuser pays the accused the same
 // Cheats are moves a computer player may make besides the honest ones. They leave no entry in the log (only the
 // ordinary ones for what physically happened), so the table can only notice them. See applyAction.
-const CHEAT_ACTIONS = new Set(['cheatPalm', 'cheatLayoff', 'cheatTakeUnder']);
+const CHEAT_ACTIONS = new Set(['cheatPalm', 'cheatLayoff', 'cheatTakeUnder', 'cheatMeld']);
 
 // An illegal move or request. `code` names the English message under "err." in public/locales/en.json; the
 // client translates it from the code and `params`, and shows `message` (English) when it does not know the code.
@@ -269,8 +269,22 @@ function applyAction(round, pid, action) {
       const card = action.card;
       if (!isCard(card) || !round.hands[pid].includes(card)) throw new GameError('cardNotHeld');
       if (round.hands[pid].length < 3) throw new GameError('badAction');
+      if (!round.order.some((id) => id !== pid && round.hands[id].length === round.hands[pid].length - 1)) throw new GameError('badAction');
       takeFromHand(round, pid, [card]);
       recordCheat(round, pid, 'palm', { card });
+      break;
+    }
+    case 'cheatMeld': {
+      if (round.phase !== 'play') throw new GameError('drawFirst');
+      const { cards, card } = action;
+      if (!Array.isArray(cards) || cards.length !== 2 || !isCard(card)) throw new GameError('invalidCards');
+      const meld = classifyMeld([...cards, card]);
+      if (!meld) throw new GameError('invalidMeld');
+      if (round.hands[pid].length < 3) throw new GameError('badAction');
+      takeFromHand(round, pid, cards);
+      round.melds.push({ id: round.nextMeldId++, owner: pid, ...meld });
+      events.push({ type: 'meld', pid, kind: meld.type, cards: meld.cards });
+      recordCheat(round, pid, 'meld', { card });
       break;
     }
     case 'cheatLayoff': {
