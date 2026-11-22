@@ -98,7 +98,7 @@ test('every message key the client code uses exists in English', () => {
   const { EMOTES } = require('../server/emotes');
   for (const id of EMOTES) {
     assert.ok(`emote.${id}` in en, `emote ${id}`);
-    assert.ok(Array.from(en[`emote.${id}`]).length <= 80, `"${id}" is too long for a speech bubble`);
+    assert.match(en[`emote.${id}`], /^\S+$/, `"${id}" must be a single-word keyword`);
   }
   for (const tone of TONES)
     for (const situation of SITUATIONS) {
