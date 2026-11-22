@@ -148,7 +148,7 @@ Both are multiplied by the character's `moodSwing`, so a steady bot (Silent, Hag
 
 ## Cheating
 
-Some characters cheat now and then (a table can switch it off, see below). It is a separate number, `cheat` (0 to 1, left out = never), not one of the seven skill knobs: the level does not touch it and `dev:balance` and `dev:sensitivity` ignore it. Each turn a bot with a `cheat` has a `CHEAT_RATE * cheat` chance (5% at most, rolled once per turn, and it never cheats twice in a turn) of trying one cheat. At the moment One-Eye (1), Willow Swan (0.6), Goblin (0.4) and Cordy (0.2) cheat; everybody else is honest. Over a few thousand hands One-Eye cheated in about one hand in eight and Cordy in one in forty.
+Some characters cheat now and then (a table can switch it off, see below). It is a separate number, `cheat` (0 to 1, left out = never), not one of the seven skill knobs: the level does not touch it and `dev:balance` and `dev:sensitivity` ignore it. Each turn a bot with a `cheat` has a `CHEAT_RATE * cheat` chance (1% at most, rolled once per turn, and it never cheats twice in a turn) of trying one cheat. At the moment One-Eye (1), Willow Swan (0.6), Goblin (0.4) and Cordy (0.2) cheat; everybody else is honest. With this rate, One-Eye will attempt a cheat roughly once every 100 turns and Cordy roughly once every 500 turns.
 
 The cheats, and what a human can see of them. **A cheat never gets a log line of its own**: the log only shows what physically happened, and it is up to the players to notice. (For the same reason the log never names the card taken from the discard pile: it just says the player took the top discard, and bots read it the same way.)
 

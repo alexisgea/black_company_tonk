@@ -24,7 +24,7 @@
 // A character may also have a `cheat` (0 to 1, left out = 0 = never): how inclined it is to bend the rules. It is not a
 // skill knob (the balance and sensitivity tools ignore it, and the level does not touch it) and only matters when the
 // table has cheating switched on. Each turn it has a chance of CHEAT_RATE * cheat to try one cheat (see cheatMove in
-// botsmart.js), so even the worst offender cheats only now and then.
+// botsmart.js), so even the worst offender cheats only rarely.
 //
 // Each entry also has a `rank` (rookie, regular, veteran or expert): a label for how strong the character is compared
 // with the others. It is not a knob and changes nothing in the game. Set it by hand, and keep it in line with the

@@ -684,6 +684,14 @@ test('think time follows the difficulty of the move: a close call takes longer t
 // Every roll comes up 0: a cheater feels like cheating, and picks the first of its options.
 const cheater = (state, cheat = 1, values = {}) => setup(state, { cheat, ...values }, () => 0);
 
+test('cheating: the maximum attempt chance is one percent per turn', () => {
+  const below = new Mind('a', profile({ cheat: 1 }), () => 0.009);
+  const above = new Mind('a', profile({ cheat: 1 }), () => 0.011);
+  assert.equal(below.cheatChance, 0.01);
+  assert.equal(below.chance('cheat', below.cheatChance), true);
+  assert.equal(above.chance('cheat', above.cheatChance), false);
+});
+
 test('cheating: an honest character never cheats, however the dice fall', () => {
   const s = cheater({ hand: [c(13, 'S'), c(9, 'D'), c(2, 'H'), c(3, 'C')] }, 0);
   assert.equal(act(s).type, 'discard');

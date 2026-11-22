@@ -67,7 +67,7 @@ const BOLD_MARGIN = 0.25; // bets per opponent knocked off the go-down margin pe
 const DESPERATION_WEIGHT = 0.6; // boldness added when the bot has lost all its coins relative to the others (scales linearly with how far behind)
 
 // --- Cheating (a character's `cheat` number lives in botprofiles.js; see cheatMove in botsmart.js) ---
-const CHEAT_RATE = 0.05; // the chance per turn that a bot with a cheat of 1 tries a cheat (a cheat of 0.4 has 0.4 times this)
+const CHEAT_RATE = 0.01; // the chance per turn that a bot with a cheat of 1 tries a cheat (a cheat of 0.4 has 0.4 times this)
 
 // --- Pace (see Lobby.thinkMs) ---
 const THINK_DRAW = 1.3; // drawing or taking the discard is thought about a little longer...
