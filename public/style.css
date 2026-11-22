@@ -329,6 +329,8 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
   .lobby-footer-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .tbl-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tbl-seats .tbl-player { height: 3.4rem; }
+.tbl-seats .tbl-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.2; }
 .tbl-player .bot-pop { top: 100%; left: auto; right: 0; transform: none; }
 .kick-btn { flex: none; padding: 3px 10px; font-size: 0.8125rem; }
 .tbl-bots { margin-top: 8px; }

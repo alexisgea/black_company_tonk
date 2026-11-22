@@ -19,7 +19,13 @@ async function setup(status) {
     you: 'host',
     tableDialog: true,
     confirmKick: null,
-    room: { hostId: 'host', status, players: [{ id: 'host', name: 'Host', connected: true }, bot], spectators: [guest] },
+    room: {
+      hostId: 'host',
+      status,
+      maxPlayers: 5,
+      players: [{ id: 'host', name: 'Host', connected: true }, bot],
+      spectators: [guest],
+    },
   };
   const sent = [];
   globalThis.tableDialogTest = {
@@ -43,7 +49,7 @@ async function setup(status) {
   delete globalThis.tableDialogTest;
   const draw = () => {
     document.getElementById('app').replaceChildren(mod.tableDialog());
-    return [...document.querySelectorAll('.tbl-player')];
+    return [...document.querySelectorAll('.tbl-player:not(.tbl-empty)')];
   };
   return { ...mod, state, sent, draw, document };
 }
@@ -65,10 +71,39 @@ test('waiting-room bots are removed immediately, but human kicks still ask first
   assert.deepEqual(sent[1], { t: 'kick', id: 'guest' });
 });
 
+test('waiting-room seats stay visible as bots are added and removed', async () => {
+  const { state, draw, document } = await setup('waiting');
+  const checkSeats = (emptyCount) => {
+    draw();
+    const emptySeats = [...document.querySelectorAll('.tbl-empty')];
+    assert.equal(emptySeats.length, emptyCount);
+    assert.ok(emptySeats.every((seat) => seat.textContent === 'room.emptySeat'));
+    assert.equal(document.querySelectorAll('.tbl-player').length, state.room.maxPlayers + state.room.spectators.length);
+    assert.ok(
+      emptySeats.every(
+        (seat) =>
+          seat.compareDocumentPosition(document.querySelector('.test-bot-grid')) & document.defaultView.Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    );
+  };
+  checkSeats(3);
+  state.room.players.push({ id: 'bot2', name: 'Bot 2', isBot: true, connected: true });
+  checkSeats(2);
+  state.room.players.pop();
+  checkSeats(3);
+  state.room.players.push(
+    { id: 'bot2', name: 'Bot 2', isBot: true, connected: true },
+    { id: 'bot3', name: 'Bot 3', isBot: true, connected: true },
+    { id: 'bot4', name: 'Bot 4', isBot: true, connected: true },
+  );
+  checkSeats(0);
+});
+
 test('in-game settings include invites and guest kicks, without allowing bot removal during play', async () => {
   const { state, sent, draw, tableDialogButton, document } = await setup('playing');
   assert.equal(tableDialogButton().textContent, 'tableDialog.title');
   let rows = draw();
+  assert.equal(document.querySelectorAll('.tbl-empty').length, 0);
   assert.ok(document.querySelector('.test-invite'));
   assert.equal(rows[1].querySelector('button'), null);
   rows[2].querySelector('button').click();

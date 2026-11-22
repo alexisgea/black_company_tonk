@@ -79,7 +79,10 @@ function playerRow(p) {
     avatar({ small: true }),
     h(
       'span',
-      { class: 'tbl-name' },
+      {
+        class: 'tbl-name',
+        title: room.status === 'waiting' ? [playerName(p), p.isBot ? botLabel(p.botId) : ''].filter(Boolean).join(' - ') : null,
+      },
       nameTag(playerName(p), { bot: p.isBot, host: p.id === room.hostId }),
       p.id === state.you ? ` ${t('player.you')}` : '',
       p.connected ? '' : ` (${t('player.offline')})`,
@@ -109,7 +112,21 @@ export function tableDialog() {
       ),
       room.status !== 'waiting' ? h('div', { class: 'tbl-invite' }, invitePanel(isHost)) : null,
       h('h3', null, t('room.players')),
-      room.players.map(playerRow),
+      h(
+        'div',
+        { class: room.status === 'waiting' ? 'tbl-seats' : null },
+        room.players.map(playerRow),
+        room.status === 'waiting'
+          ? Array.from({ length: Math.max(0, room.maxPlayers - room.players.length) }, () =>
+              h(
+                'div',
+                { class: 'tbl-player tbl-empty' },
+                avatar({ small: true, empty: true }),
+                h('span', { class: 'muted' }, t('room.emptySeat')),
+              ),
+            )
+          : null,
+      ),
       room.spectators.length ? h('h3', null, t('room.watching')) : null,
       room.spectators.map(playerRow),
       isHost
