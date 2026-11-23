@@ -523,6 +523,8 @@ function renderTable() {
   const room = state.room;
   const round = room.round;
   const me = round.players[state.you];
+  const myInfo = room.players.find((player) => player.id === state.you);
+  const myPortrait = portraitSrc({ botId: myInfo?.botId, portraitId: myInfo?.portraitId });
   const inHand = !!me;
   const over = !!round.result;
   const tonkPhase = !over && round.phase === 'tonk';
@@ -613,13 +615,13 @@ function renderTable() {
       h(
         'div',
         { class: 'opp-head' },
-        roleMarks(id, round, { reserve: true }),
         h(
           'div',
           { class: 'opp-id' },
           h('strong', null, info ? playerTag(info) : leftName(id, round), info?.away ? ` (${t('player.botPlaying')})` : ''),
           purse(info),
         ),
+        roleMarks(id, round, { reserve: true }),
       ),
       accuseControls(id, info),
       cards,
@@ -781,7 +783,8 @@ function renderTable() {
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
-          purse(room.players.find((player) => player.id === state.you)),
+          myPortrait ? h('img', { class: 'me-portrait', src: myPortrait, alt: '', 'aria-hidden': 'true' }) : null,
+          purse(myInfo),
           roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
           accusing && !state.confirmAccuse
