@@ -147,7 +147,7 @@ test('leaving a waiting, playing or watched table requires confirmation and supp
 });
 
 test('emotes are absent in the waiting room and available on the hand panel during play', async () => {
-  const { render, state, round, chat, setEmotes, sent, document, persistent } = await setup();
+  const { render, state, round, chat, chatText, setEmotes, sent, document, persistent } = await setup();
   setEmotes(['wellPlayed'], 4000);
   render();
   assert.equal(document.querySelector('.emote-toggle'), null);
@@ -155,6 +155,8 @@ test('emotes are absent in the waiting room and available on the hand panel duri
   state.room.round = round;
   render();
   assert.equal(document.querySelector('.me-panel .emote-controls'), persistent.get('emotes'));
+  assert.equal(chat.emoteBox.querySelector('.emote').textContent, 'emoteButton.wellPlayed');
+  assert.equal(chatText({ kind: 'emote', emote: 'wellPlayed', text: 'fallback' }), 'emote.wellPlayed');
   chat.emoteToggle.click();
   assert.equal(chat.emoteBox.hidden, false);
   chat.emoteBox.querySelector('.emote').click();

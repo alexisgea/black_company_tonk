@@ -87,7 +87,7 @@ export function setEmotes(ids, cooldownMs = 0) {
             coolDownEmotes();
           },
         },
-        t(`emote.${id}`),
+        t(`emoteButton.${id}`),
       ),
     ),
     chat.accuseEntry,

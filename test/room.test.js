@@ -293,7 +293,7 @@ test('an emote is a premade line in the chat, for members only and only from the
   const a = human('Ann');
   room.join(a);
   const msg = room.addEmote(a, 'hello');
-  assert.deepEqual([msg.kind, msg.emote, msg.text], ['emote', 'hello', 'Hello']);
+  assert.deepEqual([msg.kind, msg.emote, msg.text], ['emote', 'hello', 'Hello there.']);
   assert.equal(room.chat.at(-1), msg);
   assert.throws(() => room.addEmote(a, 'nope'), /Unknown quick word/);
   assert.throws(() => room.addEmote(human('Stranger'), 'hello'), /Not at this table/);

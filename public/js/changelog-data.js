@@ -1,9 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.54.1',
+    date: '2026-11-23',
+    changes: ['Emote buttons now use short keywords while chat messages keep their full phrases.'],
+  },
+  {
     version: '0.54.0',
     date: '2026-11-22',
-    changes: ['Emote buttons and chat messages now use single-word keywords.'],
+    changes: ['Emote buttons use single-word keywords.'],
   },
   {
     version: '0.53.0',

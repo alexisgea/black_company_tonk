@@ -98,7 +98,9 @@ test('every message key the client code uses exists in English', () => {
   const { EMOTES } = require('../server/emotes');
   for (const id of EMOTES) {
     assert.ok(`emote.${id}` in en, `emote ${id}`);
-    assert.match(en[`emote.${id}`], /^\S+$/, `"${id}" must be a single-word keyword`);
+    assert.ok(`emoteButton.${id}` in en, `button label for ${id}`);
+    assert.match(en[`emoteButton.${id}`], /^\S+$/, `"${id}" button label must be a single word`);
+    assert.notEqual(en[`emoteButton.${id}`], en[`emote.${id}`], `"${id}" button and spoken text must differ`);
   }
   for (const tone of TONES)
     for (const situation of SITUATIONS) {
