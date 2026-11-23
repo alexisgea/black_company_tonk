@@ -11,7 +11,7 @@ export function send(msg) {
   if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(msg));
 }
 export const sendAction = (action) => send({ t: 'action', action });
-export const sendHello = (name) => send({ t: 'hello', name, token: state.token, device: state.device });
+export const sendHello = (name) => send({ t: 'hello', name, portraitId: state.portraitId, token: state.token, device: state.device });
 
 // Asks to sit down (mode 'join') or watch at a table. A locked table first asks for its password.
 export function enterTable(game, mode, password) {
@@ -111,10 +111,12 @@ function onMessage(msg) {
       state.token = msg.token;
       state.you = msg.id;
       state.name = msg.name;
+      state.portraitId = msg.portraitId;
       state.bots = msg.bots ?? [];
       setEmotes(msg.emotes ?? [], msg.emoteCooldownMs);
       sessionStorage.setItem('tonk.token', msg.token);
       localStorage.setItem('tonk.name', msg.name);
+      localStorage.setItem('tonk.portrait', msg.portraitId);
       break;
     case 'replaced':
       state.replaced = true;

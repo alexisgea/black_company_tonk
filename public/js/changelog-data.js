@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.57.0',
+    date: '2026-11-23',
+    changes: ['Players can choose a portrait, and their selection appears at the table.'],
+  },
+  {
     version: '0.56.0',
     date: '2026-11-23',
     changes: ['Bots now show their assigned portraits, including a new portrait for Cordy.'],

@@ -18,10 +18,13 @@
   "credits.text": "Thanks to Glen Cook for his Black Company series. Based on the rules from John P. Speno and the Baltimore Science Fiction Society. Programming by Claude Sonnet 5.5 and Gemini with Copilot on VS Code, overall design by Alexis. For any feedback or bug report: {email}.",
 
   "name.placeholder": "Your name",
+  "name.choosePortrait": "Choose your portrait",
+  "name.portraitChoice": "Choose portrait {number}",
   "name.play": "Play",
   "name.required": "Please enter a name",
 
   "lobby.changeName": "Change name",
+  "lobby.changePortrait": "Change portrait",
   "lobby.createTable": "Create table",
   "lobby.inProgress": "in progress",
   "lobby.noTables": "No tables yet. Create one!",
@@ -675,6 +678,7 @@
   "err.malformed": "Malformed message",
   "err.nameRequired": "Please enter a name",
   "err.nameReserved": "That name is reserved for the bots, please pick another",
+  "err.portraitInvalid": "Please choose a valid portrait",
   "err.noFreeSeat": "There is no free seat right now",
   "err.noHand": "No hand in progress",
   "err.noHandToReorder": "No hand to reorder",

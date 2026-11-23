@@ -14,6 +14,8 @@ const { EMOTES, EMOTE_COOLDOWN_MS } = require('./emotes');
 const OPEN = 1; // ws.OPEN
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME = 20;
+const DEFAULT_PLAYER_PORTRAIT_ID = 'portrait-07';
+const PLAYER_PORTRAIT_IDS = new Set(Array.from({ length: 7 }, (_, index) => `portrait-${String(index + 1).padStart(2, '0')}`));
 const CHAT_BURST = 5; // messages allowed per window
 const CHAT_WINDOW_MS = 5000;
 const PASSWORD_GUESSES = 5; // wrong table passwords allowed per window
@@ -40,6 +42,12 @@ function requireHost(room, user, code) {
 
 const DEVICE_ID = /^[\w-]{8,64}$/;
 const cleanDevice = (raw) => (typeof raw === 'string' && DEVICE_ID.test(raw) ? raw : undefined);
+
+function cleanPortraitId(raw) {
+  if (raw === undefined || raw === null) return DEFAULT_PLAYER_PORTRAIT_ID;
+  if (typeof raw !== 'string' || !PLAYER_PORTRAIT_IDS.has(raw)) throw new GameError('portraitInvalid');
+  return raw;
+}
 
 // Tracks connected users and rooms, and routes protocol messages. Transport-agnostic:
 // a "conn" only needs send(string), close() and a readyState.
@@ -544,6 +552,7 @@ class Lobby {
     const name = cleanName(msg.name);
     if (!name) throw new GameError('nameRequired');
     if (isReservedName(name)) throw new GameError('nameReserved');
+    const portraitId = cleanPortraitId(msg.portraitId);
     let user = typeof msg.token === 'string' ? this.users.get(msg.token) : undefined;
     // A connection is one player. Another hello on it can only rename that player; it must not conjure up
     // extra users that stay behind (and count as "online") after the connection closes.
@@ -572,6 +581,7 @@ class Lobby {
       this.users.set(user.token, user);
     }
     user.device = cleanDevice(msg.device) ?? user.device;
+    user.portraitId = portraitId;
     if (!user.room) user.name = name;
     user.conn = conn;
     conn.user = user;
@@ -580,6 +590,7 @@ class Lobby {
       token: user.token,
       id: user.id,
       name: user.name,
+      portraitId: user.portraitId,
       bots: botCatalog(),
       emotes: EMOTES,
       emoteCooldownMs: EMOTE_COOLDOWN_MS,

@@ -7,9 +7,10 @@ const { JSDOM } = require('jsdom');
 
 let loadId = 0;
 async function setup() {
-  const { window } = new JSDOM('<!doctype html><div id="app"></div>');
+  const { window } = new JSDOM('<!doctype html><div id="app"></div>', { url: 'http://localhost' });
   const { document } = window;
   globalThis.document = document;
+  globalThis.localStorage = window.localStorage;
   const read = (file) => fs.readFileSync(path.join(__dirname, '..', 'public', 'js', file), 'utf8');
   const load = (source) => import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
   const dom = await load(read('dom.js') + `\n// ${++loadId}`);
@@ -19,6 +20,10 @@ async function setup() {
     view: 'room',
     you: 'host',
     name: 'Host',
+    portraitId: 'portrait-07',
+    showPortraits: false,
+    games: [],
+    online: 1,
     selected: new Set(),
     room: {
       id: 'table',
@@ -55,6 +60,7 @@ async function setup() {
     isSpectator: () => !state.room.players.some((p) => p.id === state.you),
     canAccuse: () => false,
     send: (msg) => sent.push(msg),
+    sendHello: (name) => sent.push({ t: 'hello', name }),
     sendAction: (action) => sent.push({ t: 'action', action }),
     render: () => redraw(),
     sidePanel: (id, title, ...children) => h('div', { class: id }, ...children),
@@ -72,19 +78,18 @@ async function setup() {
     delete globalThis.viewsTest;
     return mod;
   };
+  Object.assign(context, await loadClient('avatar.js'));
   Object.assign(context, await loadClient('name-tag.js'));
   const chatModule = await loadClient('chat.js');
   Object.assign(context, chatModule);
   for (const name of [
     'toast',
-    'sendHello',
     'connect',
     'enterTable',
     'classifyMeld',
     'layoffEnd',
     'cardLabel',
     'bubbleEl',
-    'avatar',
     'coin',
     'botLabel',
     'tableDialog',
@@ -144,6 +149,28 @@ test('leaving a waiting, playing or watched table requires confirmation and supp
     button('common.confirm').click();
     assert.deepEqual(sent.splice(0), [{ t: 'leaveGame' }]);
   }
+});
+
+test('players can choose a portrait before playing and change it from the lobby', async () => {
+  const { state, render, document, sent } = await setup();
+  localStorage.clear();
+  state.view = 'name';
+  render();
+  let choices = [...document.querySelectorAll('.portrait-choice')];
+  assert.equal(choices.length, 7);
+  choices[2].click();
+  assert.equal(state.portraitId, 'portrait-03');
+  assert.equal(localStorage.getItem('tonk.portrait'), 'portrait-03');
+
+  state.view = 'lobby';
+  render();
+  [...document.querySelectorAll('button')].find((button) => button.textContent === 'lobby.changePortrait').click();
+  choices = [...document.querySelectorAll('.portrait-choice')];
+  choices[6].click();
+  assert.equal(state.portraitId, 'portrait-07');
+  assert.equal(localStorage.getItem('tonk.portrait'), 'portrait-07');
+  assert.deepEqual(sent.at(-1), { t: 'hello', name: 'Host' });
+  assert.equal(document.querySelector('.portrait-picker'), null);
 });
 
 test('emotes are absent in the waiting room and available on the hand panel during play', async () => {

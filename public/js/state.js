@@ -1,10 +1,14 @@
 import { botName, t } from './i18n.js';
+import { DEFAULT_PLAYER_PORTRAIT_ID, PLAYER_PORTRAITS } from './avatar.js';
 
 const toastEl = document.getElementById('toast');
+const savedPortraitId = localStorage.getItem('tonk.portrait');
 
 export const state = {
   ws: null,
   name: localStorage.getItem('tonk.name') || '',
+  portraitId: PLAYER_PORTRAITS[savedPortraitId] ? savedPortraitId : DEFAULT_PLAYER_PORTRAIT_ID,
+  showPortraits: false,
   // Per tab (sessionStorage), so two tabs are two players instead of fighting over one seat.
   token: sessionStorage.getItem('tonk.token') || '',
   connected: false,

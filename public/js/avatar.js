@@ -15,9 +15,17 @@ export const BOT_PORTRAITS = {
   elmo: '/img/bot-portraits/portrait-13.png',
 };
 
+export const DEFAULT_PLAYER_PORTRAIT_ID = 'portrait-07';
+export const PLAYER_PORTRAITS = Object.fromEntries(
+  Array.from({ length: 7 }, (_, index) => {
+    const id = `portrait-${String(index + 1).padStart(2, '0')}`;
+    return [id, `/img/player-portraits/${id}.png`];
+  }),
+);
+
 // `mark` is an optional short text inside the frame (the random bot shows a "?").
-export function avatar({ mark = '', botId = null, empty = false, small = false } = {}) {
+export function avatar({ mark = '', botId = null, portraitId = null, empty = false, small = false } = {}) {
   const classes = ['avatar', empty ? 'empty' : '', small ? 'small' : ''].filter(Boolean).join(' ');
-  const portrait = BOT_PORTRAITS[botId];
+  const portrait = (botId && BOT_PORTRAITS[botId]) || PLAYER_PORTRAITS[portraitId];
   return h('span', { class: classes, 'aria-hidden': 'true' }, portrait ? h('img', { src: portrait, alt: '' }) : mark);
 }

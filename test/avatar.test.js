@@ -15,7 +15,7 @@ test('every bot has a portrait that the avatar component renders', async () => {
   globalThis.document = window.document;
   const { h } = await load(read('public', 'js', 'dom.js'));
   globalThis.avatarTest = { h };
-  const { avatar, BOT_PORTRAITS } = await load(
+  const { avatar, BOT_PORTRAITS, DEFAULT_PLAYER_PORTRAIT_ID, PLAYER_PORTRAITS } = await load(
     `const { h } = globalThis.avatarTest;\n${read('public', 'js', 'avatar.js').replace(/^import .*$/gm, '')}`,
   );
   delete globalThis.avatarTest;
@@ -26,6 +26,12 @@ test('every bot has a portrait that the avatar component renders', async () => {
     assert.ok(image, `${botId} should render an image`);
     assert.ok(fs.existsSync(path.join(ROOT, 'public', image.getAttribute('src').replace(/^\//, ''))), `${botId} image should exist`);
     assert.ok(element.classList.contains('small'));
+  }
+  assert.equal(DEFAULT_PLAYER_PORTRAIT_ID, 'portrait-07');
+  assert.equal(Object.keys(PLAYER_PORTRAITS).length, 7);
+  for (const [portraitId, src] of Object.entries(PLAYER_PORTRAITS)) {
+    assert.ok(avatar({ portraitId }).querySelector('img'), `${portraitId} should render an image`);
+    assert.ok(fs.existsSync(path.join(ROOT, 'public', src.replace(/^\//, ''))), `${portraitId} image should exist`);
   }
   delete globalThis.document;
 });

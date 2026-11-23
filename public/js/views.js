@@ -7,7 +7,7 @@ import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
 import { nameTag, roleMarks } from './name-tag.js';
-import { avatar } from './avatar.js';
+import { avatar, PLAYER_PORTRAITS } from './avatar.js';
 import { coin } from './coin.js';
 import { botLabel } from './bot-picker.js';
 import { tableDialog, tableDialogButton, openTableDialog } from './table-dialog.js';
@@ -31,6 +31,28 @@ const FEEDBACK_EMAIL = 'alexis@geaxle.com';
 const title = () => h('h1', null, t('app.title'));
 
 const playerTag = (p) => nameTag(playerName(p), { bot: p.isBot, host: p.id === state.room.hostId });
+
+function portraitPicker(onSelect, panel = false) {
+  const classes = ['portrait-picker', panel ? 'panel' : ''].filter(Boolean).join(' ');
+  return h(
+    'fieldset',
+    { class: classes },
+    h('legend', null, t('name.choosePortrait')),
+    Object.entries(PLAYER_PORTRAITS).map(([id]) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'portrait-choice',
+          'aria-label': t('name.portraitChoice', { number: id.slice(-2) }),
+          'aria-pressed': String(state.portraitId === id),
+          onClick: () => onSelect(id),
+        },
+        avatar({ portraitId: id }),
+      ),
+    ),
+  );
+}
 
 // Someone who left at the end of a hand keeps the name they had in it: the result remembers it.
 const leftName = (id, round) => {
@@ -158,7 +180,16 @@ function renderName() {
     'div',
     { class: 'screen' },
     title(),
-    h('div', { class: 'panel row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, t('name.play'))),
+    h(
+      'div',
+      { class: 'panel' },
+      h('div', { class: 'row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, t('name.play'))),
+      portraitPicker((id) => {
+        state.portraitId = id;
+        localStorage.setItem('tonk.portrait', id);
+        render();
+      }),
+    ),
     credits(),
   );
 }
@@ -211,8 +242,28 @@ function renderLobby() {
         },
         t('lobby.changeName'),
       ),
+      h(
+        'button',
+        {
+          class: 'secondary',
+          onClick: () => {
+            state.showPortraits = !state.showPortraits;
+            render();
+          },
+        },
+        t('lobby.changePortrait'),
+      ),
       h('button', { onClick: () => send({ t: 'createGame' }) }, t('lobby.createTable')),
     ),
+    state.showPortraits
+      ? portraitPicker((id) => {
+          state.portraitId = id;
+          localStorage.setItem('tonk.portrait', id);
+          state.showPortraits = false;
+          if (state.connected) sendHello(state.name);
+          render();
+        }, true)
+      : null,
     passwordPrompt(),
     h(
       'div',
@@ -345,7 +396,7 @@ function seat(p) {
   return h(
     'div',
     { class: 'seat' },
-    avatar({ botId: p.botId }),
+    avatar({ botId: p.botId, portraitId: p.portraitId }),
     h(
       'span',
       { class: 'seat-text' },
@@ -438,7 +489,7 @@ function renderSide(leaveBtn) {
         h(
           'div',
           { class: 'score-row' },
-          avatar({ small: true, botId: p.botId }),
+          avatar({ small: true, botId: p.botId, portraitId: p.portraitId }),
           h(
             'span',
             { class: 'score-name' },
@@ -554,7 +605,7 @@ function renderTable() {
       h(
         'div',
         { class: 'opp-head' },
-        avatar({ small: true, botId: info?.botId }),
+        avatar({ small: true, botId: info?.botId, portraitId: info?.portraitId }),
         h(
           'div',
           { class: 'opp-id' },

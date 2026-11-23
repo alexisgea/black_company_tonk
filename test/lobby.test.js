@@ -973,6 +973,34 @@ test('input validation', () => {
   assert.match(c.last('error').message, /reserved/i);
 });
 
+test('human portrait choices default safely and are shared with everyone at the table', () => {
+  const lobby = new Lobby();
+  const alice = fakeConn();
+  say(lobby, alice, { t: 'hello', name: 'Alice', portraitId: 'portrait-03' });
+  assert.equal(alice.last('welcome').portraitId, 'portrait-03');
+  say(lobby, alice, { t: 'createGame' });
+  const gameId = alice.last('room').room.id;
+
+  const bob = fakeConn();
+  say(lobby, bob, { t: 'hello', name: 'Bob' });
+  assert.equal(bob.last('welcome').portraitId, 'portrait-07');
+  say(lobby, bob, { t: 'joinGame', gameId });
+  const bobId = bob.last('welcome').id;
+  assert.equal(bob.last('room').room.players.find((p) => p.id === alice.last('welcome').id).portraitId, 'portrait-03');
+  assert.equal(alice.last('room').room.players.find((p) => p.id === bobId).portraitId, 'portrait-07');
+
+  say(lobby, alice, {
+    t: 'hello',
+    name: 'Alice',
+    portraitId: 'portrait-06',
+    token: alice.last('welcome').token,
+  });
+  assert.equal(bob.last('room').room.players.find((p) => p.id === alice.last('welcome').id).portraitId, 'portrait-06');
+
+  say(lobby, bob, { t: 'hello', name: 'Bob', portraitId: 'portrait-99', token: bob.last('welcome').token });
+  assert.equal(bob.last('error').code, 'portraitInvalid');
+});
+
 test('only the host can change the table settings, and everyone sees them', () => {
   const lobby = new Lobby();
   const { humans } = seatedGame(lobby);
