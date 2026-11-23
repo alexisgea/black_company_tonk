@@ -258,16 +258,30 @@ test('finished hands reveal each hand and show its total and coin change without
   assert.equal(document.querySelector('.me-panel .result-line .delta.pos').textContent, 'result.coins');
 });
 
-test('player balances stay visible beside each seat during a hand and after it ends', async () => {
+test('opponent portrait, name and balance stay visible during a hand and after it ends', async () => {
   const { render, state, round, document } = await setup();
   state.room.status = 'playing';
-  state.room.players.push({ id: 'bot', name: 'Bot', connected: true, isBot: true, coins: 37 });
+  state.room.players.push({ id: 'bot', name: 'Bot', connected: true, isBot: true, botId: 'croaker', coins: 37 });
   state.room.round = round;
 
   render();
+  assert.equal(document.querySelector('.opp-portrait').getAttribute('src'), '/img/bot-portraits/portrait-02.png');
+  assert.equal(document.querySelector('.opp .avatar'), null);
+  assert.equal(document.querySelector('.opp-id strong').textContent, 'Bot');
+  assert.ok(document.querySelector('.opp-id .purse'));
+  assert.ok(document.querySelector('.opp-head .dealer'));
   assert.equal(document.querySelector('.opp .purse').textContent, '37');
   assert.equal(document.querySelector('.me-panel .purse').textContent, '50');
 
+  state.room.players[1] = { id: 'bot', name: 'Guest', connected: true, portraitId: 'portrait-03', coins: 37 };
+  render();
+  assert.equal(document.querySelector('.opp-portrait').getAttribute('src'), '/img/player-portraits/portrait-03.png');
+  state.room.players.splice(1, 1);
+  render();
+  assert.equal(document.querySelector('.opp-portrait'), null);
+  assert.equal(document.querySelector('.opp .purse'), null);
+
+  state.room.players.push({ id: 'bot', name: 'Bot', connected: true, isBot: true, botId: 'croaker', coins: 37 });
   state.room.status = 'between';
   round.result = {
     type: 'down',

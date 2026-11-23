@@ -23,9 +23,13 @@ export const PLAYER_PORTRAITS = Object.fromEntries(
   }),
 );
 
+export function portraitSrc({ botId = null, portraitId = null } = {}) {
+  return (botId && BOT_PORTRAITS[botId]) || PLAYER_PORTRAITS[portraitId];
+}
+
 // `mark` is an optional short text inside the frame (the random bot shows a "?").
 export function avatar({ mark = '', botId = null, portraitId = null, empty = false, small = false } = {}) {
   const classes = ['avatar', empty ? 'empty' : '', small ? 'small' : ''].filter(Boolean).join(' ');
-  const portrait = (botId && BOT_PORTRAITS[botId]) || PLAYER_PORTRAITS[portraitId];
+  const portrait = portraitSrc({ botId, portraitId });
   return h('span', { class: classes, 'aria-hidden': 'true' }, portrait ? h('img', { src: portrait, alt: '' }) : mark);
 }

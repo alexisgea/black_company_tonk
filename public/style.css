@@ -263,10 +263,11 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .portrait-choice[aria-pressed="true"], .portrait-choice:hover, .portrait-choice:focus-visible { border-color: var(--accent); }
 .avatar.empty { border-style: dashed; border-color: #d8d0bf44; background: transparent; }
 .avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
-.opp { position: relative; }
-.opp-head { display: flex; align-items: center; gap: 8px; }
-.opp-id { overflow-wrap: anywhere; }
-.opp-id { flex: 1; min-width: 0; }
+.opp { position: relative; isolation: isolate; }
+.opp-portrait { position: absolute; z-index: -1; top: 0; right: 0; width: 65%; height: 100%; object-fit: cover; object-position: center top; border-radius: 0 10px 10px 0; opacity: 0.6; mask-image: linear-gradient(to right, transparent, black 45%); pointer-events: none; }
+.opp-head { display: flex; align-items: flex-start; gap: 8px; }
+.opp-id { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: right; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
+.opp-id .purse { display: block; }
 .purse { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .me-panel .purse { position: absolute; top: 12px; right: 12px; }
 .role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }

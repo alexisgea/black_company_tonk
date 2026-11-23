@@ -7,7 +7,7 @@ import { chat, fillChatLog, isChatAtBottom } from './chat.js';
 import { sidePanel } from './side-panels.js';
 import { bubbleEl, flavorEvents } from './callouts.js';
 import { nameTag, roleMarks } from './name-tag.js';
-import { avatar, PLAYER_PORTRAITS } from './avatar.js';
+import { avatar, portraitSrc, PLAYER_PORTRAITS } from './avatar.js';
 import { coin } from './coin.js';
 import { botLabel } from './bot-picker.js';
 import { tableDialog, tableDialogButton, openTableDialog } from './table-dialog.js';
@@ -580,6 +580,7 @@ function renderTable() {
   const oppEls = opponents.map((id) => {
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
+    const portrait = portraitSrc({ botId: info?.botId, portraitId: info?.portraitId });
     const cards = h('div', { class: 'cards' + (p.count > TIGHT_FROM ? ' tight' : '') });
     const revealedHand = over ? round.result.hands[id] : p.hand;
     if (revealedHand) revealedHand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
@@ -602,17 +603,17 @@ function renderTable() {
               }
             : null,
       },
+      portrait ? h('img', { class: 'opp-portrait', src: portrait, alt: '', 'aria-hidden': 'true' }) : null,
       h(
         'div',
         { class: 'opp-head' },
-        avatar({ small: true, botId: info?.botId, portraitId: info?.portraitId }),
+        roleMarks(id, round, { reserve: true }),
         h(
           'div',
           { class: 'opp-id' },
           h('strong', null, info ? playerTag(info) : leftName(id, round), info?.away ? ` (${t('player.botPlaying')})` : ''),
-          roleMarks(id, round, { reserve: true }),
+          purse(info),
         ),
-        purse(info),
       ),
       accuseControls(id, info),
       cards,
