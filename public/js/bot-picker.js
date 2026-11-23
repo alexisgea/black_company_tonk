@@ -82,7 +82,7 @@ function botCard(entry, full) {
         title: t('room.addBotNamed', { name }),
         onClick: () => send({ t: 'addBot', botId: id }),
       },
-      avatar(),
+      avatar({ botId: id }),
       h('span', { class: 'bot-name' }, name),
       h('span', { class: 'bot-label muted' }, botLabel(id)),
     ),

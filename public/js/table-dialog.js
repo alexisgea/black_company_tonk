@@ -76,7 +76,7 @@ function playerRow(p) {
   return h(
     'div',
     { class: 'tbl-player' },
-    avatar({ small: true }),
+    avatar({ small: true, botId: p.botId }),
     h(
       'span',
       {

@@ -254,6 +254,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 
 /* The empty frame for profile pictures; shared by seats and the bot grid. */
 .avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 2px solid var(--accent); background: #0003; color: var(--accent); font-family: var(--font-display); font-weight: 700; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
 .avatar.empty { border-style: dashed; border-color: #d8d0bf44; background: transparent; }
 .avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
 .opp { position: relative; }

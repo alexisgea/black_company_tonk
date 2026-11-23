@@ -345,7 +345,7 @@ function seat(p) {
   return h(
     'div',
     { class: 'seat' },
-    avatar(),
+    avatar({ botId: p.botId }),
     h(
       'span',
       { class: 'seat-text' },
@@ -438,7 +438,7 @@ function renderSide(leaveBtn) {
         h(
           'div',
           { class: 'score-row' },
-          avatar({ small: true }),
+          avatar({ small: true, botId: p.botId }),
           h(
             'span',
             { class: 'score-name' },
@@ -554,7 +554,7 @@ function renderTable() {
       h(
         'div',
         { class: 'opp-head' },
-        avatar({ small: true }),
+        avatar({ small: true, botId: info?.botId }),
         h(
           'div',
           { class: 'opp-id' },
