@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.59.0',
+    date: '2026-11-23',
+    changes: ['The lobby now shows your portrait, with smaller profile controls and a clearer button for updating your profile.'],
+  },
+  {
     version: '0.58.0',
     date: '2026-11-23',
     changes: ['Opponent tiles now show larger portraits behind the cards, with names and coins at the top.'],

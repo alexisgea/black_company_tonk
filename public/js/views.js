@@ -183,7 +183,12 @@ function renderName() {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, t('name.play'))),
+      h(
+        'div',
+        { class: 'row' },
+        input,
+        h('button', { onClick: () => go(document.getElementById('name-input')) }, t(state.you ? 'name.set' : 'name.play')),
+      ),
       portraitPicker((id) => {
         state.portraitId = id;
         localStorage.setItem('tonk.portrait', id);
@@ -229,12 +234,13 @@ function renderLobby() {
     h(
       'div',
       { class: 'panel row' },
+      avatar({ portraitId: state.portraitId }),
       h('span', null, tNodes('lobby.playingAs', { name: h('strong', null, state.name) })),
       h('span', { class: 'spacer' }),
       h(
         'button',
         {
-          class: 'secondary',
+          class: 'secondary small-btn',
           onClick: () => {
             state.view = 'name';
             render();
@@ -245,7 +251,7 @@ function renderLobby() {
       h(
         'button',
         {
-          class: 'secondary',
+          class: 'secondary small-btn',
           onClick: () => {
             state.showPortraits = !state.showPortraits;
             render();
