@@ -2,8 +2,8 @@
 const { text, allTranslations } = require('./i18n');
 
 // The computer players, strongest first: this is the order they are listed in when the host picks one. Edit it by hand
-// (it is finer than the rank in botprofiles.js, which only has four levels). The `id` never changes (profiles and
-// anything else that needs to know which bot it is use it).
+// (it is finer than the rank in botprofiles.js, which only has four levels). The `id` is the canonical identifier
+// used by profiles and anything else that needs to know which bot it is.
 // What people see is the name under "bot.<id>" in the locale files (public/locales), one per language; the English
 // name is what the server sends along, and players cannot take a bot's name in any language.
 const BOT_IDS = [
@@ -11,7 +11,7 @@ const BOT_IDS = [
   'croaker',
   'silent',
   'otto',
-  'bomanz',
+  'elmo',
   'willow-swan',
   'goblin',
   'hagop',
@@ -26,7 +26,7 @@ const BOT_TAGS = {
   'willow-swan': 'gambler',
   case: 'coward',
   'one-eye': 'tilter',
-  bomanz: 'amnesiac',
+  elmo: 'amnesiac',
   silent: 'savant',
   cordy: null,
   otto: null,

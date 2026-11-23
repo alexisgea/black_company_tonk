@@ -15,7 +15,7 @@ const BANTER_TONE = {
   croaker: 'grumbling',
   silent: null,
   otto: 'jovial',
-  bomanz: 'cold',
+  elmo: 'cold',
   'willow-swan': 'sly',
   goblin: 'sly',
   hagop: 'grumbling',

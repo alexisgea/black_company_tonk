@@ -85,7 +85,7 @@ const PROFILES = {
     thinkSpeed: 1.1,
   },
   // Amnesiac: Reasons about the odds very well but forgets what was discarded.
-  bomanz: {
+  elmo: {
     rank: 'veteran',
     memory: 0.1,
     calculating: 0.95,

@@ -1,9 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.55.1',
+    date: '2026-11-23',
+    changes: ["Elmo's name is now consistent throughout the game."],
+  },
+  {
     version: '0.55.0',
     date: '2026-11-23',
-    changes: ['Bomanz is now named Elmo.'],
+    changes: ['The veteran bot is now named Elmo.'],
   },
   {
     version: '0.54.1',
@@ -310,22 +315,22 @@ export const CHANGELOG = [
     version: '0.27.2',
     date: '2026-11-18',
     changes: [
-      'Willow Swan is a little weaker, closer to Otto and Bomanz, and Croaker a little stronger, so the gap between veterans and experts is clearer.',
+      'Willow Swan is a little weaker, closer to Otto and Elmo, and Croaker a little stronger, so the gap between veterans and experts is clearer.',
     ],
   },
   {
     version: '0.27.1',
     date: '2026-11-18',
     changes: [
-      'Computer players are truer to their characters: Silent ignores the table again, Bomanz has a poor memory again, The Lieutenant remembers better but guesses and slips more, Goblin is sloppier and Cordy a little less so. Their overall strength is about the same.',
+      'Computer players are truer to their characters: Silent ignores the table again, Elmo has a poor memory again, The Lieutenant remembers better but guesses and slips more, Goblin is sloppier and Cordy a little less so. Their overall strength is about the same.',
     ],
   },
   {
     version: '0.27.0',
     date: '2026-11-18',
     changes: [
-      'Every computer player now has a rank (rookie, regular, veteran or expert) that follows how well it does against the others: Expert are The Lady, Croaker and Silent, Veteran are Otto, Willow Swan and Bomanz, Regular are Hagop, Goblin and Case, and Rookie are One-Eye, The Lieutenant and Cordy.',
-      'Silent now keeps up with Croaker, Bomanz is stronger, and Willow Swan and Hagop sit closer together.',
+      'Every computer player now has a rank (rookie, regular, veteran or expert) that follows how well it does against the others: Expert are The Lady, Croaker and Silent, Veteran are Otto, Willow Swan and Elmo, Regular are Hagop, Goblin and Case, and Rookie are One-Eye, The Lieutenant and Cordy.',
+      'Silent now keeps up with Croaker, Elmo is stronger, and Willow Swan and Hagop sit closer together.',
     ],
   },
   {
@@ -339,7 +344,7 @@ export const CHANGELOG = [
     version: '0.26.0',
     date: '2026-11-18',
     changes: [
-      'The computer players are now twelve: Willow Swan, Case, One-Eye, Bomanz, Silent, Cordy, Otto, The Lady, Hagop, The Lieutenant, Goblin and Croaker. Elmo, Murgen, Gambler, Coward, Tilter, Amnesiac, Savant, Rookie and Veteran have left the table, and Croaker is reworked.',
+      'The computer players are now twelve: Willow Swan, Case, One-Eye, Elmo, Silent, Cordy, Otto, The Lady, Hagop, The Lieutenant, Goblin and Croaker; several earlier characters have left the table, and Croaker is reworked.',
     ],
   },
   {

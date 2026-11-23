@@ -581,7 +581,7 @@
   "rules.credits.gamecabinet": "Game Cabinet – Tonk",
 
   "bot.random": "Random",
-  "bot.bomanz": "Elmo",
+  "bot.elmo": "Elmo",
   "bot.case": "Case",
   "bot.cordy": "Cordy",
   "bot.croaker": "Croaker",
@@ -595,7 +595,7 @@
   "bot.the-lieutenant": "The Lieutenant",
   "bot.willow-swan": "Willow Swan",
 
-  "bot.bomanz.bio": "Reasons about the odds very well but forgets what was discarded.",
+  "bot.elmo.bio": "Reasons about the odds very well but forgets what was discarded.",
   "bot.case.bio": "Works out the odds very well, then never dares: almost never goes down early.",
   "bot.cordy.bio": "Still learning: weak at everything, and slow about it.",
   "bot.croaker.bio": "Whines about every hand while quietly counting every discard: observant, and dangerous over a long session.",
