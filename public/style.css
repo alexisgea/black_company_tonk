@@ -333,9 +333,6 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
 .info-wrap { flex: none; display: inline-flex; align-items: center; }
 .info-wrap .bot-info { position: static; width: 1.4rem; height: 1.4rem; padding: 0; font-size: 0.8125rem; }
 .tbl-player { position: relative; display: flex; align-items: center; gap: 8px; min-height: 2.4rem; }
-@media (max-width: 38rem) {
-  .lobby-footer-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 .tbl-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .tbl-seats .tbl-player { height: 3.4rem; }
 .tbl-seats .tbl-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.2; }
@@ -343,6 +340,9 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
 .kick-btn { flex: none; padding: 3px 10px; font-size: 0.8125rem; }
 .tbl-bots { margin-top: 8px; }
 .tbl-invite { margin-top: 18px; }
+@media (max-width: 38rem) {
+  .lobby-footer-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 760px) {
   .bot-grid { grid-template-columns: repeat(3, 1fr); }
   .bot-card:nth-child(n) .bot-pop { left: 50%; right: auto; transform: translateX(-50%); }
