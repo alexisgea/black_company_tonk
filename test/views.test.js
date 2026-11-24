@@ -155,15 +155,22 @@ test('players can choose a portrait before playing and change it from the lobby'
   const { state, render, document, sent } = await setup();
   localStorage.clear();
   state.view = 'name';
+  state.you = null;
   render();
+  assert.ok([...document.querySelectorAll('button')].some((button) => button.textContent === 'name.play'));
   let choices = [...document.querySelectorAll('.portrait-choice')];
   assert.equal(choices.length, 7);
   choices[2].click();
   assert.equal(state.portraitId, 'portrait-03');
   assert.equal(localStorage.getItem('tonk.portrait'), 'portrait-03');
 
+  state.you = 'host';
   state.view = 'lobby';
   render();
+  assert.equal(document.querySelector('.panel.row > .avatar img').getAttribute('src'), '/img/player-portraits/portrait-03.png');
+  for (const key of ['lobby.changeName', 'lobby.changePortrait']) {
+    assert.ok([...document.querySelectorAll('button')].find((button) => button.textContent === key).classList.contains('small-btn'));
+  }
   [...document.querySelectorAll('button')].find((button) => button.textContent === 'lobby.changePortrait').click();
   choices = [...document.querySelectorAll('.portrait-choice')];
   choices[6].click();
@@ -171,6 +178,15 @@ test('players can choose a portrait before playing and change it from the lobby'
   assert.equal(localStorage.getItem('tonk.portrait'), 'portrait-07');
   assert.deepEqual(sent.at(-1), { t: 'hello', name: 'Host' });
   assert.equal(document.querySelector('.portrait-picker'), null);
+  assert.equal(document.querySelector('.panel.row > .avatar img').getAttribute('src'), '/img/player-portraits/portrait-07.png');
+
+  [...document.querySelectorAll('button')].find((button) => button.textContent === 'lobby.changeName').click();
+  assert.ok(![...document.querySelectorAll('button')].some((button) => button.textContent === 'name.play'));
+  document.querySelector('#name-input').value = 'New name';
+  document.querySelectorAll('.portrait-choice')[1].click();
+  [...document.querySelectorAll('button')].find((button) => button.textContent === 'name.set').click();
+  assert.equal(state.portraitId, 'portrait-02');
+  assert.deepEqual(sent.at(-1), { t: 'hello', name: 'New name' });
 });
 
 test('emotes are absent in the waiting room and available on the hand panel during play', async () => {
@@ -258,14 +274,17 @@ test('finished hands reveal each hand and show its total and coin change without
   assert.equal(document.querySelector('.me-panel .result-line .delta.pos').textContent, 'result.coins');
 });
 
-test('opponent portrait, name and balance stay visible during a hand and after it ends', async () => {
+test('player and opponent portraits and balances stay visible during a hand and after it ends', async () => {
   const { render, state, round, document } = await setup();
   state.room.status = 'playing';
+  state.room.players[0].portraitId = 'portrait-07';
   state.room.players.push({ id: 'bot', name: 'Bot', connected: true, isBot: true, botId: 'croaker', coins: 37 });
   state.room.round = round;
 
   render();
   assert.equal(document.querySelector('.opp-portrait').getAttribute('src'), '/img/bot-portraits/portrait-02.png');
+  assert.equal(document.querySelector('.me-portrait').getAttribute('src'), '/img/player-portraits/portrait-07.png');
+  assert.equal(document.querySelector('.me-portrait').getAttribute('aria-hidden'), 'true');
   assert.equal(document.querySelector('.opp .avatar'), null);
   assert.equal(document.querySelector('.opp-id strong').textContent, 'Bot');
   assert.ok(document.querySelector('.opp-id .purse'));
@@ -296,4 +315,9 @@ test('opponent portrait, name and balance stay visible during a hand and after i
   render();
   assert.equal(document.querySelector('.opp .purse').textContent, '37');
   assert.equal(document.querySelector('.me-panel .purse').textContent, '50');
+  assert.ok(document.querySelector('.me-portrait'));
+
+  state.you = 'guest';
+  render();
+  assert.equal(document.querySelector('.me-portrait'), null);
 });

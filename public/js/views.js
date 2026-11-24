@@ -183,7 +183,12 @@ function renderName() {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'row' }, input, h('button', { onClick: () => go(document.getElementById('name-input')) }, t('name.play'))),
+      h(
+        'div',
+        { class: 'row' },
+        input,
+        h('button', { onClick: () => go(document.getElementById('name-input')) }, t(state.you ? 'name.set' : 'name.play')),
+      ),
       portraitPicker((id) => {
         state.portraitId = id;
         localStorage.setItem('tonk.portrait', id);
@@ -229,12 +234,13 @@ function renderLobby() {
     h(
       'div',
       { class: 'panel row' },
+      avatar({ portraitId: state.portraitId }),
       h('span', null, tNodes('lobby.playingAs', { name: h('strong', null, state.name) })),
       h('span', { class: 'spacer' }),
       h(
         'button',
         {
-          class: 'secondary',
+          class: 'secondary small-btn',
           onClick: () => {
             state.view = 'name';
             render();
@@ -245,7 +251,7 @@ function renderLobby() {
       h(
         'button',
         {
-          class: 'secondary',
+          class: 'secondary small-btn',
           onClick: () => {
             state.showPortraits = !state.showPortraits;
             render();
@@ -517,6 +523,8 @@ function renderTable() {
   const room = state.room;
   const round = room.round;
   const me = round.players[state.you];
+  const myInfo = room.players.find((player) => player.id === state.you);
+  const myPortrait = portraitSrc({ botId: myInfo?.botId, portraitId: myInfo?.portraitId });
   const inHand = !!me;
   const over = !!round.result;
   const tonkPhase = !over && round.phase === 'tonk';
@@ -607,13 +615,13 @@ function renderTable() {
       h(
         'div',
         { class: 'opp-head' },
-        roleMarks(id, round, { reserve: true }),
         h(
           'div',
           { class: 'opp-id' },
           h('strong', null, info ? playerTag(info) : leftName(id, round), info?.away ? ` (${t('player.botPlaying')})` : ''),
           purse(info),
         ),
+        roleMarks(id, round, { reserve: true }),
       ),
       accuseControls(id, info),
       cards,
@@ -775,7 +783,8 @@ function renderTable() {
       ? h(
           'div',
           { class: 'me-panel' + (myTurn ? ' turn' : '') },
-          purse(room.players.find((player) => player.id === state.you)),
+          myPortrait ? h('img', { class: 'me-portrait', src: myPortrait, alt: '', 'aria-hidden': 'true' }) : null,
+          purse(myInfo),
           roleMarks(state.you, round),
           h('div', { class: 'status' }, status),
           accusing && !state.confirmAccuse

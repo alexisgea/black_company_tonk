@@ -203,6 +203,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 0; }
 .opp.turn, .me-panel.turn { outline: 3px solid var(--accent); }
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
+.opp > .cards { margin-left: clamp(8px, 10%, 20px); }
 .opp.offline, .opp.away { opacity: 0.5; }
 
 /* Piles sit in the middle of the table. */
@@ -263,15 +264,17 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .portrait-choice[aria-pressed="true"], .portrait-choice:hover, .portrait-choice:focus-visible { border-color: var(--accent); }
 .avatar.empty { border-style: dashed; border-color: #d8d0bf44; background: transparent; }
 .avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
-.opp { position: relative; isolation: isolate; }
-.opp-portrait { position: absolute; z-index: -1; top: 0; right: 0; width: 65%; height: 100%; object-fit: cover; object-position: center top; border-radius: 0 10px 10px 0; opacity: 0.6; mask-image: linear-gradient(to right, transparent, black 45%); pointer-events: none; }
+.opp, .me-panel { position: relative; isolation: isolate; }
+.opp-portrait, .me-portrait { position: absolute; z-index: -1; top: 0; left: 0; height: 100%; object-fit: cover; object-position: center top; border-radius: 10px 0 0 10px; opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); pointer-events: none; }
+.opp-portrait { width: 65%; }
+.me-portrait { width: min(35%, 14rem); }
 .opp-head { display: flex; align-items: flex-start; gap: 8px; }
-.opp-id { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: right; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
+.opp-id { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: left; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
 .opp-id .purse { display: block; }
 .purse { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .me-panel .purse { position: absolute; top: 12px; right: 12px; }
 .role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
-.opp .role-marks { min-height: calc(0.75rem * 1.6 + 2px); }
+.opp .role-marks { justify-content: flex-end; min-height: calc(0.75rem * 1.6 + 2px); }
 .me-panel .role-marks { justify-content: center; margin: 0 0 4px; }
 .role-mark { position: relative; z-index: 3; display: inline-flex; align-items: center; gap: 0.35em; padding: 0 0.6em 0 0.45em; border: 1px solid var(--accent); border-radius: 999px; background: #0003; color: var(--accent); font-family: var(--font-display); font-size: 0.75rem; font-weight: 700; line-height: 1.6; white-space: nowrap; }
 .role-mark::before { content: ''; flex: none; }
@@ -385,7 +388,6 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
 .emote-box button:disabled { opacity: 0.45; cursor: default; }
 
 /* A player's latest words, hanging off their panel for a few seconds (BUBBLE_MS in callouts.js). */
-.me-panel { position: relative; }
 .bubble {
   position: absolute; z-index: 6; width: max-content; max-width: min(16rem, 90vw); padding: 6px 10px; border-radius: 10px;
   background: #e8dfcb; color: #1b1c1d; border: 1px solid var(--accent); box-shadow: 0 4px 12px #0008;
