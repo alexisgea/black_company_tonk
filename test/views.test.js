@@ -266,6 +266,43 @@ test('finished hands reveal each hand and show its total and coin change without
   assert.equal(document.querySelector('.me-panel .result-line .delta.pos').textContent, 'result.coins');
 });
 
+test('opponent card layout follows the actual hidden and revealed hand sizes', async () => {
+  const { render, state, round, document } = await setup();
+  state.room.status = 'playing';
+  state.room.round = round;
+  round.players.bot.hand = null;
+  round.players.bot.count = 6;
+  render();
+  const cards = document.querySelector('.opp > .cards');
+  assert.equal(cards.children.length, 6);
+  assert.equal(cards.style.getPropertyValue('--card-count'), '6');
+  assert.equal(cards.style.getPropertyValue('--card-steps'), '5');
+  assert.equal(cards.classList.contains('revealed'), false);
+
+  round.players.bot.count = 1;
+  render();
+  assert.equal(cards.children.length, 1);
+  assert.equal(cards.style.getPropertyValue('--card-count'), '1');
+  assert.equal(cards.style.getPropertyValue('--card-steps'), '1');
+
+  state.room.status = 'between';
+  round.result = {
+    type: 'down',
+    actor: 'host',
+    success: true,
+    names: { host: 'Host', bot: 'Bot' },
+    hands: { host: [0, 1], bot: [2, 3, 4] },
+    totals: { host: 3, bot: 12 },
+    deltas: { host: 5, bot: -5 },
+    winners: ['host'],
+  };
+  render();
+  assert.equal(cards.children.length, 3);
+  assert.equal(cards.style.getPropertyValue('--card-count'), '3');
+  assert.equal(cards.style.getPropertyValue('--card-steps'), '2');
+  assert.equal(cards.classList.contains('revealed'), true);
+});
+
 test('player and opponent portraits and balances stay visible during a hand and after it ends', async () => {
   const { render, state, round, document } = await setup();
   state.room.status = 'playing';

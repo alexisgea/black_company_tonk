@@ -569,8 +569,11 @@ function renderTable() {
     const p = round.players[id];
     const info = room.players.find((x) => x.id === id);
     const portrait = portraitSrc({ botId: info?.botId, portraitId: info?.portraitId });
-    const cards = h('div', { class: 'cards' + (p.count > TIGHT_FROM ? ' tight' : '') });
     const revealedHand = over ? round.result.hands[id] : p.hand;
+    const count = revealedHand ? revealedHand.length : p.count;
+    const cards = h('div', { class: 'cards' + (revealedHand ? ' revealed' : '') });
+    cards.style.setProperty('--card-count', Math.max(1, count));
+    cards.style.setProperty('--card-steps', Math.max(1, count - 1));
     if (revealedHand) revealedHand.forEach((c) => cards.append(cardEl(c, { size: 'mini' })));
     else for (let i = 0; i < p.count; i++) cards.append(cardEl(null, { back: true, size: 'small' }));
     return h(

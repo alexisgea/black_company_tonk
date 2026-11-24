@@ -203,8 +203,18 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 0; }
 .opp.turn, .me-panel.turn { outline: 3px solid var(--accent); }
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
-.opp-head, .opp > .cards { margin-left: 25%; }
-.opp > .cards { justify-content: flex-start; }
+.opp-head { margin-left: 25%; }
+.opp > .cards {
+  --opp-card-w: calc(22px * var(--card-scale));
+  --opp-card-gap: 2px;
+  --hand-width: calc(var(--card-count) * var(--opp-card-w) + (var(--card-count) - 1) * var(--opp-card-gap));
+  display: grid; grid-auto-flow: column;
+  grid-template-columns: repeat(var(--card-steps), minmax(0, 1fr)) var(--opp-card-w);
+  gap: var(--opp-card-gap); width: min(100%, var(--hand-width));
+  margin-left: clamp(0px, calc(100% - var(--hand-width)), 25%);
+}
+.opp > .cards.revealed { --opp-card-w: calc(36px * var(--card-scale)); }
+.opp > .cards:has(> .card:only-child), .opp > .cards:empty { grid-template-columns: var(--opp-card-w); }
 .opp.offline, .opp.away { opacity: 0.5; }
 
 /* Piles sit in the middle of the table. */
@@ -267,8 +277,8 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
 .opp, .me-panel { position: relative; isolation: isolate; }
 .opp-art { position: absolute; z-index: -1; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
-.opp-portrait { position: absolute; top: 0; left: -18%; width: 65%; height: auto; opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); }
-.me-portrait { position: absolute; z-index: -1; top: 0; left: 0; width: min(35%, 14rem); height: 100%; object-fit: cover; object-position: center top; border-radius: 10px 0 0 10px; opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); pointer-events: none; }
+.opp-portrait { position: absolute; top: 50%; left: 2%; width: 40%; height: 86%; object-fit: contain; object-position: left center; transform: translateY(-50%); opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); }
+.me-portrait { position: absolute; z-index: -1; top: 50%; left: 2%; width: min(28%, 10rem); height: 86%; object-fit: contain; object-position: left center; border-radius: 10px 0 0 10px; transform: translateY(-50%); opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); pointer-events: none; }
 .opp-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 2px; }
 .opp-id { display: contents; text-align: left; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
 .opp-id strong, .opp-id .purse { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -472,6 +482,8 @@ button.seat.empty:hover { background: #d8d0bf1a; border-color: var(--accent); }
   .opp-id { font-size: 0.875rem; }
   .opp .card.mini { --card-w: calc(28px * var(--card-scale)); --card-h: calc(39px * var(--card-scale)); font-size: calc(11px * var(--card-scale)); }
   .opp .cards { gap: 1px; }
+  .opp > .cards { --opp-card-gap: 1px; gap: var(--opp-card-gap); }
+  .opp > .cards.revealed { --opp-card-w: calc(28px * var(--card-scale)); }
   .opp .melds { gap: 4px; margin-top: 6px; }
   .opp .meld { padding: 4px; }
   .opp .meld .cards { gap: 1px; }
