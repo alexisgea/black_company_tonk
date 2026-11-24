@@ -151,7 +151,7 @@ test('leaving a waiting, playing or watched table requires confirmation and supp
   }
 });
 
-test('players can choose a portrait before playing and change it from the lobby', async () => {
+test('players can choose a portrait before playing and customise their profile from the lobby', async () => {
   const { state, render, document, sent } = await setup();
   localStorage.clear();
   state.view = 'name';
@@ -168,24 +168,16 @@ test('players can choose a portrait before playing and change it from the lobby'
   state.view = 'lobby';
   render();
   assert.equal(document.querySelector('.panel.row > .avatar img').getAttribute('src'), '/img/player-portraits/portrait-03.png');
-  for (const key of ['lobby.changeName', 'lobby.changePortrait']) {
-    assert.ok([...document.querySelectorAll('button')].find((button) => button.textContent === key).classList.contains('small-btn'));
-  }
-  [...document.querySelectorAll('button')].find((button) => button.textContent === 'lobby.changePortrait').click();
-  choices = [...document.querySelectorAll('.portrait-choice')];
-  choices[6].click();
-  assert.equal(state.portraitId, 'portrait-07');
-  assert.equal(localStorage.getItem('tonk.portrait'), 'portrait-07');
-  assert.deepEqual(sent.at(-1), { t: 'hello', name: 'Host' });
-  assert.equal(document.querySelector('.portrait-picker'), null);
-  assert.equal(document.querySelector('.panel.row > .avatar img').getAttribute('src'), '/img/player-portraits/portrait-07.png');
-
-  [...document.querySelectorAll('button')].find((button) => button.textContent === 'lobby.changeName').click();
+  const customise = [...document.querySelectorAll('button')].find((button) => button.textContent === 'lobby.customise');
+  assert.ok(customise.classList.contains('small-btn'));
+  customise.click();
   assert.ok(![...document.querySelectorAll('button')].some((button) => button.textContent === 'name.play'));
   document.querySelector('#name-input').value = 'New name';
-  document.querySelectorAll('.portrait-choice')[1].click();
+  choices = [...document.querySelectorAll('.portrait-choice')];
+  choices[6].click();
   [...document.querySelectorAll('button')].find((button) => button.textContent === 'name.set').click();
-  assert.equal(state.portraitId, 'portrait-02');
+  assert.equal(state.portraitId, 'portrait-07');
+  assert.equal(localStorage.getItem('tonk.portrait'), 'portrait-07');
   assert.deepEqual(sent.at(-1), { t: 'hello', name: 'New name' });
 });
 

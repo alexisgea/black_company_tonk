@@ -246,30 +246,10 @@ function renderLobby() {
             render();
           },
         },
-        t('lobby.changeName'),
-      ),
-      h(
-        'button',
-        {
-          class: 'secondary small-btn',
-          onClick: () => {
-            state.showPortraits = !state.showPortraits;
-            render();
-          },
-        },
-        t('lobby.changePortrait'),
+        t('lobby.customise'),
       ),
       h('button', { onClick: () => send({ t: 'createGame' }) }, t('lobby.createTable')),
     ),
-    state.showPortraits
-      ? portraitPicker((id) => {
-          state.portraitId = id;
-          localStorage.setItem('tonk.portrait', id);
-          state.showPortraits = false;
-          if (state.connected) sendHello(state.name);
-          render();
-        }, true)
-      : null,
     passwordPrompt(),
     h(
       'div',

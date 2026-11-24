@@ -21,11 +21,10 @@
   "name.choosePortrait": "Choose your portrait",
   "name.portraitChoice": "Choose portrait {number}",
   "name.play": "Play",
-  "name.set": "Set",
+  "name.set": "Confirm",
   "name.required": "Please enter a name",
 
-  "lobby.changeName": "Change name",
-  "lobby.changePortrait": "Change portrait",
+  "lobby.customise": "Customise",
   "lobby.createTable": "Create table",
   "lobby.inProgress": "in progress",
   "lobby.noTables": "No tables yet. Create one!",
