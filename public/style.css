@@ -201,6 +201,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   .opp:nth-child(4) { --opp-bubble-inline: auto 12px; }
 }
 .opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 0; }
+.opp:has(.bubble) { z-index: 1; }
 .opp.turn, .me-panel.turn { outline: 3px solid var(--accent); }
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
 .opp-head { margin-left: 25%; }

@@ -1,6 +1,11 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.60.5',
+    date: '2026-11-24',
+    changes: ['Opponent speech bubbles appear above other opponents.'],
+  },
+  {
     version: '0.60.4',
     date: '2026-11-24',
     changes: ['Opponent cards stay on one row, overlapping only when there is not enough room.'],
