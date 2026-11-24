@@ -279,6 +279,8 @@ test('player and opponent portraits and balances stay visible during a hand and 
   assert.equal(document.querySelector('.me-portrait').getAttribute('aria-hidden'), 'true');
   assert.equal(document.querySelector('.opp .avatar'), null);
   assert.equal(document.querySelector('.opp-id strong').textContent, 'Bot');
+  assert.ok(document.querySelector('.opp-id .name-tag').firstChild.classList.contains('helmet'));
+  assert.equal(document.querySelector('.opp-art').getAttribute('aria-hidden'), 'true');
   assert.ok(document.querySelector('.opp-id .purse'));
   assert.ok(document.querySelector('.opp-head .dealer'));
   assert.equal(document.querySelector('.opp .purse').textContent, '37');
@@ -312,4 +314,12 @@ test('player and opponent portraits and balances stay visible during a hand and 
   state.you = 'guest';
   render();
   assert.equal(document.querySelector('.me-portrait'), null);
+});
+
+test('host names start with their host icon', async () => {
+  const { render, document } = await setup();
+  render();
+  const tag = document.querySelector('.seat .name-tag');
+  assert.ok(tag.firstChild.classList.contains('host-star'));
+  assert.equal(tag.lastChild.textContent, 'Host');
 });

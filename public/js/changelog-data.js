@@ -1,6 +1,14 @@
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG = [
   {
+    version: '0.60.2',
+    date: '2026-11-24',
+    changes: [
+      'Opponent faces stay at the left edge, with names and coins aligned above the cards and dealer tags beside the coins.',
+      'Bot and host icons now precede names, and opponent names and balances stay on one line.',
+    ],
+  },
+  {
     version: '0.60.1',
     date: '2026-11-24',
     changes: ['Use one Customise button in the lobby to change your name or portrait, then confirm your changes.'],

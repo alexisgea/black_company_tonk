@@ -203,7 +203,8 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .opp { background: var(--panel); border-radius: 10px; padding: 8px 12px; min-width: 0; }
 .opp.turn, .me-panel.turn { outline: 3px solid var(--accent); }
 .opp .cards { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
-.opp > .cards { margin-left: clamp(8px, 10%, 20px); }
+.opp-head, .opp > .cards { margin-left: 25%; }
+.opp > .cards { justify-content: flex-start; }
 .opp.offline, .opp.away { opacity: 0.5; }
 
 /* Piles sit in the middle of the table. */
@@ -244,7 +245,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 
 .score-row { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 .score-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.mark { margin-left: 0.3em; }
+.mark { margin-right: 0.3em; }
 .helmet { display: inline-block; width: 1.15em; height: 0.78em; vertical-align: -0.05em; background: currentColor; -webkit-mask: url(img/helmet.png) center / contain no-repeat; mask: url(img/helmet.png) center / contain no-repeat; }
 .coin { display: inline-block; flex: none; width: 0.95em; height: 0.95em; margin: 0 0.3em; vertical-align: -0.12em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e6d08e, #b59a5b 55%, #8a7238); border: 1px solid #5e4d22; box-shadow: inset 0 0 0 0.12em #d9c27c66, 0 1px 2px #0008; }
 .host-star { color: var(--accent); }
@@ -265,16 +266,20 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .avatar.empty { border-style: dashed; border-color: #d8d0bf44; background: transparent; }
 .avatar.small { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: 0.8125rem; }
 .opp, .me-panel { position: relative; isolation: isolate; }
-.opp-portrait, .me-portrait { position: absolute; z-index: -1; top: 0; left: 0; height: 100%; object-fit: cover; object-position: center top; border-radius: 10px 0 0 10px; opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); pointer-events: none; }
-.opp-portrait { width: 65%; }
-.me-portrait { width: min(35%, 14rem); }
-.opp-head { display: flex; align-items: flex-start; gap: 8px; }
-.opp-id { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: left; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
-.opp-id .purse { display: block; }
+.opp-art { position: absolute; z-index: -1; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.opp-portrait { position: absolute; top: 0; left: -18%; width: 65%; height: auto; opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); }
+.me-portrait { position: absolute; z-index: -1; top: 0; left: 0; width: min(35%, 14rem); height: 100%; object-fit: cover; object-position: center top; border-radius: 10px 0 0 10px; opacity: 0.6; mask-image: linear-gradient(to left, transparent, black 45%); pointer-events: none; }
+.opp-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 2px; }
+.opp-id { display: contents; text-align: left; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
+.opp-id strong, .opp-id .purse { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.opp-id strong { grid-column: 1 / -1; }
+.opp-id .purse { grid-column: 1; grid-row: 2; }
+.opp-id .coin { margin-inline: 0.1em; }
 .purse { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .me-panel .purse { position: absolute; top: 12px; right: 12px; }
 .role-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
-.opp .role-marks { justify-content: flex-end; min-height: calc(0.75rem * 1.6 + 2px); }
+.opp .role-marks { grid-column: 2; grid-row: 2; justify-content: flex-end; margin-top: 0; min-height: calc(0.75rem * 1.6 + 2px); }
+.opp .role-mark { padding-inline: 0.25em; gap: 0.2em; font-size: 0.65rem; }
 .me-panel .role-marks { justify-content: center; margin: 0 0 4px; }
 .role-mark { position: relative; z-index: 3; display: inline-flex; align-items: center; gap: 0.35em; padding: 0 0.6em 0 0.45em; border: 1px solid var(--accent); border-radius: 999px; background: #0003; color: var(--accent); font-family: var(--font-display); font-size: 0.75rem; font-weight: 700; line-height: 1.6; white-space: nowrap; }
 .role-mark::before { content: ''; flex: none; }

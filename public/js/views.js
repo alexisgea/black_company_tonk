@@ -591,7 +591,7 @@ function renderTable() {
               }
             : null,
       },
-      portrait ? h('img', { class: 'opp-portrait', src: portrait, alt: '', 'aria-hidden': 'true' }) : null,
+      portrait ? h('div', { class: 'opp-art', 'aria-hidden': 'true' }, h('img', { class: 'opp-portrait', src: portrait, alt: '' })) : null,
       h(
         'div',
         { class: 'opp-head' },
